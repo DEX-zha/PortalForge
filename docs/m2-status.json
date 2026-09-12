@@ -1,31 +1,25 @@
 {
+    "summary":  "One f32 (X of the tfbPhysicsModel instance at level.bld+0x1A7780) changed from 91.73 to 99.73, entry re-encoded alone, archive verified and fully classified, patched through Riivolution: Sonic Boom spawns 8 units further along +X in every run while Hugo and the scenery stay in place. SC-004 satisfied with two identical formal runs after a screening run.",
     "gate":  "M2 — Controlled world mutation",
-    "status":  "UNKNOWN",
-    "validated_on":  null,
+    "confirmed_finding":  "level.physicsmodel.spawn-candidate",
+    "evidence":  [
+                     ".local/dolphin-evidence/experiments/m2-level_027_tutorial-e3-o1734528-1789248814839.json (2 identical patched runs, predicted spawn displacement observed in both)",
+                     ".local/dolphin-evidence/experiments/m2-level_027_tutorial-e3-o1734528-1789237564649.json (screening run, same effect)",
+                     ".local/dolphin-evidence/ram-diff2.json (live player position that located the record)",
+                     ".local/dolphin-evidence/experiments/m2-level_027_tutorial-e3-o3479944-1789236713623.json (negative result: ScriptSet position is not the spawn)"
+                 ],
+    "validated_on":  "2026-09-12",
     "prerequisites":  [
                           "M0",
                           "M1"
-                      ],
-    "details":  "docs/findings/world-entities.md, docs/findings/igz-objects.md, docs/experiments/README.md",
-    "evidence":  [
-                     ".local/dolphin-evidence/live-probe1.json (section-1 bytes resident in MEM1 at file offset + 0x80DBC020; live X poke verified, no visible effect)",
-                     ".local/dolphin-evidence/experiments/m2-level_027_tutorial-e3-o1137536-1789235411459.json (pipeline test: one f32 mutated in the nested level.bld, entry re-encoded alone, game loaded the level; prediction not observed -\u003e FAIL, finding stays UNKNOWN)"
-                 ],
-    "blocking_unknowns":  [
-                              "IGZ v5 object layout (section 0 second header, type-size table, section 1 object list) is not decoded; no entity transform has been located",
-                              "No finding in the world-entities category is LIKELY or CONFIRMED yet"
-                          ],
-    "tooling_ready":  [
-                          "ssa-archive experiment m2 (mutate one value, re-encode one entry, patch, repeated runs)",
-                          "ssa-archive experiment m2-judge (human observation, PASS/FAIL rule)",
-                          "ssa-archive experiment live-probe (RAM pattern search and live float pokes)",
-                          "scan floats/strings/identifiers, bindiff"
                       ],
     "does_not_validate":  [
                               "M3 duplication",
                               "M4A geometry",
                               "M4B collisions",
-                              "M5 playable scenario"
+                              "M5 playable scenario",
+                              "any property other than this spawn position"
                           ],
-    "pipeline_validated_on":  "2026-09-12"
+    "details":  "docs/findings/world-entities.md, docs/experiments/README.md",
+    "status":  "PASS"
 }

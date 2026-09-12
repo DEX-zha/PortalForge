@@ -3,7 +3,7 @@
 The user requires an operational Dolphin MCP as a preliminary step in project creation.
 
 - Read `docs/dolphin-mcp.md` before planning or implementing SSA archive/level features, and `docs/iga-v4.md` before touching archive code.
-- Gates: `node tools/ssa-archive/cli.mjs gates` prints M0..M5 from `docs/m*-status.json`. M0 is PASS (2026-09-12). M1 and M2 must both be PASS before substantial editor work (viewport, import, object creation, menu expansion); M0 does not validate archive round-trip or world mutation. The constitution (`.specify/memory/constitution.md`) records these invariants.
+- Gates: `node tools/ssa-archive/cli.mjs gates` prints M0..M5 from `docs/m*-status.json`. M0, M1 and M2 are PASS (2026-09-12), so size-preserving edits of CONFIRMED properties are permitted (FR-016); additions, deletions, duplication, geometry, collision and gameplay changes still wait for M3, M4A, M4B and M5. The constitution (`.specify/memory/constitution.md`) records these invariants.
 - Never infer readiness from `tools/list`, a process launch, a scheduled action, a successful boot of a Riivolution descriptor, or an empty/black screenshot alone. Consumption of a replaced file is proven by Dolphin's file monitor size line or a memory read; the rebuilt variants used for M1 are byte-different on purpose so the monitor can tell them apart.
 - Preserve the original WBFS and the existing Dolphin 2606a installation (never drive the user's own Dolphin process). Use the dedicated `.local/` profiles and replacement files for experiments.
 - Do not commit game data, figures, saves, memory dumps or captured game images. Local evidence stays in `.local/`.

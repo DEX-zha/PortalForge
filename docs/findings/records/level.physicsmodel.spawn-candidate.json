@@ -1,6 +1,6 @@
 {
   "updated": "2026-09-12",
-  "editable": false,
+  "editable": true,
   "id": "level.physicsmodel.spawn-candidate",
   "type": "f32be x, y, z then 161.0 (heading?)",
   "evidence": [
@@ -11,16 +11,20 @@
     {
       "experiment_id": "m2-level_027_tutorial-e3-o1734528-1789237564649",
       "summary": "Screening run: X 91.73 -> 99.73 in the served mutated level.bld moved the Skylander spawn visibly left toward the island edge, away from Hugo; camera followed; scenery unchanged (1 run, not yet SC-004)"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o1734528-1789248814839",
+      "summary": "X 91.73 -> 99.73 moved the Skylander spawn identically in 2/2 formal runs (plus the screening run); Hugo and scenery unchanged; mutated level.bld served (15 331 kB) each time"
     }
   ],
   "category": "world-entities",
-  "meaning": "The only tfbPhysicsModel of Level_027 with a non-zero position: (91.73, 10.31, 44.74), 0.7 units from the live Skylander start position, material RockA_01_MAT, a second position (91.52, 9.59, 48.17) with 160.0 near the end of the object. Candidate for the object the Skylander spawns on",
-  "structure": "tfbPhysicsModel instance at the tutorial start",
+  "meaning": "tfbPhysicsModel object at 0x1A76EC of the decoded level.bld: f32be x, y, z at +0x94 (91.73, 10.31, 44.74) followed by 161.0. Changing x by +8 spawns the Skylander 8 units further along +X at the tutorial start; Hugo and the scenery do not move. CONFIRMED by three in-game runs with the same input. Editable as a size-preserving float edit (FR-016).",
+  "structure": "Skylander spawn position (tfbPhysicsModel instance) in Level_027",
   "endian": "be",
   "location": {
     "offset": 1734528,
     "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
     "length": 12
   },
-  "confidence": "LIKELY"
+  "confidence": "CONFIRMED"
 }

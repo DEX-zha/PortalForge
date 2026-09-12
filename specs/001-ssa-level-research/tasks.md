@@ -142,7 +142,7 @@ Single Node.js package per [plan.md](plan.md): library and CLI in `tools/ssa-arc
 - [X] T055 [US2] Record `inputs.mutation` per `contracts/experiment-record.schema.json` with required fields `entry_index, offset, type, old_hex, new_hex, predicted_effect` where `predicted_effect` has `minLength: 1`, plus the referenced `finding_id` (FR-011)
 - [X] T056 [US2] Enforce the M2 PASS rule in `tools/ssa-archive/src/experiments/m2-mutation.mjs`: `status: "PASS"` only when every run has `crash_or_load_error: false` and `observed_effect` matches the prediction in both runs; a non-deterministic result leaves the finding unconfirmed and not exposed as editable (FR-012, SC-004, acceptance scenario 3)
 - [X] T057 [US2] Wire `experiment m2` into `tools/ssa-archive/cli.mjs` with exit 1 unless every run matches, then run it twice on the selected candidate
-- [ ] T058 [US2] Record the gate in `docs/m2-status.json` and promote the proven finding to `confidence: "CONFIRMED"` with `editable: true` in `docs/findings/transforms.md`, which the schema permits only when confidence is CONFIRMED
+- [X] T058 [US2] Record the gate in `docs/m2-status.json` and promote the proven finding to `confidence: "CONFIRMED"` with `editable: true` in `docs/findings/transforms.md`, which the schema permits only when confidence is CONFIRMED
 
 **Checkpoint**: M1 and M2 both decided. Editor work becomes permissible only if both are PASS (FR-015, SC-006)
 
