@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portalforge/ssa-archive/igz-object-graph",
+  "title": "IGZ v5 object graph",
+  "type": "object",
+  "required": ["file", "sha256", "size", "header", "sections", "types", "objects", "unparsed", "accounting"],
+  "properties": {
+    "file": {"type": "string"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "size": {"type": "integer", "minimum": 16},
+    "header": {"type": "object", "required": ["magic", "version", "words"], "properties": {"magic": {"const": 1229282817}, "version": {"const": 5}, "words": {"type": "array", "items": {"type": "integer"}}}},
+    "sections": {"type": "array", "items": {"type": "object", "required": ["index", "offset", "size", "align", "tag"], "properties": {"index": {"type": "integer"}, "offset": {"type": "integer"}, "size": {"type": "integer"}, "align": {"type": "integer"}, "tag": {"type": "integer"}}}},
+    "types": {"type": "array", "items": {"type": "object", "required": ["index", "name"], "properties": {"index": {"type": "integer"}, "name": {"type": "string"}, "size_hint": {"type": ["integer", "null"]}, "size_confidence": {"enum": ["CONFIRMED", "LIKELY", "UNKNOWN"]}}}},
+    "objects": {"type": "array", "items": {"type": "object", "required": ["offset", "size", "type", "type_name", "id"], "properties": {
+      "offset": {"type": "integer"}, "size": {"type": "integer", "minimum": 12}, "type": {"type": "integer"}, "type_name": {"type": "string"}, "id": {"type": "integer"},
+      "fields": {"type": "array", "items": {"type": "object", "required": ["offset", "kind"], "properties": {"offset": {"type": "integer"}, "kind": {"enum": ["u32", "f32", "string_ref", "object_ref", "flagged_ref", "unknown"]}, "value": {}, "target": {}}}}}}},
+    "unparsed": {"type": "array", "items": {"type": "object", "required": ["offset", "size"], "properties": {"offset": {"type": "integer"}, "size": {"type": "integer"}, "note": {"type": "string"}}}},
+    "accounting": {"type": "object", "required": ["objects", "unparsed", "padding", "total"], "properties": {"objects": {"type": "integer"}, "unparsed": {"type": "integer"}, "padding": {"type": "integer"}, "total": {"type": "integer"}}}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portalforge/ssa-archive/duplication-plan",
+  "title": "Entity duplication plan (M3)",
+  "type": "object",
+  "required": ["source", "changes", "insert_at", "updates", "new_id", "validation"],
+  "properties": {
+    "source": {"type": "object", "required": ["object_offset", "type_name", "finding_id"], "properties": {"object_offset": {"type": "integer"}, "type_name": {"type": "string"}, "finding_id": {"type": "string"}}},
+    "changes": {"type": "array", "items": {"type": "object", "required": ["field", "type", "old_hex", "new_hex"], "properties": {"field": {"type": "string"}, "type": {"type": "string"}, "old_hex": {"type": "string"}, "new_hex": {"type": "string"}}}},
+    "insert_at": {"type": "integer", "minimum": 0},
+    "updates": {"type": "array", "items": {"type": "object", "required": ["location", "field", "old", "new"], "properties": {"location": {"type": "integer"}, "field": {"type": "string"}, "old": {}, "new": {}}}},
+    "new_id": {"type": "integer"},
+    "validation": {"type": "object", "required": ["status", "failures"], "properties": {"status": {"enum": ["DRAFT", "VALID", "INVALID"]}, "failures": {"type": "array", "items": {"type": "object", "required": ["stage", "reason"], "properties": {"stage": {"enum": ["validation", "load", "count", "reference", "observation"]}, "reason": {"type": "string"}, "offset": {"type": "integer"}}}}}}
+  }
+}
