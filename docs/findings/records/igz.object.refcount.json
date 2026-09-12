@@ -1,0 +1,26 @@
+{
+  "id": "igz.object.refcount",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "u32 header word +4 (1..7 in the tutorial); runtime 0x04080000 | count",
+  "structure": "Header word +4 is the reference count: the number of pointer words that own the record",
+  "location": {
+    "offset": "object + 0x04 (also embedded sub-objects)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "For 21 213 of 21 680 detected records the word equals the number of confirmed pointer words (section 1 + section 5) targeting the record header; the 274 mismatches by -1 are the false headers the loader never touches, and the 98 table-listed records with one extra inbound word show that header-table entries are not counted (the table is not an owning reference). Shared embedded attributes match exactly (spawn owner +0x5C: 5 = 5 referrers, +0x78: 4 = 4, physics +0x70: 7 = 7). The spawn owner itself has refcount 1: its only owning reference is the back-pointer from its tfbPhysicsModel (+0x118); it is nevertheless constructed at load even when its table entry is redirected elsewhere, so construction does not follow ownership pointers from roots (see igz.loader.pointer-traversal for the revised model). A clone must carry consistent refcounts: 1 on a copied owner, and every shared target it points at should gain +1 (not done by igz clone-entity yet).",
+  "evidence": [
+    {
+      "probe": "scratch refcount.mjs over ptr-scan3-fixups.json",
+      "summary": "refcount == inbound confirmed pointers for 21 213/21 680 records; table-listed records: 2 701 equal, 98 off by one (table entry not counted)"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
+      "summary": "runtime word +4 = 0x04080000|count, incremented when the game takes references (tfbPhysicsModel +0x74 7 -> 10, RHSValueStack 1 -> 2)"
+    }
+  ]
+}

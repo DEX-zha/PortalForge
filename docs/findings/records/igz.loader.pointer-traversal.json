@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-13",
+  "updated": "2026-09-12",
   "editable": false,
   "id": "igz.loader.pointer-traversal",
   "category": "references",
@@ -21,6 +21,10 @@
     {
       "probe": "static reachability over the confirmed pointer words (scratch reach-vs-live.mjs)",
       "summary": "traversal from table+block roots over the 157 690 confirmed pointer words reaches 19 848 objects; 191 objects are both unreachable and unvisited; remaining differences come from the first-object root and inline lists"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789256232052",
+      "summary": "CONTRADICTION of the root hypothesis: with table entry #1074 redirected from the spawn owner to an appended clone (no relocation), the original owner and its physics model were fully constructed (class pointers, position copied) while the clone stayed raw and the load froze. Table entries do not drive construction; whatever enumerates objects reached the owner without any file pointer to its header other than its child back-pointer."
     }
   ]
 }

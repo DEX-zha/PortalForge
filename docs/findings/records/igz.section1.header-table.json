@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-13",
+  "updated": "2026-09-12",
   "editable": false,
   "id": "igz.section1.header-table",
   "category": "references",
@@ -21,6 +21,10 @@
     {
       "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
       "summary": "2 865 head words rebased to MEM1 pointers (2 858 entries + 6 block roots + 0x1C), count words zeroed, +0x04 -> class 0x80493758"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789256232052",
+      "summary": "Redirecting entry #1074 to an unconstructed appended object froze the load after the original objects were constructed: the table is post-processed after construction and expects constructed records (memory blocks with refcounts); it is not the construction root list"
     }
   ]
 }

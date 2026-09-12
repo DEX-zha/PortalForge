@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { GameSession, gameFromConfig, readScript, defaultScript, experimentsDir, gateStatus, local } from './run-game.mjs';
+import { GameSession, gameFromConfig, readScript, defaultScript, experimentsDir, gateStatus, local, evidence as evidenceDir } from './run-game.mjs';
 import { extractFile, samplePath } from '../disc/extract.mjs';
 import { extractToWorkspace, readManifest, schemaValidator } from '../workspace/manifest.mjs';
 import { verifyBuffer } from '../iga/verify.mjs';
@@ -20,14 +20,28 @@ const samplesRoot = path.join(local, 'samples');
 // and the object header (pattern address - header_delta, 16 bytes) is read back: a header whose type
 // word became a class pointer (0x8048xxxx) proves the loader visited that object (finding
 // igz.loader.pointer-traversal).
-async function probeMemory(session, probes, log) {
+// dump: {file_offset_of_pattern_object, section_offset, section_size, out} — when the first probe hits, the
+// resident section is located from that hit (base = hit header address - object file offset) and saved
+// to `out`, so a frozen load can be diffed offline like a ptr-scan dump.
+async function probeMemory(session, probes, log, dump = null) {
   const reads = [];
   if (!probes.length) return reads;
-  const { scanRam } = await import('./live-probe.mjs');
+  const { scanRam, snapshot } = await import('./live-probe.mjs');
   const { bridgeCall } = await import('../../../dolphin-mcp/runtime.mjs');
   let scan;
   try { scan = await scanRam(probes.map(p => p.pattern), { log, regions: [[0x80000000, 0x81800000]] }); }
   catch (e) { return [{ error: 'scan failed: ' + e.message }]; }
+  if (dump) {
+    const i = probes.findIndex(p => p.label === dump.probe_label);
+    const hit = i >= 0 ? scan[i].matches[0] : null;
+    if (hit) {
+      const header = parseInt(hit, 16) - (probes[i].header_delta ?? 0);
+      const base = header - dump.object_file_offset;
+      const start = base + dump.section_offset;
+      try { const bytes = await snapshot(start, start + dump.section_size, log); fs.writeFileSync(dump.out, bytes); reads.push({ address: start, bytes_hex: '', label: 'section-dump', hits: 1, base: '0x' + base.toString(16), file: dump.out }); log(`section dump: base 0x${base.toString(16)} -> ${dump.out}`); }
+      catch (e) { reads.push({ address: start, bytes_hex: '', label: 'section-dump', hits: 0, error: e.message }); }
+    } else reads.push({ address: 0, bytes_hex: '', label: 'section-dump', hits: 0, error: 'anchor probe not found' });
+  }
   for (let i = 0; i < probes.length; i++) {
     const p = probes[i];
     const hits = scan[i].matches.slice(0, 40);
@@ -45,13 +59,13 @@ async function probeMemory(session, probes, log) {
   return reads;
 }
 
-async function observe(session, label, target, { script, figure, archive, probes = [], log = console.log }) {
+async function observe(session, label, target, { script, figure, archive, probes = [], dump = null, log = console.log }) {
   const run = { label, target, monitor_lines: [], screenshots: [], log_excerpt: [], memory_reads: [], crash_or_load_error: false, observed_effect: '' };
   await session.launch(target, label);
   run.pid = session.pid; run.started = session.startedAt;
   try { run.trace = await session.runScriptSafe(readScript(script), { labelPrefix: label, onShot: f => run.screenshots.push(f), figure }); }
   catch (e) { run.crash_or_load_error = true; run.error = e.message; run.trace = e.trace ?? []; }
-  if (!run.crash_or_load_error && probes.length) run.memory_reads = await probeMemory(session, probes, log);
+  if (!run.crash_or_load_error && probes.length) run.memory_reads = await probeMemory(session, probes, log, dump ? { ...dump, out: dump.out.replace('%label%', label) } : null);
   run.monitor_lines = session.monitorLines(archive);
   try { await session.call('dolphin_ping'); } catch { run.crash_or_load_error = true; }
   run.log_excerpt = session.logSince().split(/\r?\n/).filter(l => /FileMon|PanicAlert|Fatal|Unable|Invalid/i.test(l)).slice(-40);
@@ -59,7 +73,7 @@ async function observe(session, label, target, { script, figure, archive, probes
   return run;
 }
 
-export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], log = console.log }) {
+export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], dumpSection = false, log = console.log }) {
   for (const g of ['m0', 'm1', 'm2']) if (gateStatus(g).status !== 'PASS') { const e = new Error(`${g.toUpperCase()} is not PASS`); e.exitCode = 2; throw e; }
   const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
   if (plan.validation?.status !== 'VALID') { const e = new Error('Duplication plan is not VALID'); e.exitCode = 1; throw e; }
@@ -83,8 +97,19 @@ export async function runM3({ archive, entry, planFile, clonedFile, predict, rep
     const patch = buildPatchWorkspace({ experimentId: id, game, replacements: [{ disc_path: archive, file: rebuilt, original: source }], outDir: path.join(local, 'patches', id), force: true, displayName: `M3 ${archive} clone` });
     record.inputs.patch_dir = patch.dir; record.inputs.descriptor = patch.descriptor; record.expected_monitor = monitorSize(built.buffer.length);
     record.inputs.probes = probes;
+    // Section dump anchored on the probe named 'original-physics' (the unmoved source record, whose
+    // file offset in the cloned file is known from the plan: source + register shift).
+    let dump = null;
+    if (dumpSection && probes.some(p => p.label === 'original-physics')) {
+      const { buildGraph } = await import('../igz/graph.mjs');
+      const cloned = fs.readFileSync(path.resolve(clonedFile ?? plan.output));
+      const gc = buildGraph(cloned, { fields: false }); const sc = gc.sections[gc.object_section];
+      const srcOffset = plan.source.object_offset + (plan.register_shift ?? 0) + (plan.source.type_name === 'tfbPhysicsModel' ? 0 : 0x94);   // owner block: physics follows the 0x94-byte owner
+      dump = { probe_label: 'original-physics', object_file_offset: srcOffset, section_offset: sc.offset, section_size: sc.size, out: path.join(evidenceDir, `%label%-section${gc.object_section}.bin`) };
+      record.inputs.section_dump = { anchor_object_file_offset: srcOffset, section_offset: sc.offset, section_size: sc.size };
+    }
     record.control = skipControl ? { label: 'skipped', pid: 0, started: '', finished: '', monitor_lines: [], screenshots: [], crash_or_load_error: false, note: 'control skipped by flag' } : await observe(session, `${id}-control`, game, { script, figure, archive, probes, log });
-    for (let i = 1; i <= repeat; i++) record.runs.push(await observe(session, `${id}-run${i}`, patch.descriptor, { script, figure, archive, probes, log }));
+    for (let i = 1; i <= repeat; i++) record.runs.push(await observe(session, `${id}-run${i}`, patch.descriptor, { script, figure, archive, probes, dump, log }));
     const crashed = record.runs.some(r => r.crash_or_load_error);
     record.status = crashed ? 'FAIL' : 'UNKNOWN'; record.failing_stage = crashed ? 'load' : null;
     record.notes = crashed ? 'a run crashed or lost the bridge with the cloned level' : `awaiting human judgement (experiment m2-judge --id ${id} --run <n> ...)`;

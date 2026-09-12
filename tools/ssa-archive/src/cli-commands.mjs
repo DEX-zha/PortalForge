@@ -104,7 +104,7 @@ export const commands = {
     if (kind === 'm3') {
       const { runM3 } = await import('./experiments/m3-duplicate.mjs');
       const probes = (o.probe ?? []).map(s => { const m = /^([0-9a-f]+)(?::(\d+))?(?::(.+))?$/i.exec(s); if (!m) throw new CliError(`--probe expects <hex pattern>[:<header delta>[:<label>]]: ${s}`); return { pattern: m[1].toLowerCase(), header_delta: Number(m[2] ?? 0), label: m[3] ?? `probe${m[1].slice(0, 8)}` }; });
-      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'], probes });
+      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'], probes, dumpSection: !!o['dump-section'] });
       return { result: r, exitCode: r.exitCode ?? (r.status === 'PASS' ? 0 : 1), text: `${r.status} (${r.failing_stage ?? 'ok'}): ${r.notes ?? ''}\n${r.output}` };
     }
     if (kind === 'm2-judge') {
