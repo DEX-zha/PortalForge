@@ -93,3 +93,19 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 ## Implementation Strategy
 
 MVP = US1 (object graph with accounting). US2 adds confirmed knowledge one field at a time, each with a 5 min screening run before a 10 min formal run. US3 is attempted only with a CONFIRMED record and a VALID plan; a documented FAIL is a legitimate outcome that names what blocks structural editing.
+
+---
+
+## Phase 7: Convergence
+
+Question driving this phase: why does the engine not instantiate a valid appended IGZ object, and which structure turns a record into a live gameplay object (M3 blocking unknown, `docs/m3-status.json`).
+
+- [ ] T031 Build a reverse-reference index and `igz refs <decoded file> <offset>` in `tools/ssa-archive/src/igz/refs.mjs` and `src/cli-commands.mjs`: for a target object, find every word in every section whose value resolves to it under each pointer convention (object-section-relative, absolute, flagged low 24 bits, other-section-relative) and list referrer objects with field offsets; apply it to the spawn record 0x1A76EC and record the owner chain as findings per FR-003 / research R4 (partial)
+- [ ] T032 Decode container objects in `tools/ssa-archive/src/igz/containers.mjs` (igObjectList, igNodeList, igNonRefCountedNodeList, igNonRefCountedAttrList, AbstractPlacementList, ActorWaypointList, ScriptSet lists): count, capacity, data pointer, element stride and members; expose `igz containers` and `igz members <offset>`; identify the container(s) holding the spawn record per FR-003 and the US3 edge cases (missing)
+- [ ] T033 Add `experiment ptr-scan` in `tools/ssa-archive/src/experiments/live-probe.mjs`: from state slot 6 with the figure loaded, scan MEM1/MEM2 for big-endian pointers equal to 0x80DBC020 + 0x1A76EC (and to the clone address in a patched run), map hits back to file objects with `igz match`, and record the runtime owners as findings per FR-004 / research R6 (missing)
+- [ ] T034 Extend `tools/ssa-archive/src/igz/clone.mjs` to register the clone in the container that owns the source (bump the count when capacity allows, otherwise relocate the element array and fix its pointer), update parent references found by T031, and re-validate the graph per FR-006 / US3 acceptance scenario 1 (partial)
+- [ ] T035 Rerun M3 with the registered clone (`experiment m3`, screening run then two formal runs), judge with `experiment m2-judge`, update `docs/m3-status.json` and `docs/experiments/README.md` per FR-007 / US3 acceptance scenario 2 (missing)
+- [ ] T036 If T035 still shows an inert clone, test the parent hypothesis: clone the referrer entity found by T031 together with its child references (leaf record as component), run twice, record PASS or the new blocking unknown per US3 acceptance scenario 3 and the identifier-scheme edge case (missing)
+- [ ] T037 Annotate `igz show` fields in `tools/ssa-archive/src/cli-commands.mjs` with the finding id, name and confidence when `docs/findings/records` describes that object type and field offset (the CONFIRMED spawn position at +0x94) per US1 acceptance scenario 2 (partial)
+- [ ] T038 Study the 0x01xxxxxx object ids in `tools/ssa-archive/research-probes/probe-igz-ids.mjs`: uniqueness and ordering across the tutorial and two Challenge levels, and whether ids appear as reference values elsewhere; record a finding per FR-003 and the identifier edge case (missing)
+- [ ] T039 Correlate the per-type u32 table with measured object sizes across three levels in `tools/ssa-archive/src/igz/types.mjs` and update finding `igz.section0.type-size-table` per SC-001 quality (partial)
