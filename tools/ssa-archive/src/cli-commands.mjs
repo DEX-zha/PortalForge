@@ -139,6 +139,25 @@ export const commands = {
       if (!ob) throw new CliError('No object at or before that offset', 1);
       return { result: ob, text: `${ob.type_name || 'type#' + ob.type} @0x${ob.offset.toString(16)} size=0x${ob.size.toString(16)} id=0x${ob.id.toString(16)}\n` + ob.fields.filter(f => f.kind !== 'unknown').map(f => `  +0x${(f.offset - ob.offset).toString(16).padStart(3, '0')} ${f.kind.padEnd(11)} ${f.kind === 'string_ref' ? '"' + f.target + '"' : f.kind === 'object_ref' ? `-> ${f.target.type_name}@0x${f.target.offset.toString(16)}` : f.kind === 'flagged_ref' ? '0x' + f.value.toString(16) : f.value}`).join('\n') };
     }
+    if (sub === 'near') {
+      const E = await import('./igz/entities.mjs');
+      const [x, y, z] = [pos[2], pos[3], pos[4]].map(Number);
+      if (![x, y, z].every(Number.isFinite)) throw new CliError('igz near needs x y z', 3);
+      const rows = E.near(buf, g, [x, y, z], { tol: o.tol ? Number(o.tol) : 3, includeDimensions: !o['no-dimensions'] && !!o.dimensions });
+      return { result: { target: [x, y, z], rows: rows.slice(0, o.limit ? Number(o.limit) : 40) }, text: rows.slice(0, o.limit ? Number(o.limit) : 40).map(r => `d=${r.distance.toFixed(2).padStart(6)} 0x${r.offset.toString(16)} ${r.object.type_name || 'type#'}@0x${r.object.offset.toString(16)}+0x${r.field.toString(16)} [${r.values.join(', ')}] ${r.flags.join(',')}`).join('\n') || '(no triple within tolerance)' };
+    }
+    if (sub === 'match') {
+      const M = await import('./igz/match.mjs');
+      const base = o.base ? Number(o.base) : M.DEFAULT_SECTION_BASE;
+      if (o.address) { const r = M.matchAddress(g, Number(o.address), { base }); return { result: r, text: r.object ? `${r.address} -> file 0x${r.file_offset.toString(16)} = ${r.object.type_name}@0x${r.object.offset.toString(16)}+0x${r.field.toString(16)}` : `${r.address} -> file 0x${r.file_offset.toString(16)}: no owning object` }; }
+      if (o.pattern?.length) { const r = M.matchPattern(buf, g, o.pattern[0]); return { result: r, text: r.hits.map(h => `0x${h.file_offset.toString(16)} ${h.object ? h.object.type_name + '@0x' + h.object.offset.toString(16) + '+0x' + h.field.toString(16) : 'no object'}`).join('\n') || '(no hit)' }; }
+      throw new CliError('igz match needs --address <ram address> or --pattern <hex>', 3);
+    }
+    if (sub === 'fields') {
+      const E = await import('./igz/entities.mjs');
+      const rows = E.fieldStatistics(buf, g).slice(0, o.limit ? Number(o.limit) : 40);
+      return { result: rows, text: rows.map(r => `${String(r.count).padStart(6)} ${(r.type_name || 'type#').padEnd(30)} +0x${r.field.toString(16)} boxes=${r.boxes}`).join('\n') };
+    }
     throw new CliError(`Unknown igz subcommand ${sub}`, 3);
   },
   async findings(pos, o) {

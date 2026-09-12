@@ -43,7 +43,7 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 ## Phase 3: User Story 1 - Read the object graph (P1)
 
 - [X] T012 [P] [US1] Write `tests/igz-fixtures.test.mjs`: skip without samples; on the tutorial `level.bld` assert 9 sections ending at the file size, 224 types, accounting equals total, and that the object at 0x1A76EC is `tfbPhysicsModel` with f32be (91.73, 10.31, 44.74) at +0x94
-- [ ] T013 [US1] Correlate `size_hint[type]` with measured object distances per type over the tutorial graph in `src/igz/types.mjs`; promote `size_confidence` to LIKELY only where at least 90 % of instances agree; record the finding `igz.section0.type-size-table` accordingly
+- [X] T013 [US1] Correlate `size_hint[type]` with measured object distances per type over the tutorial graph in `src/igz/types.mjs`; promote `size_confidence` to LIKELY only where at least 90 % of instances agree; record the finding `igz.section0.type-size-table` accordingly
 - [X] T014 [US1] Run `igz objects --out` on the tutorial and two Challenge levels (quickstart Scenario 1); record accounting results in `docs/findings/records/igz.object-graph.accounting.json`
 - [ ] T015 [US1] Decode the section-1 header and the 2 866-entry list (research.md R4) in `src/igz/refs.mjs`; document the flagged-pointer meaning as a finding (LIKELY or UNKNOWN) with the tested hypotheses
 
@@ -53,8 +53,8 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 
 ## Phase 4: User Story 2 - Entity records and transforms (P2)
 
-- [ ] T016 [P] [US2] Implement `src/igz/entities.mjs`: candidate position fields (f32be triples, world scale), dimension filter (multiples of 1.524), min/max pair detection, per-type field statistics
-- [ ] T017 [P] [US2] Implement `src/igz/match.mjs`: RAM address or pattern to `(object, field)` using the section base `0x80DBC020` (configurable) and the graph; wire `igz near|match`
+- [X] T016 [P] [US2] Implement `src/igz/entities.mjs`: candidate position fields (f32be triples, world scale), dimension filter (multiples of 1.524), min/max pair detection, per-type field statistics
+- [X] T017 [P] [US2] Implement `src/igz/match.mjs`: RAM address or pattern to `(object, field)` using the section base `0x80DBC020` (configurable) and the graph; wire `igz near|match`
 - [ ] T018 [US2] Locate Hugo: run `ram-diff`/`live-probe` during a dialogue where Hugo walks (or use his static position from the intro), match to the graph, record a finding UNKNOWN then LIKELY with two observations
 - [ ] T019 [US2] Screen and confirm three entity fields other than the spawn with `experiment m2 --repeat 1 --skip-control` then `--repeat 2`, judge each, promote or contradict findings (`docs/findings/world-entities.md`)
 - [ ] T020 [US2] Record every negative result in `docs/experiments/README.md` with its failing stage

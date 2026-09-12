@@ -46,7 +46,7 @@ const options = {
   category: { type: 'string' }, to: { type: 'string' }, probe: { type: 'string' }, summary: { type: 'string' }, limit: { type: 'string' },
   watch: { type: 'string', multiple: true }, finding: { type: 'string' }, run: { type: 'string' }, observed: { type: 'string' }, match: { type: 'string' },
   pattern: { type: 'string', multiple: true }, poke: { type: 'string', multiple: true }, 'save-slot': { type: 'string' },
-  histogram: { type: 'boolean', default: false },
+  histogram: { type: 'boolean', default: false }, tol: { type: 'string' }, 'no-dimensions': { type: 'boolean', default: false }, dimensions: { type: 'boolean', default: false }, base: { type: 'string' }, address: { type: 'string' },
 };
 
 export class CliError extends Error { constructor(message, exitCode = 3) { super(message); this.exitCode = exitCode; } }
