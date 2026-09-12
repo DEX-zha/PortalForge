@@ -2,6 +2,10 @@
 
 Projet de recherche sur les niveaux personnalisés de Skylanders: Spyro’s Adventure Wii.
 
+## Cadre : projet de recherche et de fan
+
+PortalForge est un projet **amateur, non commercial, de rétro-ingénierie à des fins de recherche et de préservation**. Il n'est affilié ni à Activision, ni à Toys for Bob, ni à Vicarious Visions, ni à Nintendo ; *Skylanders*, *Spyro's Adventure*, *Portal of Power* et les noms associés sont des marques de leurs propriétaires. Le dépôt ne contient et ne distribuera **aucune donnée du jeu** : ni image disque, ni archive, ni texture, ni son, ni sauvegarde, ni figurine, ni capture d'écran du jeu. Tout le travail s'effectue sur la copie légitime que possède le chercheur, via des fichiers de remplacement chargés à côté de l'image originale (Riivolution), jamais par modification de cette image. Les découvertes publiées ici décrivent des formats de fichiers et des méthodes expérimentales, avec leur niveau de confiance, pour permettre à d'autres de reproduire les expériences sur leur propre copie.
+
 L'étape préliminaire obligatoire est **M0 : Dolphin MCP opérationnel**, validée le 12 septembre 2026 (`docs/m0-status.json`). Son installation, ses essais réels et ses limites sont décrits dans [le dossier Dolphin MCP](docs/dolphin-mcp.md). La recherche IGA et le développement du toolkit peuvent commencer.
 
 La [spécification SSA](specs/001-ssa-level-research/spec.md) conserve les portes M1 (archive round-trip) et M2 (mutation contrôlée) avant tout éditeur. Les deux sont **PASS depuis le 12 septembre 2026** : les archives reconstruites se chargent en jeu, et une seule valeur modifiée dans `level.bld` (position d'apparition du Skylander) produit l'effet prédit de façon répétable (`docs/m1-status.json`, `docs/m2-status.json`).

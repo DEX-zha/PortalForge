@@ -2,6 +2,10 @@
 
 Node.js library and CLI for the PortalForge research gates M1 (archive round-trip) and M2 (controlled world mutation) on Skylanders: Spyro's Adventure Wii (`SSPP52`). Design: `specs/001-ssa-level-research/` (plan, research, data model, contracts, quickstart, tasks).
 
+## Scope
+
+Non-commercial fan research and preservation tooling. Not affiliated with Activision, Toys for Bob, Vicarious Visions or Nintendo. The toolkit only reads the user's own game copy, never modifies it, and this repository never carries game data (see the root README).
+
 ## Gate rule (FR-015)
 
 No editor, viewport, import, object-creation or menu-expansion code lives in this package until `docs/m1-status.json` and `docs/m2-status.json` both read `PASS`. Until then the toolkit only inspects, extracts, verifies, rebuilds, diffs, patches and runs experiments. Findings with confidence `UNKNOWN` or `LIKELY` are never exposed as editable properties (FR-013).
