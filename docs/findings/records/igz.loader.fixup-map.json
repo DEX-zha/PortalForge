@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.loader.fixup-map",
+  "category": "references",
+  "confidence": "LIKELY",
+  "type": "per-word rewrite rules observed between file and resident section 1",
+  "endian": "be",
+  "structure": "Load-time fixup of every visited IGZ object (section 1 resident at 0x80DBC020 + file offset)",
+  "location": {
+    "offset": "every object header and pointer field of section 1",
+    "file_pattern": "level/*.bld:level.bld (decoded) vs MEM1 while the level is loaded",
+    "length": 4
+  },
+  "meaning": "For each object the loader reaches: word +0 (type index) becomes a class pointer 0x8048xxxx-0x804Axxxx (66 classes seen), word +4 (refcount 1..7) becomes 0x04080000|refcount (incremented when the game takes references), word +8 (0x01xxxxxx id) becomes id + 0x101C3408, every section-relative offset (157 690 words) becomes 0x80DBC020 + 0x4B180 + value, string offsets (15 281 words) become pointers to interned strings outside the section, and class constructors fill runtime fields (45 206 function pointers, 33 623 filled words such as the spawn position copied from +0x94 to +0xAC of the tfbPhysicsModel). Words that are none of these stay byte-identical. The map is exact for the tutorial level and reproducible offline with `igz fixups <decoded> <dump>`.",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
+      "summary": "5 targets read back after state slot 6: type words -> 0x80485f48/0x80486514/0x80486f30/0x8049c738, ids +0x101C3408, 30 section-relative words rebased to base+offset, section-2 strings interned in MEM1"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
+      "summary": "Full 4 253 760-byte resident dump: 21 408/21 680 objects rewritten, 157 690 pointer words, 38 584 id words, 15 281 string words, 69 751 class words classified; 583 569 words unchanged"
+    }
+  ]
+}

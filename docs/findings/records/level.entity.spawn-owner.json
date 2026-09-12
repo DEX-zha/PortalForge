@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "level.entity.spawn-owner",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "type": "type-92 record (148 bytes) owning the tfbPhysicsModel through +0x3C; registered as header-table entry #1074",
+  "endian": "be",
+  "structure": "The spawn record is a component of a type-92 owner; the owner is the unit the engine instantiates",
+  "location": {
+    "offset": "0x1A7658 (owner) .. 0x1A7900 (end of its tfbPhysicsModel)",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 680
+  },
+  "meaning": "The CONFIRMED spawn tfbPhysicsModel (0x1A76EC) has exactly one file referrer: the type-92 record at 0x1A7658 (+0x3C), which itself is referenced only by header-table entry #1074. The owner holds three embedded sub-objects (+0x1C, +0x5C, +0x78; types 93/94/95), a child list at +0x30..+0x3C, shared pointers to 0x187E70/0x187BEC/0x1893E8 and the string \"Levels/Level_027/027_ART_MASTER.ma\". At runtime the physics model receives back-pointers to the owner (+0x6C, +0x118), heap links (+0x108, +0x134) and its position copied to +0xAC; a heap object (0x812299FC, scale 100,100,100) references the owner, and a heap pointer array (0x8121EA30) lists it with other table records. Among the 11 tfbPhysicsModel of the level only this one has a non-zero position and a type-92 owner. Duplicating the entity means copying [0x1A7658, 0x1A7900) as one block (igz clone-entity).",
+  "evidence": [
+    {
+      "probe": "ssa-archive igz refs / igz members (spec 002 T031-T032)",
+      "summary": "1 referrer of 0x1A76EC (0x1A7658+0x3C); 1 referrer of 0x1A7658 (table 0x4C248); no container lists either"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
+      "summary": "runtime referrers of the owner: table pointer, physics +0x6C/+0x118, heap 0x8121EA30 array, heap 0x812299FC object"
+    }
+  ]
+}

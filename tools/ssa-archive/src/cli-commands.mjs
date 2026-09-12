@@ -78,6 +78,24 @@ export const commands = {
       const r = await liveProbe({ script: o.script, figure: o.figure ?? null, label: o.label ?? 'live-probe', patterns: o.pattern ?? [], pokes, saveSlot: o['save-slot'] ? Number(o['save-slot']) : null });
       return { result: r, exitCode: r.status === 'DONE' ? 0 : 1, text: `${r.status} ${r.output}\n` + (r.scan ?? []).map(s => `${s.pattern.slice(0, 32)}…: ${s.matches.length} match(es) ${s.matches.slice(0, 5).join(' ')}`).join('\n') + (r.error ? '\nerror: ' + r.error : '') };
     }
+    if (kind === 'ptr-scan') {
+      const { ptrScan } = await import('./experiments/live-probe.mjs');
+      const { buildGraph } = await import('./igz/graph.mjs');
+      const fileBuf = o.file ? fs.readFileSync(path.resolve(o.file)) : null;
+      const graph = fileBuf ? buildGraph(fileBuf, { fields: false }) : null;
+      const targets = (o.address ?? '').split(',').filter(Boolean).map(Number);
+      if (!targets.length) throw new CliError('Missing --address <file offset|0x8... address>[,...]', 3);
+      const r = await ptrScan({ label: o.label ?? 'ptr-scan', stateSlot: o['save-slot'] ? Number(o['save-slot']) : 6, figure: o.figure ?? null, base: o.base ? Number(o.base) : undefined, targets, patterns: o.pattern ?? [], fileBuf, graph, mem2: !o['no-dimensions'], dumpSection: !!o.dimensions });
+      const lines = [`${r.status} ${r.output}`];
+      for (const t of r.targets) {
+        lines.push(`target ${t.target} ${t.object ? t.object.type_name + '@0x' + t.object.offset.toString(16) : ''} -> ${t.address}: ${t.referrers.length} referrer(s); resident words changed: ${t.resident_diff?.changed_words ?? '?'}`);
+        for (const w of t.resident_diff?.words ?? []) lines.push(`    ${w.field} file=${w.file} live=${w.live}${w.live_minus_base ? ' (=base+' + w.live_minus_base + ')' : ''}`);
+        for (const ref of t.referrers.slice(0, 40)) lines.push(`    ref @${ref.at}${ref.aligned ? '' : ' (unaligned)'} ${ref.in_section ? `in section: ${ref.object ? ref.object.type_name + '@0x' + ref.object.offset.toString(16) + '+0x' + ref.field.toString(16) : 'file 0x' + ref.file_offset.toString(16)}` : `heap, context@${ref.context_at}: ${ref.context}`}`);
+      }
+      for (const p of r.patterns) { lines.push(`pattern ${p.pattern.slice(0, 24)}…: ${p.hits.length} hit(s)`); for (const h of p.hits.slice(0, 20)) lines.push(`    @${h.at} ${h.in_section ? `in section ${h.object ? h.object.type_name + '@0x' + h.object.offset.toString(16) + '+0x' + h.field.toString(16) : ''}` : 'heap ' + (h.context ?? '')}`); }
+      if (r.error) lines.push('error: ' + r.error);
+      return { result: r, exitCode: r.status === 'DONE' ? 0 : 1, text: lines.join('\n') };
+    }
     if (kind === 'ram-diff') {
       const { ramDiff } = await import('./experiments/live-probe.mjs');
       const r = await ramDiff({ label: o.label ?? 'ram-diff', stateSlot: o['save-slot'] ? Number(o['save-slot']) : 6, figure: o.figure ?? null });
@@ -85,7 +103,8 @@ export const commands = {
     }
     if (kind === 'm3') {
       const { runM3 } = await import('./experiments/m3-duplicate.mjs');
-      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'] });
+      const probes = (o.probe ?? []).map(s => { const m = /^([0-9a-f]+)(?::(\d+))?(?::(.+))?$/i.exec(s); if (!m) throw new CliError(`--probe expects <hex pattern>[:<header delta>[:<label>]]: ${s}`); return { pattern: m[1].toLowerCase(), header_delta: Number(m[2] ?? 0), label: m[3] ?? `probe${m[1].slice(0, 8)}` }; });
+      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'], probes });
       return { result: r, exitCode: r.exitCode ?? (r.status === 'PASS' ? 0 : 1), text: `${r.status} (${r.failing_stage ?? 'ok'}): ${r.notes ?? ''}\n${r.output}` };
     }
     if (kind === 'm2-judge') {
@@ -164,6 +183,38 @@ export const commands = {
       const r = C.planClone(buf, { objectOffset: Number(need(pos[2], 'object offset')), findingId: need(o.finding, 'finding'), edits, appendToList: !!o['append-to-list'] });
       const written = C.writePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
       return { result: { ...r.plan, ...written, graph_after: r.graph_after }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `plan ${r.plan.validation.status}: clone of ${r.plan.source.type_name}@0x${r.plan.source.object_offset.toString(16)} at 0x${r.plan.insert_at.toString(16)} (+${r.plan.inserted_bytes} B, id 0x${r.plan.new_id.toString(16)}), ${r.plan.changes.length} edit(s), ${r.plan.updates.length} table update(s)` + (r.plan.validation.failures.length ? '\n' + r.plan.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n') : '') + `\n-> ${written.outFile}${written.planFile ? ' ; plan ' + written.planFile : ''}` };
+    }
+    if (sub === 'clone-entity') {
+      const R = await import('./igz/relocate.mjs');
+      const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });
+      const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
+      const r = R.planReachableClone(buf, fixups, { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, register: !o['no-register'], extraFindings: o['also-finding'] ?? [] });
+      const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
+      const p = r.plan;
+      return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status}: ${p.source.type_name}@0x${p.source.object_offset.toString(16)} block ${p.source.block_bytes} B -> clone @0x${p.insert_at.toString(16)} (+${p.inserted_bytes} B), table entry ${p.table_entry ? `#${p.table_entry.index}` : 'none'}, pointers internal ${p.pointers.internal} external ${p.pointers.external}, rebased after shift ${p.pointers.rebased_after_shift}, new ids ${p.new_ids.length}, edits ${p.changes.length}\n${p.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n')}${written.planFile ? '\nplan ' + written.planFile : ''}\nfile ${written.outFile}` };
+    }
+    if (sub === 'fixups') {
+      const { fixupMap } = await import('./igz/fixups.mjs');
+      const live = fs.readFileSync(path.resolve(need(pos[2], 'resident section dump')));
+      const m = fixupMap(buf, live, g, { base: o.base ? Number(o.base) : undefined });
+      const { pointer_words, id_words, head_pointer_words, objects, ...summary } = m;
+      if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify({ ...summary, head_pointer_words, pointer_words, id_words }));
+      return { result: summary, text: `visited ${m.visited}/${m.total} objects; id shift 0x${(m.id_shift ?? 0).toString(16)}; words: ${JSON.stringify(m.kinds)}\nheader area: ${m.head_changes} changed words, ${m.head_pointers} rebased pointers\nclasses seen: ${m.classes.length}; pointer words: ${pointer_words.length}${m.unvisited_range ? `\nunvisited range 0x${m.unvisited_range.min.toString(16)}..0x${m.unvisited_range.max.toString(16)}, visited objects inside that range: ${m.unvisited_range.visited_objects_inside}` : ''}\nunvisited by type: ${m.unvisited_by_type.slice(0, 20).map(u => `${u.count} ${u.key}`).join(', ') || '(none)'}\nunvisited (first 20): ${m.unvisited.slice(0, 20).map(u => `${u.type_name || 'type' + u.type}@0x${u.offset.toString(16)}`).join(' ')}` };
+    }
+    if (sub === 'refs') {
+      const { reverseReferences } = await import('./igz/refs.mjs');
+      const { ownerChain } = await import('./igz/containers.mjs');
+      const off = Number(need(pos[2], 'object offset'));
+      const hits = reverseReferences(buf, g, off);
+      const chain = o.depth ? ownerChain(buf, g, off, { depth: Number(o.depth) }) : null;
+      return { result: { target: off, hits, chain }, text: `${hits.length} reference(s) to 0x${off.toString(16)}\n` + hits.slice(0, 60).map(h => `  0x${h.file_offset.toString(16)} sec#${h.section} ${h.convention.padEnd(9)} value=0x${h.value.toString(16)}${h.referrer ? ` in ${h.referrer.type_name || 'type#'}@0x${h.referrer.offset.toString(16)}+0x${h.referrer.field.toString(16)}` : ''}`).join('\n') + (chain ? '\n' + chain.map((lvl, i) => `level ${i + 1}: ${[...new Set(lvl.filter(h => h.referrer).map(h => `${h.referrer.type_name}@0x${h.referrer.offset.toString(16)}`))].join(', ') || '(none)'}`).join('\n') : '') };
+    }
+    if (sub === 'containers' || sub === 'members') {
+      const { decodeContainers, containersOf } = await import('./igz/containers.mjs');
+      if (sub === 'members') { const off = Number(need(pos[2], 'object offset')); const cs = containersOf(buf, g, off); return { result: cs, text: cs.length ? cs.map(c => `${c.kind} ${c.container.type_name}@0x${c.container.offset.toString(16)} count=${c.count}${c.capacity ? '/' + c.capacity : ''} members[${c.members.indexOf(off)}]`).join('\n') : '(no container lists this object)' }; }
+      const cs = decodeContainers(buf, g).filter(c => !o.type || c.container.type_name === o.type);
+      const byType = new Map(); for (const c of cs) { const k = `${c.container.type_name || 'type#'} ${c.kind}`; const e = byType.get(k) ?? { count: 0, members: 0 }; e.count++; e.members += c.count; byType.set(k, e); }
+      return { result: { containers: cs.length, by_type: [...byType.entries()].map(([k, v]) => ({ key: k, ...v })), sample: cs.slice(0, o.limit ? Number(o.limit) : 20) }, text: [...byType.entries()].sort((a, b) => b[1].count - a[1].count).map(([k, v]) => `${String(v.count).padStart(6)} ${k.padEnd(40)} members=${v.members}`).join('\n') };
     }
     if (sub === 'fields') {
       const E = await import('./igz/entities.mjs');

@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.flagged-word.global-handle",
+  "category": "references",
+  "confidence": "LIKELY",
+  "type": "u32 with bit 31 set, low bits small (0x80000000, 0x80000004, 0x8000000A, 0x80000028, 0x800000CF, 0x800001A7)",
+  "endian": "be",
+  "structure": "Flagged words are indexes into a global handle table, not section pointers",
+  "location": {
+    "offset": "object fields (e.g. PlacementReference +0x18, tfbPhysicsModel +0x48, type-52 node +0x34)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "At load the flagged words become pointers to MEM1 addresses outside the resident section (0x80000000 -> 0x807AF3C0, 0x8000000A -> 0x806DFAF8, 0x800000CF -> 0x80990F44): the low bits index a global/shared resource table (materials, handles from other archives), so they must not be rebased when section 1 is relocated. Their exact table is UNKNOWN.",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
+      "summary": "tfbPhysicsModel +0x48 0x800000CF -> 0x80990F44; type-52 +0x34 0x80000000 -> 0x806F9F94; PlacementReference +0x18 0x80000000 -> 0x807AF3C0"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
+      "summary": "type-52 root 0x457588 +0x34 0x8000000A -> 0x806DFAF8; PlacementReference 0x1230C8 +0x18 -> 0x807AF3C0 (same global)"
+    }
+  ]
+}

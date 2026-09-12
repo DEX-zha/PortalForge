@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.loader.pointer-traversal",
+  "category": "references",
+  "confidence": "LIKELY",
+  "type": "traversal order of the loader (graph reachability, not sequential)",
+  "endian": "be",
+  "structure": "How the engine finds the objects it constructs: pointer traversal from the section-1 header roots",
+  "location": {
+    "offset": "section 1 + 0x1C (first object), + 0x20.. (table), block before the first object",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "The loader does not walk section 1 sequentially: 272 objects scattered between 0x186888 and 0x450C18 (CameraInfo 15, tfbActorInfo 15, ScriptSet 9, ValueInfo 11, Op*/Measurement/Slider script types ...) keep their raw file bytes in RAM while their neighbours are rewritten; 179 of them have no incoming pointer word at all. Every object with an incoming pointer from a rewritten object is itself rewritten. An object appended to section 1 without an incoming pointer is therefore never fixed up, never constructed and never becomes a gameplay entity: this is the structural cause of the first M3 failure (clone appended and written into a word inside an object, not into any list). Making a clone alive requires a pointer from a visited structure: for the spawn owner that structure is the section-1 header table (entry #1074), so the reachable clone adds a table entry and rebases all 160 575 shifted pointer words.",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
+      "summary": "272 unvisited objects scattered among 21 408 visited ones (18 373 visited objects lie inside the unvisited range); 179/272 have no confirmed pointer to them"
+    },
+    {
+      "probe": "static reachability over the confirmed pointer words (scratch reach-vs-live.mjs)",
+      "summary": "traversal from table+block roots over the 157 690 confirmed pointer words reaches 19 848 objects; 191 objects are both unreachable and unvisited; remaining differences come from the first-object root and inline lists"
+    }
+  ]
+}

@@ -18,6 +18,15 @@ Script `tools/ssa-archive/src/experiments/input-scripts/level-027-entry.json`, r
 
 `ssa-archive experiment live-probe --pattern <hex>... --poke match:<i>:<offset>=<value>[=<wait>] [--save-slot n]` boots the plain dump, enters the tutorial, searches MEM1/MEM2 for byte patterns copied from a decoded IGZ, writes a float at a found address and keeps before/after screenshots. Run `live-probe1` (2026-09-12) found the section-1 bytes of `level.bld` resident in MEM1 at `file offset + 0x80DBC020` and saved a native state in slot 6 at the tutorial start, which future probes can restore instead of replaying the 4.6 min entry script (state files live in `.local/dolphin-user/StateSaves/`, same game only, original level data).
 
+## Runtime pointer scans (M3 convergence, 2026-09-13)
+
+`ssa-archive experiment ptr-scan --file <decoded level.bld> --address <file offset>[,...] [--pattern <hex>] [--dimensions] --figure <.sky>` boots the plain dump, loads the figure, restores state slot 6 (tutorial start), snapshots MEM1 (and MEM2), reads back the resident bytes of each target object and diffs them against the file, then searches the snapshot for pointers to each target. `--dimensions` also dumps the whole resident object section to `.local/dolphin-evidence/<label>-section1.bin`; `igz fixups <decoded> <dump>` turns that dump into the complete fixup map (which words are pointers, ids, strings, class pointers; which objects the loader visited). One boot each, no archive mutation.
+
+| Run | What it showed |
+| --- | --- |
+| `ptr-scan1` | Loader rewrites visited objects in place: type → class pointer, refcount → `0x0408000N`, id `+0x101C3408`, section-relative offsets → `0x80DBC020 + 0x4B180 + value`, strings interned in MEM1, flagged `0x8000000N` words → global table pointers. The spawn `tfbPhysicsModel` gains back-pointers to its type-92 owner (+0x6C, +0x118), heap links (+0x108, +0x134) and its position copied to +0xAC. The owner is referenced at runtime by the header table, by a heap pointer array (`0x8121EA30`) and by a heap object (`0x812299FC`). 100 heap copies of the spawn position triple exist (objects with class `0x80485BA0`). A heap descriptor at `0x81220634` lists section 1 in MEM1 and sections 2..8 in MEM2. |
+| `ptr-scan2` | Full section dump: 21 408 / 21 680 objects rewritten; 272 untouched objects scattered among rewritten ones, 179 of them with no incoming pointer → the loader follows pointers from the section-1 header roots instead of walking the section; 157 690 pointer words, 38 584 id words identified. Basis of `igz clone-entity` (reachable clone with header-table registration). |
+
 ## Index
 
 | Id | Kind | Archive | Variant / mutation | Status | Summary |

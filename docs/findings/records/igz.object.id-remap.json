@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.object.id-remap",
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "type": "u32 0x01xxxxxx per object header (+8) and per embedded sub-object",
+  "endian": "be",
+  "structure": "Object ids are relocated by a constant at load",
+  "location": {
+    "offset": "object + 0x08 (and +0x08 of embedded records)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "All 38 584 id words of the tutorial become id + 0x101C3408 at load (0x01011102 -> 0x111D450A). Ids are therefore relative handles inside one file, unique within it; a clone needs fresh ids (max+1 ...) rather than a copy of the source id. Heap gameplay objects carry ids of another range (0x12FDxxxx).",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
+      "summary": "ids of 5 objects: constant delta 0x101C3408"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
+      "summary": "38 584 id words, one delta"
+    }
+  ]
+}

@@ -1,22 +1,26 @@
 {
-    "updated":  "2026-09-12",
-    "editable":  false,
-    "id":  "level.bld.resident-in-mem1",
-    "type":  "byte image",
-    "evidence":  [
-                     {
-                         "probe":  "ssa-archive experiment live-probe (live-probe1.json)",
-                         "summary":  "3/3 patterns matched once with consistent deltas; poke verified by read-back"
-                     }
-                 ],
-    "category":  "references",
-    "meaning":  "Section-1 bytes of the decoded nested level.bld are found in MEM1 at file_offset + 0x80DBC020 (three independent 32-byte patterns, one match each). Live memory edits through dolphin_write_float therefore target the same bytes an archive mutation would change; a native state saved at the tutorial start (slot 6) allows fast repeated probes",
-    "structure":  "Decoded level.bld loaded verbatim into MEM1",
-    "endian":  "be",
-    "location":  {
-                     "offset":  "0x80DBC020 + file offset",
-                     "file_pattern":  "RAM while level/Level_027_Tutorial is loaded",
-                     "length":  1
-                 },
-    "confidence":  "LIKELY"
+  "updated": "2026-09-12",
+  "editable": false,
+  "id": "level.bld.resident-in-mem1",
+  "type": "byte image",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment live-probe (live-probe1.json)",
+      "summary": "3/3 patterns matched once with consistent deltas; poke verified by read-back"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json, ptr-scan2.json)",
+      "summary": "two further boots from state slot 6: every rebased pointer equals 0x80DBC020 + file offset; heap descriptor at 0x81220634 lists section 1 at 0x80E071A0 (MEM1) and sections 2..8 in MEM2 (0x911C3408 ...)"
+    }
+  ],
+  "category": "references",
+  "meaning": "Section-1 bytes of the decoded nested level.bld are found in MEM1 at file_offset + 0x80DBC020 (three independent 32-byte patterns, one match each). Live memory edits through dolphin_write_float therefore target the same bytes an archive mutation would change; a native state saved at the tutorial start (slot 6) allows fast repeated probes",
+  "structure": "Decoded level.bld loaded verbatim into MEM1",
+  "endian": "be",
+  "location": {
+    "offset": "0x80DBC020 + file offset",
+    "file_pattern": "RAM while level/Level_027_Tutorial is loaded",
+    "length": 1
+  },
+  "confidence": "LIKELY"
 }

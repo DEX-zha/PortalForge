@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.section1.header-table",
+  "category": "references",
+  "confidence": "LIKELY",
+  "type": "u32[8] header + u32[count-8] section-relative offsets + 0x1C-byte block",
+  "endian": "be",
+  "structure": "Section-1 header table: registration list of the refcounted record family, root of the loader traversal",
+  "location": {
+    "offset": "section 1 + 0x00 .. + (count*4) + 0x1C",
+    "file_pattern": "level/*.bld:level.bld (decoded); tutorial: 0x4B180..0x4DE64",
+    "length": 4
+  },
+  "meaning": "Header words: {0, 0, 0, count, count, 0x80000000|count*4, 0x1C, count*4+0x1C}; count (0xB32 = 2 866 in the tutorial) counts u32 words from the section start including the 8 header words, so the offsets array holds count-8 entries (2 858) and the flagged word is the table end; the block of 7 words that follows holds 6 more section-relative roots (two 0x40-byte type-52 nodes and four RHSValueStack objects at the end of the section) plus 0x800001A7. Every entry is a section-relative offset of a record whose header is {type, refcount 1..6, 0x01xxxxxx}; the family is types 52, 54, 58, 83, 90, 92, 104, 151, 160 (all instances of 52 and 92, e.g. the spawn owner at entry #1074), 68, 88, 151. There are no null (0xFFFFFFFF) slots: the 35 nulls reported earlier were words inside objects, because the array had been placed after its end pointer. At runtime the header becomes an object (class 0x80493758 at +4, count words zeroed, +0x1C -> first object) and every entry becomes a pointer; a heap array copies {first object, entries...}. Growing the table by one entry is possible with the fixup map (igz clone-entity).",
+  "evidence": [
+    {
+      "probe": "ssa-archive scratch census (table-census/table-words/table-targets.mjs)",
+      "summary": "2 858 entries: 1 123 land on {type,1,id} headers, 1 735 on {type,2..6,id} records inside detected objects; target word0 in {52,54,58,83,90,92,104,151,160}; ascending in stride groups; 0 nulls"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
+      "summary": "2 865 head words rebased to MEM1 pointers (2 858 entries + 6 block roots + 0x1C), count words zeroed, +0x04 -> class 0x80493758"
+    }
+  ]
+}

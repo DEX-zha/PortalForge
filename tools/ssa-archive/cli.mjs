@@ -47,7 +47,8 @@ const options = {
   watch: { type: 'string', multiple: true }, finding: { type: 'string' }, run: { type: 'string' }, observed: { type: 'string' }, match: { type: 'string' },
   pattern: { type: 'string', multiple: true }, poke: { type: 'string', multiple: true }, 'save-slot': { type: 'string' },
   histogram: { type: 'boolean', default: false }, tol: { type: 'string' }, 'no-dimensions': { type: 'boolean', default: false }, dimensions: { type: 'boolean', default: false }, base: { type: 'string' }, address: { type: 'string' },
-  set: { type: 'string', multiple: true }, plan: { type: 'string' }, 'append-to-list': { type: 'boolean', default: false }, file: { type: 'string' },
+  set: { type: 'string', multiple: true }, plan: { type: 'string' }, 'append-to-list': { type: 'boolean', default: false }, file: { type: 'string' }, depth: { type: 'string' },
+  end: { type: 'string' }, fixups: { type: 'string' }, 'no-register': { type: 'boolean', default: false }, probe: { type: 'string', multiple: true }, 'also-finding': { type: 'string', multiple: true },
 };
 
 export class CliError extends Error { constructor(message, exitCode = 3) { super(message); this.exitCode = exitCode; } }

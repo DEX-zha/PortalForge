@@ -93,6 +93,85 @@ export async function ramDiff({ label = 'ram-diff', game = gameFromConfig(), sta
   return report;
 }
 
+// Runtime pointer scan (spec 002 T033). From a native state (tutorial start, figure on the Portal):
+//   1. snapshot MEM1 (+ MEM2 unless disabled);
+//   2. for each target (file offset in the decoded level.bld, or a raw 0x8xxxxxxx address) read back the
+//      resident bytes and diff them against the file bytes -> which header words the loader rewrote;
+//   3. search the snapshot for big-endian pointers equal to each target address; every hit is mapped to
+//      the file object/field when it lies inside the resident section, otherwise 64 bytes of context are
+//      kept (heap object owning the reference);
+//   4. optional hex patterns (e.g. the spawn position triple) are searched too, to find live copies.
+// One boot, no archive mutation. The report feeds findings (UNKNOWN -> LIKELY), never a gate.
+export async function ptrScan({ label = 'ptr-scan', game = gameFromConfig(), stateSlot = 6, figure = null, base = 0x80DBC020, targets = [], patterns = [], fileBuf = null, graph = null, mem2 = true, contextBytes = 64, dumpSection = false, log = console.log } = {}) {
+  const { matchAddress } = await import('../igz/match.mjs');
+  const session = await new GameSession(log).connect();
+  const regions = mem2 ? REGIONS : [REGIONS[0]];
+  const report = { label, started: new Date().toISOString(), state_slot: stateSlot, base: '0x' + base.toString(16), figure, targets: [], patterns: [], shots: [] };
+  try {
+    await session.launch(game, label);
+    await session.waitSeconds(25);
+    if (figure) report.figure_load = await session.loadFigure(figure, 1);
+    report.load_state = await session.loadState(stateSlot);
+    await session.waitSeconds(15);
+    report.shots.push(await session.screenshot(`${label}-restored`));
+    const snaps = [];
+    for (const [s, e] of regions) { log(`snapshot 0x${s.toString(16)}..0x${e.toString(16)}`); snaps.push({ start: s, buf: await snapshot(s, e, log) }); }
+    const readAt = (addr, n) => { for (const s of snaps) if (addr >= s.start && addr + n <= s.start + s.buf.length) return s.buf.subarray(addr - s.start, addr - s.start + n); return null; };
+    const objSec = graph ? graph.sections[graph.object_section] : null;
+    const inSection = a => objSec && a >= base + objSec.offset && a < base + objSec.offset + objSec.size;
+    if (dumpSection && objSec) {
+      // Resident copy of the whole object section: the offline diff against the file gives the complete
+      // fixup map (pointers, class pointers, ids, strings) without guessing conventions.
+      const live = readAt(base + objSec.offset, objSec.size);
+      fs.mkdirSync(evidence, { recursive: true });
+      report.section_dump = live ? path.join(evidence, `${label}-section${graph.object_section}.bin`) : null;
+      if (live) fs.writeFileSync(report.section_dump, live);
+      log(`section ${graph.object_section} resident dump: ${report.section_dump ?? 'outside the snapshot'}`);
+    }
+    for (const t of targets) {
+      const isAddr = t >= 0x80000000; const address = isAddr ? t : base + t; const fileOffset = isAddr ? t - base : t;
+      const entry = { target: '0x' + t.toString(16), address: '0x' + address.toString(16), file_offset: fileOffset, object: graph ? matchAddress(graph, address, { base }).object : null, resident_diff: null, referrers: [] };
+      if (fileBuf && graph) {
+        const obj = graph.objects.find(o => o.offset === fileOffset) ?? matchAddress(graph, address, { base }).object;
+        const size = obj ? Math.min(obj.size, 0x400) : 0x40;
+        const live = readAt(address, size);
+        if (live) {
+          const diffs = [];
+          for (let q = 0; q + 4 <= size; q += 4) { const a = fileBuf.readUInt32BE(fileOffset + q), b = live.readUInt32BE(q); if (a !== b) diffs.push({ field: '+0x' + q.toString(16), file: '0x' + a.toString(16), live: '0x' + b.toString(16), live_minus_base: b >= base && b < base + fileBuf.length ? '0x' + (b - base).toString(16) : null }); }
+          entry.resident_diff = { compared_bytes: size, changed_words: diffs.length, words: diffs.slice(0, 64), identical_floats_at_0x94: obj && obj.size > 0xa0 ? fileBuf.readFloatBE(fileOffset + 0x94) === live.readFloatBE(0x94) : null };
+        } else entry.resident_diff = { error: 'address outside the snapshot' };
+      }
+      const needle = Buffer.alloc(4); needle.writeUInt32BE(address >>> 0);
+      for (const s of snaps) {
+        let o = s.buf.indexOf(needle);
+        while (o !== -1 && entry.referrers.length < 200) {
+          const at = s.start + o; const ref = { at: '0x' + at.toString(16), aligned: o % 4 === 0, in_section: inSection(at) };
+          if (ref.in_section && graph) { const m = matchAddress(graph, at, { base }); ref.file_offset = m.file_offset; ref.object = m.object; ref.field = m.field; }
+          else { const c0 = Math.max(s.start, at - contextBytes / 2); ref.context_at = '0x' + c0.toString(16); ref.context = s.buf.subarray(c0 - s.start, c0 - s.start + contextBytes).toString('hex'); }
+          entry.referrers.push(ref); o = s.buf.indexOf(needle, o + 1);
+        }
+      }
+      log(`target ${entry.target}${entry.object ? ' ' + entry.object.type_name + '@0x' + entry.object.offset.toString(16) : ''}: ${entry.referrers.length} runtime referrer(s), ${entry.resident_diff?.changed_words ?? '?'} changed word(s)`);
+      report.targets.push(entry);
+    }
+    for (const hex of patterns) {
+      const needle = Buffer.from(hex, 'hex'); const hits = [];
+      for (const s of snaps) { let o = s.buf.indexOf(needle); while (o !== -1 && hits.length < 100) { const at = s.start + o; const h = { at: '0x' + at.toString(16), in_section: inSection(at) }; if (h.in_section && graph) { const m = matchAddress(graph, at, { base }); h.object = m.object; h.field = m.field; } else h.context = s.buf.subarray(Math.max(0, o - contextBytes / 2), o + contextBytes / 2).toString('hex'); hits.push(h); o = s.buf.indexOf(needle, o + 1); } }
+      log(`pattern ${hex.slice(0, 24)}…: ${hits.length} hit(s)`);
+      report.patterns.push({ pattern: hex, hits });
+    }
+    report.status = 'DONE';
+  } catch (e) { report.status = 'FAIL'; report.error = e.message; }
+  finally {
+    report.stop = await session.stop(); await session.close();
+    report.finished = new Date().toISOString();
+    fs.mkdirSync(evidence, { recursive: true });
+    report.output = path.join(evidence, `${label}.json`);
+    fs.writeFileSync(report.output, JSON.stringify(report, null, 2));
+  }
+  return report;
+}
+
 // patterns: hex strings; pokes: [{address, value, type: 'f32be'}] applied after the scan (address may be
 // "match:<patternIndex>:<offset>" to target the first match of a pattern plus a byte offset).
 export async function liveProbe({ script = defaultScript, figure = null, label = 'live-probe', game = gameFromConfig(), patterns = [], pokes = [], saveSlot = null, log = console.log }) {
