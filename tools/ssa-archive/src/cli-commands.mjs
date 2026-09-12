@@ -83,6 +83,11 @@ export const commands = {
       const r = await ramDiff({ label: o.label ?? 'ram-diff', stateSlot: o['save-slot'] ? Number(o['save-slot']) : 6, figure: o.figure ?? null });
       return { result: r, exitCode: r.status === 'DONE' ? 0 : 1, text: `${r.status} ${r.output}\ncandidates=${r.candidates?.length ?? 0}\n` + (r.candidates ?? []).slice(0, 15).map(c => `${c.address} before=${JSON.stringify(c.before)} right=${JSON.stringify(c.delta_right)} back=${JSON.stringify(c.delta_back)}`).join('\n') + (r.error ? '\nerror: ' + r.error : '') };
     }
+    if (kind === 'm3') {
+      const { runM3 } = await import('./experiments/m3-duplicate.mjs');
+      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'] });
+      return { result: r, exitCode: r.exitCode ?? (r.status === 'PASS' ? 0 : 1), text: `${r.status} (${r.failing_stage ?? 'ok'}): ${r.notes ?? ''}\n${r.output}` };
+    }
     if (kind === 'm2-judge') {
       const { judge } = await import('./experiments/m2-mutation.mjs');
       const r = judge({ id: need(o.id, 'id'), run: Number(need(o.run, 'run')), observed: need(o.observed, 'observed'), match: String(o.match ?? '').toLowerCase() === 'yes' });
@@ -152,6 +157,13 @@ export const commands = {
       if (o.address) { const r = M.matchAddress(g, Number(o.address), { base }); return { result: r, text: r.object ? `${r.address} -> file 0x${r.file_offset.toString(16)} = ${r.object.type_name}@0x${r.object.offset.toString(16)}+0x${r.field.toString(16)}` : `${r.address} -> file 0x${r.file_offset.toString(16)}: no owning object` }; }
       if (o.pattern?.length) { const r = M.matchPattern(buf, g, o.pattern[0]); return { result: r, text: r.hits.map(h => `0x${h.file_offset.toString(16)} ${h.object ? h.object.type_name + '@0x' + h.object.offset.toString(16) + '+0x' + h.field.toString(16) : 'no object'}`).join('\n') || '(no hit)' }; }
       throw new CliError('igz match needs --address <ram address> or --pattern <hex>', 3);
+    }
+    if (sub === 'clone') {
+      const C = await import('./igz/clone.mjs');
+      const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });
+      const r = C.planClone(buf, { objectOffset: Number(need(pos[2], 'object offset')), findingId: need(o.finding, 'finding'), edits, appendToList: !!o['append-to-list'] });
+      const written = C.writePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
+      return { result: { ...r.plan, ...written, graph_after: r.graph_after }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `plan ${r.plan.validation.status}: clone of ${r.plan.source.type_name}@0x${r.plan.source.object_offset.toString(16)} at 0x${r.plan.insert_at.toString(16)} (+${r.plan.inserted_bytes} B, id 0x${r.plan.new_id.toString(16)}), ${r.plan.changes.length} edit(s), ${r.plan.updates.length} table update(s)` + (r.plan.validation.failures.length ? '\n' + r.plan.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n') : '') + `\n-> ${written.outFile}${written.planFile ? ' ; plan ' + written.planFile : ''}` };
     }
     if (sub === 'fields') {
       const E = await import('./igz/entities.mjs');

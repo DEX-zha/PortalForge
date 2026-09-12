@@ -34,6 +34,7 @@ Commands and JSON shapes: `specs/001-ssa-level-research/contracts/ssa-archive-cl
 - `src/iga/` header, reader, chunks, decode (LZMA), writer, verify, diff.
 - `src/disc/` DolphinTool wrappers (identify, list, extract). `src/workspace/` manifest. `src/patch/` Riivolution workspace.
 - `src/research/` float/string scanners, bindiff, findings records and rendering, categories.
+- `src/igz/` (feature 002) IGZ v5 object graph: header and sections, block type table, object enumeration with 100 % accounting, string/object/flagged references, entity position candidates (feet-dimension and box filters), RAM-address matching; CLI `igz sections|types|objects|show|near|match|fields`.
 - `src/experiments/` MCP-driven runs: `run-game.mjs` (session helpers, input scripts), `explore-entry.mjs`, `m1-roundtrip.mjs`, `m2-mutation.mjs`, `live-probe.mjs`; `input-scripts/level-027-entry.json`.
 - `research-probes/` one-off diagnostics that produced the findings in `docs/iga-v4.md` (header words, chunk tables, LZMA, IGZ sections/objects, header survey). They read `.local/samples` and are kept as reproducible evidence, not as library code.
 - `tests/` `node --test`: synthetic archives (no game data) plus fixture tests that skip when `.local/samples` is absent.

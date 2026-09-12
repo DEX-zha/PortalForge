@@ -38,9 +38,15 @@ export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, 
     return { ...e, bytes, newSize: size, newSpan: span, changed };
   });
 
-  const firstData = Math.min(...m.entries.map(e => e.start));
+  // A re-encoder may have changed the table area (chunk-count growth): re-sync modes and header words,
+  // and move the data area if the grown tables plus the 32-byte trailer no longer fit before it.
+  items.forEach((it, i) => { it.mode = m.entries[i].mode; });
   const words = [...m.header_words];
-  let relayout = layout === 'sequential' || items.some(it => it.changed && it.newSpan > it.stored_size);
+  const originalTablesEnd = HEADER_SIZE + (m.header_words[2] ?? 0);
+  const tableGrowth = words[2] - (m.header_words[2] ?? words[2]);
+  const minStart = Math.min(...m.entries.map(e => e.start));
+  const firstData = Math.max(minStart, alignUp(HEADER_SIZE + words[2] + 32));
+  let relayout = layout === 'sequential' || firstData !== minStart || items.some(it => it.changed && it.newSpan > it.stored_size);
   let nameTableOffset = m.name_table.offset;
   if (relayout) {
     let cursor = firstData;
@@ -66,8 +72,13 @@ export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, 
   });
   for (const ct of m.chunk_tables ?? []) encodeChunkArea(ct).copy(buf, ct.offset);
   for (const gap of m.raw_gaps ?? []) {
-    if (gap.offset >= firstData && (relayout || padUnits)) continue;   // data-area gaps lose their meaning after a relayout
-    Buffer.from(gap.hex, 'hex').copy(buf, gap.offset);
+    if (gap.offset >= minStart && (relayout || padUnits)) continue;   // data-area gaps lose their meaning after a relayout
+    // Gaps after the tables (the 32-byte trailer and its zero fill) move by the exact table growth,
+    // which is even, so the 4-aligned record stays aligned; bytes that no longer fit are dropped.
+    const offset = gap.offset >= originalTablesEnd ? gap.offset + tableGrowth : gap.offset;
+    const bytes = Buffer.from(gap.hex, 'hex');
+    const room = firstData - offset;
+    if (room > 0) bytes.copy(buf, offset, 0, Math.min(bytes.length, room));
   }
   for (const it of items) {
     const span = relayout ? (it.changed || layout === 'sequential' ? it.newSpan : it.stored_size) : it.stored_size;

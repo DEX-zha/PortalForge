@@ -65,12 +65,12 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 
 ## Phase 5: User Story 3 - Duplication, gate M3 (P3)
 
-- [ ] T021 [P] [US3] Write `tests/iga-chunk-growth.test.mjs`: re-encoding an entry into more chunks grows the u16 table area, updates header words 0x08 and 0x24 and relays all entries; the archive stays VALID and decodes identically
-- [ ] T022 [US3] Extend `src/iga/decode.mjs` and `src/iga/writer.mjs` to support chunk-count growth for a replaced entry (remove `REENCODE_CHUNK_COUNT_CHANGED` for growth), keeping byte-preserving behaviour otherwise
-- [ ] T023 [P] [US3] Write `tests/igz-clone.test.mjs`: cloning a synthetic object appends the record, updates the object count and list, assigns a unique id, updates section offsets, and the graph re-validates
-- [ ] T024 [US3] Implement `src/igz/clone.mjs` producing a DuplicationPlan (`contracts/duplication-plan.schema.json`), refusing non-CONFIRMED findings, validating the rebuilt decoded file with the graph
-- [ ] T025 [US3] Wire `igz clone` into `src/cli-commands.mjs`
-- [ ] T026 [US3] Implement `src/experiments/m3-duplicate.mjs` on the `m2-mutation.mjs` pattern with `inputs.duplication`, control + `--repeat` runs, judged by `experiment m2-judge`
+- [X] T021 [P] [US3] Write `tests/iga-chunk-growth.test.mjs`: re-encoding an entry into more chunks grows the u16 table area, updates header words 0x08 and 0x24 and relays all entries; the archive stays VALID and decodes identically
+- [X] T022 [US3] Extend `src/iga/decode.mjs` and `src/iga/writer.mjs` to support chunk-count growth for a replaced entry (remove `REENCODE_CHUNK_COUNT_CHANGED` for growth), keeping byte-preserving behaviour otherwise
+- [X] T023 [P] [US3] Write `tests/igz-clone.test.mjs`: cloning a synthetic object appends the record, updates the object count and list, assigns a unique id, updates section offsets, and the graph re-validates
+- [X] T024 [US3] Implement `src/igz/clone.mjs` producing a DuplicationPlan (`contracts/duplication-plan.schema.json`), refusing non-CONFIRMED findings, validating the rebuilt decoded file with the graph
+- [X] T025 [US3] Wire `igz clone` into `src/cli-commands.mjs`
+- [X] T026 [US3] Implement `src/experiments/m3-duplicate.mjs` on the `m2-mutation.mjs` pattern with `inputs.duplication`, control + `--repeat` runs, judged by `experiment m2-judge`
 - [ ] T027 [US3] Run the M3 experiment on the CONFIRMED `tfbPhysicsModel` record (clone with +X), judge both runs, write `docs/m3-status.json` (PASS, or FAIL/UNKNOWN naming the blocking unknown)
 
 **Checkpoint**: M3 decided on evidence

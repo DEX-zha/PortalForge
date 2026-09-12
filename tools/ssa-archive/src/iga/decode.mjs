@@ -140,20 +140,33 @@ export function reencodeStoredEntry(entry, stored, manifest) {
   return reencodeEntry(entry, data, manifest);
 }
 
-// Re-encoder handed to the writer for a replaced LZMA-chunked entry. Same chunk count required so
-// the table area keeps its size; the manifest tables are updated in place before emission.
+// Re-encoder handed to the writer for a replaced LZMA-chunked entry. The manifest tables are updated
+// in place before emission. A multi-chunk entry may change its chunk count (spec 002 T022): its N+1
+// u16 values are spliced, header word 0x24 (u16 count) and 0x08 (table area size) are adjusted, and
+// the chunk_table_index of the other multi-chunk entries that follow it in the u16 area shifts.
+// Single-chunk entries keep their 2-byte record and cannot grow past one chunk here.
 export function reencodeEntry(entry, data, manifest) {
   const tables = tablesFromManifest(manifest);
   const original = chunkCount(entry.size), now = chunkCount(data.length);
-  if (now !== original) throw new Error(`REENCODE_CHUNK_COUNT_CHANGED: entry ${entry.index} had ${original} chunk(s), replacement needs ${now}`);
-  const enc = encodeEntryChunks(data);
   const plan = entryChunkPlan(entry, tables);
+  if (now !== original && plan.kind !== 'multi') throw new Error(`REENCODE_CHUNK_COUNT_CHANGED: entry ${entry.index} is single-chunk and the replacement needs ${now} chunk(s)`);
+  const enc = encodeEntryChunks(data);
   const values = manifest.chunk_tables[0].values;
   if (plan.kind === 'multi') {
-    enc.values.forEach((v, i) => { values[entry.chunk_table_index + i] = v; });
+    const delta = now - original;
+    values.splice(entry.chunk_table_index, original + 1, ...enc.values);
+    if (delta !== 0) {
+      manifest.header_words[9] += delta;             // u16 count of the multi-chunk area
+      manifest.header_words[2] += 2 * delta;         // table area size
+      manifest.chunk_tables[0].values = values;
+      for (const e of manifest.entries) {
+        if (e.index === entry.index || e.compression !== 'LZMA_CHUNKED' || chunkCount(e.size) <= 1) continue;
+        if (e.chunk_table_index > entry.chunk_table_index) { e.chunk_table_index += delta; e.mode = (e.mode & 0xff000000) | (e.chunk_table_index & 0xffffff); }
+      }
+    }
   } else if (plan.record_u16_index !== null) {
     const units = enc.stored_units, flags = enc.values[0] & 0x8000 ? 0x80 : 0x00;
     values[plan.record_u16_index] = ((units & 0xff) << 8) | flags | ((units >> 8) & 0x7f);
   }
-  return { bytes: enc.bytes, size: data.length, chunk_values: enc.values };
+  return { bytes: enc.bytes, size: data.length, chunk_values: enc.values, chunk_delta: now - original };
 }
