@@ -8,7 +8,7 @@
     "file": {"type": "string"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "size": {"type": "integer", "minimum": 16},
-    "header": {"type": "object", "required": ["magic", "version", "words"], "properties": {"magic": {"const": 1229282817}, "version": {"const": 5}, "words": {"type": "array", "items": {"type": "integer"}}}},
+    "header": {"type": "object", "required": ["magic", "version", "words"], "properties": {"magic": {"const": 1229412865}, "version": {"const": 5}, "words": {"type": "array", "items": {"type": "integer"}}}},
     "sections": {"type": "array", "items": {"type": "object", "required": ["index", "offset", "size", "align", "tag"], "properties": {"index": {"type": "integer"}, "offset": {"type": "integer"}, "size": {"type": "integer"}, "align": {"type": "integer"}, "tag": {"type": "integer"}}}},
     "types": {"type": "array", "items": {"type": "object", "required": ["index", "name"], "properties": {"index": {"type": "integer"}, "name": {"type": "string"}, "size_hint": {"type": ["integer", "null"]}, "size_confidence": {"enum": ["CONFIRMED", "LIKELY", "UNKNOWN"]}}}},
     "objects": {"type": "array", "items": {"type": "object", "required": ["offset", "size", "type", "type_name", "id"], "properties": {

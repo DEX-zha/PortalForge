@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-13",
+    "editable":  false,
+    "id":  "igz.object-graph.accounting",
+    "type":  "{u32 type, u32 1, u32 0x01xxxxxx} headers, objects bounded by the next header",
+    "evidence":  [
+                     {
+                         "probe":  "ssa-archive igz objects (src/igz/graph.mjs), tests/igz-fixtures.test.mjs",
+                         "summary":  "accounting objects+unparsed+padding == total on 3 levels; spawn record resolves as tfbPhysicsModel with its position field"
+                     }
+                 ],
+    "category":  "igz-objects",
+    "meaning":  "Header-pattern enumeration accounts for 100 percent of the object section on three levels: tutorial 21 680 objects (4 234 076 B) + 11 492 B lead-in; Challenge_000 11 908 objects + 5 604 B; Challenge_001 17 216 objects + 8 944 B. Object sizes are upper bounds (distance to the next header) until inline trailing data is understood.",
+    "structure":  "Object enumeration by header pattern",
+    "endian":  "be",
+    "location":  {
+                     "offset":  "section 1",
+                     "file_pattern":  "level/*.bld:level.bld (decoded), object section (#1)",
+                     "length":  12
+                 },
+    "confidence":  "LIKELY"
+}

@@ -19,22 +19,22 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `tools/ssa-archive/src/igz/` and `tools/ssa-archive/tests/helpers/synthetic-igz.mjs` per plan.md; no new dependency in `tools/ssa-archive/package.json`
-- [ ] T002 [P] Add the `igz` command group and `experiment m3` placeholders to `tools/ssa-archive/cli.mjs` and `src/cli-commands.mjs` with the exit codes of contracts/igz-cli.md
-- [ ] T003 [P] Copy the fan-research scope sentence into `tools/ssa-archive/src/igz/README.md` and link `docs/findings/igz-objects.md`
+- [X] T001 Create `tools/ssa-archive/src/igz/` and `tools/ssa-archive/tests/helpers/synthetic-igz.mjs` per plan.md; no new dependency in `tools/ssa-archive/package.json`
+- [X] T002 [P] Add the `igz` command group and `experiment m3` placeholders to `tools/ssa-archive/cli.mjs` and `src/cli-commands.mjs` with the exit codes of contracts/igz-cli.md
+- [X] T003 [P] Copy the fan-research scope sentence into `tools/ssa-archive/src/igz/README.md` and link `docs/findings/igz-objects.md`
 
 ---
 
 ## Phase 2: Foundational
 
-- [ ] T004 Implement `tools/ssa-archive/src/igz/header.mjs`: magic `0x49475A01`, version 5, section table `{offset, size, align, tag}` zero-terminated, section-0 second header words; failures `BAD_IGZ_MAGIC`, `UNSUPPORTED_IGZ_VERSION`, `SECTION_OVERLAP`, `SECTION_END_MISMATCH`
-- [ ] T005 [P] Implement `tools/ssa-archive/src/igz/types.mjs`: NUL-terminated names from 0x834 to the 4-aligned end (empty names kept), per-type u32 size hints with `size_confidence: "UNKNOWN"` (research.md R2)
-- [ ] T006 Implement `tools/ssa-archive/src/igz/objects.mjs`: enumerate `{type < types.length, 1, 0x01xxxxxx}` headers in the object section, bound each object by the next header or section end, emit `unparsed` regions for uncovered bytes (research.md R1)
-- [ ] T007 Implement `tools/ssa-archive/src/igz/refs.mjs`: string references as `section2 + v` with `0 = null` (research.md R3), object references when a plain word lands on an object header, flagged references `0x8xxxxxxx` kept with low 24 bits (research.md R4)
-- [ ] T008 Implement `tools/ssa-archive/src/igz/graph.mjs`: assemble the ObjectGraph, compute `accounting` with `objects + unparsed + padding == total`, validate against `contracts/object-graph.schema.json`, export JSON
-- [ ] T009 [P] Write `tests/helpers/synthetic-igz.mjs`: build a v5 file with header, 3 sections, type table with an empty name, size table, objects with string and object references, one unparsed inline array
-- [ ] T010 [P] Write `tests/igz-graph.test.mjs` and `tests/igz-refs.test.mjs`: accounting equals total, unparsed region reported, string ref resolution with null 0, object and flagged references, header failures
-- [ ] T011 Wire `igz sections|types|objects|show` into `src/cli-commands.mjs` with the JSON shapes of contracts/igz-cli.md
+- [X] T004 Implement `tools/ssa-archive/src/igz/header.mjs`: magic `0x49475A01`, version 5, section table `{offset, size, align, tag}` zero-terminated, section-0 second header words; failures `BAD_IGZ_MAGIC`, `UNSUPPORTED_IGZ_VERSION`, `SECTION_OVERLAP`, `SECTION_END_MISMATCH`
+- [X] T005 [P] Implement `tools/ssa-archive/src/igz/types.mjs`: NUL-terminated names from 0x834 to the 4-aligned end (empty names kept), per-type u32 size hints with `size_confidence: "UNKNOWN"` (research.md R2)
+- [X] T006 Implement `tools/ssa-archive/src/igz/objects.mjs`: enumerate `{type < types.length, 1, 0x01xxxxxx}` headers in the object section, bound each object by the next header or section end, emit `unparsed` regions for uncovered bytes (research.md R1)
+- [X] T007 Implement `tools/ssa-archive/src/igz/refs.mjs`: string references as `section2 + v` with `0 = null` (research.md R3), object references when a plain word lands on an object header, flagged references `0x8xxxxxxx` kept with low 24 bits (research.md R4)
+- [X] T008 Implement `tools/ssa-archive/src/igz/graph.mjs`: assemble the ObjectGraph, compute `accounting` with `objects + unparsed + padding == total`, validate against `contracts/object-graph.schema.json`, export JSON
+- [X] T009 [P] Write `tests/helpers/synthetic-igz.mjs`: build a v5 file with header, 3 sections, type table with an empty name, size table, objects with string and object references, one unparsed inline array
+- [X] T010 [P] Write `tests/igz-graph.test.mjs` and `tests/igz-refs.test.mjs`: accounting equals total, unparsed region reported, string ref resolution with null 0, object and flagged references, header failures
+- [X] T011 Wire `igz sections|types|objects|show` into `src/cli-commands.mjs` with the JSON shapes of contracts/igz-cli.md
 
 **Checkpoint**: object graph of any decoded IGZ v5 with explicit unparsed regions
 
@@ -42,9 +42,9 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 
 ## Phase 3: User Story 1 - Read the object graph (P1)
 
-- [ ] T012 [P] [US1] Write `tests/igz-fixtures.test.mjs`: skip without samples; on the tutorial `level.bld` assert 9 sections ending at the file size, 224 types, accounting equals total, and that the object at 0x1A76EC is `tfbPhysicsModel` with f32be (91.73, 10.31, 44.74) at +0x94
+- [X] T012 [P] [US1] Write `tests/igz-fixtures.test.mjs`: skip without samples; on the tutorial `level.bld` assert 9 sections ending at the file size, 224 types, accounting equals total, and that the object at 0x1A76EC is `tfbPhysicsModel` with f32be (91.73, 10.31, 44.74) at +0x94
 - [ ] T013 [US1] Correlate `size_hint[type]` with measured object distances per type over the tutorial graph in `src/igz/types.mjs`; promote `size_confidence` to LIKELY only where at least 90 % of instances agree; record the finding `igz.section0.type-size-table` accordingly
-- [ ] T014 [US1] Run `igz objects --out` on the tutorial and two Challenge levels (quickstart Scenario 1); record accounting results in `docs/findings/records/igz.object-graph.accounting.json`
+- [X] T014 [US1] Run `igz objects --out` on the tutorial and two Challenge levels (quickstart Scenario 1); record accounting results in `docs/findings/records/igz.object-graph.accounting.json`
 - [ ] T015 [US1] Decode the section-1 header and the 2 866-entry list (research.md R4) in `src/igz/refs.mjs`; document the flagged-pointer meaning as a finding (LIKELY or UNKNOWN) with the tested hypotheses
 
 **Checkpoint**: SC-001 satisfied or the residual unparsed regions are named

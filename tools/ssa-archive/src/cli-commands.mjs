@@ -118,6 +118,29 @@ export const commands = {
     const d = bindiff(a, b, { context: o.context ? Number(o.context) : 16, limit: o.limit ? Number(o.limit) : 1000 });
     return { result: d, text: `${d.runs} run(s), ${d.differing_bytes} differing byte(s), size_delta=${d.size_delta}\n` + d.rows.slice(0, 200).map(r => `0x${r.offset.toString(16).padStart(8, '0')} len=${r.length} old=${r.old_hex} new=${r.new_hex}${r.old_f32be !== undefined ? ` f32be ${r.old_f32be} -> ${r.new_f32be}` : ''}`).join('\n') };
   },
+  async igz(pos, o) {
+    const G = await import('./igz/graph.mjs');
+    const sub = need(pos[0], 'igz subcommand (sections|types|objects|show)');
+    const file = path.resolve(need(pos[1], 'decoded IGZ file'));
+    const buf = fs.readFileSync(file);
+    const g = G.buildGraph(buf, { file, fields: sub === 'show' || sub === 'objects' && !!o.json, fieldLimit: o.limit ? Number(o.limit) : 64 });
+    if (sub === 'sections') return { result: { header: g.header, second_header: g.second_header, sections: g.sections, issues: g.issues }, text: g.sections.map(s => `#${s.index} @0x${s.offset.toString(16)} size=0x${s.size.toString(16)} align=${s.align} tag=${s.tag}`).join('\n') + `\nsecond header words: ${g.second_header?.words.map(w => '0x' + w.toString(16)).join(' ')}` + (g.issues.length ? `\nissues: ${JSON.stringify(g.issues)}` : '') };
+    if (sub === 'types') { const hist = new Map(G.histogram(g).map(h => [h.type_name, h])); return { result: { types: g.types, table: g.type_table, histogram: G.histogram(g) }, text: g.types.map(t => `${String(t.index).padStart(3)} ${(t.name || '(empty)').padEnd(34)} size_hint=${t.size_hint ?? '-'} ${o.histogram ? 'objects=' + (hist.get(t.name || 'type#' + t.index)?.count ?? 0) + ' median=' + (hist.get(t.name || 'type#' + t.index)?.median_size ?? '-') : ''}`).join('\n') }; }
+    if (sub === 'objects') {
+      const rows = o.type ? g.objects.filter(x => x.type_name === o.type) : g.objects;
+      if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify(g, null, 1));
+      const a = g.accounting;
+      return { result: { object_section: g.object_section, string_section: g.string_section, count: rows.length, accounting: a, unparsed: g.unparsed, histogram: G.histogram(g).slice(0, 40) },
+        text: `objects=${a.objects} unparsed=${a.unparsed} padding=${a.padding} total=${a.total} (${a.objects + a.unparsed + a.padding === a.total ? 'accounted' : 'MISMATCH'}); ${g.objects.length} objects, ${g.unparsed.length} unparsed region(s)\n` + G.histogram(g).slice(0, 25).map(h => `${String(h.count).padStart(6)} ${h.type_name.padEnd(32)} median=0x${h.median_size.toString(16)}`).join('\n') + (o.out ? `\ngraph -> ${path.resolve(o.out)}` : '') };
+    }
+    if (sub === 'show') {
+      const off = Number(need(pos[2], 'object offset'));
+      const ob = g.objects.find(x => x.offset === off) ?? g.objects.filter(x => x.offset <= off).pop();
+      if (!ob) throw new CliError('No object at or before that offset', 1);
+      return { result: ob, text: `${ob.type_name || 'type#' + ob.type} @0x${ob.offset.toString(16)} size=0x${ob.size.toString(16)} id=0x${ob.id.toString(16)}\n` + ob.fields.filter(f => f.kind !== 'unknown').map(f => `  +0x${(f.offset - ob.offset).toString(16).padStart(3, '0')} ${f.kind.padEnd(11)} ${f.kind === 'string_ref' ? '"' + f.target + '"' : f.kind === 'object_ref' ? `-> ${f.target.type_name}@0x${f.target.offset.toString(16)}` : f.kind === 'flagged_ref' ? '0x' + f.value.toString(16) : f.value}`).join('\n') };
+    }
+    throw new CliError(`Unknown igz subcommand ${sub}`, 3);
+  },
   async findings(pos, o) {
     const F = await import('./research/findings.mjs');
     const sub = pos[0] ?? 'list';

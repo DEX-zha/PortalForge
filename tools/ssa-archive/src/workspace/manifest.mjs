@@ -16,9 +16,11 @@ export const TOOL_VERSION = 'portalforge-ssa-archive/0.1.0';
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
 const validators = new Map();
-export function schemaValidator(name) {
-  if (!validators.has(name)) validators.set(name, ajv.compile(JSON.parse(fs.readFileSync(path.join(contracts, name), 'utf8'))));
-  return validators.get(name);
+export const contracts002 = path.join(root, 'specs/002-igz-entity-model/contracts');
+export function schemaValidator(name, dir = contracts) {
+  const key = path.join(dir, name);
+  if (!validators.has(key)) validators.set(key, ajv.compile(JSON.parse(fs.readFileSync(key, 'utf8'))));
+  return validators.get(key);
 }
 export function validateManifest(manifest) {
   const v = schemaValidator('workspace-manifest.schema.json');
