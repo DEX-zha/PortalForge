@@ -71,7 +71,7 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 - [X] T024 [US3] Implement `src/igz/clone.mjs` producing a DuplicationPlan (`contracts/duplication-plan.schema.json`), refusing non-CONFIRMED findings, validating the rebuilt decoded file with the graph
 - [X] T025 [US3] Wire `igz clone` into `src/cli-commands.mjs`
 - [X] T026 [US3] Implement `src/experiments/m3-duplicate.mjs` on the `m2-mutation.mjs` pattern with `inputs.duplication`, control + `--repeat` runs, judged by `experiment m2-judge`
-- [ ] T027 [US3] Run the M3 experiment on the CONFIRMED `tfbPhysicsModel` record (clone with +X), judge both runs, write `docs/m3-status.json` (PASS, or FAIL/UNKNOWN naming the blocking unknown)
+- [X] T027 [US3] Run the M3 experiment on the CONFIRMED `tfbPhysicsModel` record (clone with +X), judge both runs, write `docs/m3-status.json` (PASS, or FAIL/UNKNOWN naming the blocking unknown)
 
 **Checkpoint**: M3 decided on evidence
 
@@ -79,9 +79,9 @@ description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 
 ## Phase 6: Polish
 
-- [ ] T028 [P] Update `README.md`, `AGENTS.md`, `docs/experiments/README.md` and `tools/ssa-archive/README.md` with the `igz` commands and the M3 status
+- [X] T028 [P] Update `README.md`, `AGENTS.md`, `docs/experiments/README.md` and `tools/ssa-archive/README.md` with the `igz` commands and the M3 status
 - [ ] T029 Run the quickstart scenarios end to end and fix mismatches
-- [ ] T030 [P] Confirm no game data outside `.local/` and that the scope statement is intact (SC-005)
+- [X] T030 [P] Confirm no game data outside `.local/` and that the scope statement is intact (SC-005)
 
 ---
 

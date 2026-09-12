@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-13",
+    "editable":  false,
+    "id":  "igz.section1.header-list",
+    "type":  "u32 count, flagged u32 pointer, u32[count] section-relative offsets (0xFFFFFFFF = null, 35 in the tutorial)",
+    "evidence":  [
+                     {
+                         "experiment_id":  "m3-level_027_tutorial-e3-1789250807367",
+                         "summary":  "Clone + null-slot list entry: level loads (15 341 kB served), scene identical to control in 2/2 runs"
+                     }
+                 ],
+    "category":  "references",
+    "meaning":  "A tfbPhysicsModel clone appended at the end of section 1 and written into a null slot of this list loaded without error but changed nothing in game (2 identical runs): the engine does not instantiate spawn records from this list, or the clone needs another reference (parent object, type-52 chain, script). Which structure drives instantiation is the blocking unknown for M3.",
+    "structure":  "Section-1 header list (count 0xB32) and its null slots",
+    "endian":  "be",
+    "location":  {
+                     "offset":  "section 1 + 0x0C/0x10 (count), + (word 0x14 \u0026 0x7FFFFFFF) offsets array",
+                     "file_pattern":  "level/*.bld:level.bld (decoded)",
+                     "length":  4
+                 },
+    "confidence":  "UNKNOWN"
+}

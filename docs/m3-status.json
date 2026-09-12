@@ -1,0 +1,26 @@
+{
+    "does_not_validate":  [
+                              "M4A geometry",
+                              "M4B collisions",
+                              "M5 playable scenario"
+                          ],
+    "gate":  "M3 — Entity duplication",
+    "blocking_unknown":  "The structure the engine walks to instantiate level records: neither appending an object nor referencing it from the section-1 header list creates a second instance. Candidates: parent/child object references (flagged 0x8xxxxxxx pointers), the type-52 chain nodes at S1+0x20, script sets. Appending an object and growing the LZMA chunk table are tolerated by the game (positive side result).",
+    "evidence":  [
+                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789250807367.json (clone of the CONFIRMED spawn record appended to section 1 and listed in a null slot; level loads, no effect in 2/2 runs)"
+                 ],
+    "validated_on":  null,
+    "prerequisites":  [
+                          "M0",
+                          "M1",
+                          "M2"
+                      ],
+    "decided_on":  "2026-09-13",
+    "details":  "docs/experiments/README.md, docs/findings/references.md",
+    "status":  "FAIL",
+    "tooling_ready":  [
+                          "igz clone (DuplicationPlan, VALID re-parse)",
+                          "experiment m3",
+                          "chunk-count growth in the IGA writer"
+                      ]
+}
