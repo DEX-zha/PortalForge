@@ -79,9 +79,8 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.table_entry.location), clone.offset);
   assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), f.owner + shift);                  // old entry still -> original owner
   assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset);          // +0x1C -> first object, past the padding
-  // fresh ids, unique
-  const ids = after.objects.map(o => o.id);
-  assert.equal(new Set(ids).size, ids.length);
-  assert.equal(clone.id, Math.max(...before.objects.map(o => o.id)) + 1);
+  // header word +8 is a shared string pointer, kept as in the source
+  assert.equal(clone.id, before.objects[0].id);
+  assert.equal(clonePhysics.id, before.objects[1].id);
   assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
 });

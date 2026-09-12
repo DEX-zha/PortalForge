@@ -188,18 +188,28 @@ export const commands = {
       const R = await import('./igz/relocate.mjs');
       const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });
       const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
-      const r = R.planReachableClone(buf, fixups, { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, register: !o['no-register'], extraFindings: o['also-finding'] ?? [] });
+      const r = R.planReachableClone(buf, fixups, { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, register: !o['no-register'], freshIds: !!o['fresh-ids'], extraFindings: o['also-finding'] ?? [] });
       const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
       const p = r.plan;
       return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status}: ${p.source.type_name}@0x${p.source.object_offset.toString(16)} block ${p.source.block_bytes} B -> clone @0x${p.insert_at.toString(16)} (+${p.inserted_bytes} B), table entry ${p.table_entry ? `#${p.table_entry.index}` : 'none'}, pointers internal ${p.pointers.internal} external ${p.pointers.external}, rebased after shift ${p.pointers.rebased_after_shift}, new ids ${p.new_ids.length}, edits ${p.changes.length}\n${p.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n')}${written.planFile ? '\nplan ' + written.planFile : ''}\nfile ${written.outFile}` };
     }
     if (sub === 'fixups') {
-      const { fixupMap } = await import('./igz/fixups.mjs');
+      const { fixupMap, crossSectionPointers } = await import('./igz/fixups.mjs');
       const live = fs.readFileSync(path.resolve(need(pos[2], 'resident section dump')));
       const m = fixupMap(buf, live, g, { base: o.base ? Number(o.base) : undefined });
-      const { pointer_words, id_words, head_pointer_words, objects, ...summary } = m;
-      if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify({ ...summary, head_pointer_words, pointer_words, id_words }));
-      return { result: summary, text: `visited ${m.visited}/${m.total} objects; id shift 0x${(m.id_shift ?? 0).toString(16)}; words: ${JSON.stringify(m.kinds)}\nheader area: ${m.head_changes} changed words, ${m.head_pointers} rebased pointers\nclasses seen: ${m.classes.length}; pointer words: ${pointer_words.length} (${m.adjusted_pointer_words} with a runtime-adjusted value)${m.unvisited_range ? `\nunvisited range 0x${m.unvisited_range.min.toString(16)}..0x${m.unvisited_range.max.toString(16)}, visited objects inside that range: ${m.unvisited_range.visited_objects_inside}` : ''}\nunvisited by type: ${m.unvisited_by_type.slice(0, 20).map(u => `${u.count} ${u.key}`).join(', ') || '(none)'}\nunvisited (first 20): ${m.unvisited.slice(0, 20).map(u => `${u.type_name || 'type' + u.type}@0x${u.offset.toString(16)}`).join(' ')}` };
+      // --regions <mem1.bin>,<mem2.bin>: raw dumps of MEM1 (0x80000000) and MEM2 (0x90000000) from
+      // `experiment ptr-scan --dimensions`, used to find pointers into the object section from other sections.
+      let cross = null;
+      if (o.regions) {
+        const files = o.regions.split(',').map(f => path.resolve(f.trim()));
+        const regions = files.map(f => ({ start: /90000000/.test(path.basename(f)) ? 0x90000000 : 0x80000000, buf: fs.readFileSync(f) }));
+        cross = crossSectionPointers(buf, g, regions);
+        m.cross_pointer_words = cross.cross_pointer_words; m.cross_sections = cross.sections; m.cross_per_section = cross.per_section;
+      }
+      const { pointer_words, id_words, head_pointer_words, cross_pointer_words = [], objects, ...summary } = m;
+      if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify({ ...summary, head_pointer_words, pointer_words, id_words, cross_pointer_words }));
+      const crossText = cross ? `\nsections located: ${cross.sections.map(s => `#${s.index}@${s.live === null ? '?' : '0x' + s.live.toString(16)}`).join(' ')}\ncross-section words: ${cross.per_section.map(p => p.error ? `#${p.section} ${p.error}` : `#${p.section}: ${p.changed} changed, by target ${JSON.stringify(p.by_target)}, into object section ${p.into_object_section}, unclassified ${p.unclassified}`).join('\n  ')}` : '';
+      return { result: summary, text: crossText + `\nvisited ${m.visited}/${m.total} objects; id shift 0x${(m.id_shift ?? 0).toString(16)}; words: ${JSON.stringify(m.kinds)}\nheader area: ${m.head_changes} changed words, ${m.head_pointers} rebased pointers\nclasses seen: ${m.classes.length}; pointer words: ${pointer_words.length} (${m.adjusted_pointer_words} with a runtime-adjusted value)${m.unvisited_range ? `\nunvisited range 0x${m.unvisited_range.min.toString(16)}..0x${m.unvisited_range.max.toString(16)}, visited objects inside that range: ${m.unvisited_range.visited_objects_inside}` : ''}\nunvisited by type: ${m.unvisited_by_type.slice(0, 20).map(u => `${u.count} ${u.key}`).join(', ') || '(none)'}\nunvisited (first 20): ${m.unvisited.slice(0, 20).map(u => `${u.type_name || 'type' + u.type}@0x${u.offset.toString(16)}`).join(' ')}` };
     }
     if (sub === 'refs') {
       const { reverseReferences } = await import('./igz/refs.mjs');

@@ -74,7 +74,7 @@ const TYPES = { f32be: [4, (b, o, v) => b.writeFloatBE(v, o)], u32be: [4, (b, o,
 // every object keeps its alignment modulo 32: inline geometry and texture data in section 1 are read
 // by hardware that needs 32-byte alignment, and a 4-byte shift froze the level load (run
 // m3-level_027_tutorial-e3-1789253576009).
-export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, findingsOpts = {}, extraFindings = [] }) {
+export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, freshIds = false, findingsOpts = {}, extraFindings = [] }) {
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`); e.exitCode = 1; throw e; }
   const graph = buildGraph(buf, { fields: false });
@@ -108,12 +108,13 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     const target = sec.offset + (v & 0x7fffffff);
     if (target >= start && target < end) { copy.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, at(w)); internal++; } else external++;
   }
-  // Fresh ids for every id word of the copy (ids are remapped by a constant at load; duplicates are avoided).
+  // Header word +8 ("id") is a section-indexed pointer (0x01 = section 2) to a string shared by many
+  // objects (4 300 tfbSpriteInfo share one), not a unique id: the copy keeps every such word unchanged
+  // (finding igz.pointer.section-indexed). `freshIds` remains available for experiments.
   const maxId = graph.objects.reduce((m, o) => Math.max(m, o.id), 0);
   const idWordsInBlock = fixups.id_words.filter(inBlock).sort((a, b) => a - b);
   let nextId = maxId + 1; const newIds = [];
-  for (const w of idWordsInBlock) { const old = copy.readUInt32BE(at(w)); copy.writeUInt32BE(nextId >>> 0, at(w)); newIds.push({ field: '+0x' + (w - start).toString(16), old: '0x' + old.toString(16), new: '0x' + nextId.toString(16) }); nextId++; }
-  if (!idWordsInBlock.includes(start + 8)) failures.push({ stage: 'validation', reason: 'the owner header id word is not in the fixup map' });
+  if (freshIds) for (const w of idWordsInBlock) { const old = copy.readUInt32BE(at(w)); copy.writeUInt32BE(nextId >>> 0, at(w)); newIds.push({ field: '+0x' + (w - start).toString(16), old: '0x' + old.toString(16), new: '0x' + nextId.toString(16) }); nextId++; }
   for (const ed of edits) {
     const [width, write] = TYPES[ed.type] ?? [];
     if (!write) throw new Error(`unsupported edit type ${ed.type}`);
@@ -123,7 +124,10 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: copy.subarray(prePad + ed.offset, prePad + ed.offset + width).toString('hex') });
   }
   // 1. append the copy
-  const words = { pointerWords: [...fixups.pointer_words, ...fixups.head_pointer_words], idWords: fixups.id_words };
+  // Every word that holds a section-1 offset: object fields, header table, and (when the map was built
+  // with region dumps) the words of the other sections that point into section 1.
+  const crossWords = fixups.cross_pointer_words ?? [];
+  const words = { pointerWords: fixups.pointer_words.concat(fixups.head_pointer_words, crossWords), idWords: fixups.id_words };
   let step = insertBytes(buf, graph, words, insertAt, copy);
   let updates = [...step.updates];
   const copyPointerWords = blockPointerWords.map(w => w - start + cloneStart);
@@ -184,13 +188,13 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
   } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
   const plan = {
     source: { object_offset: start, type_name: source.type_name, finding_id: findingId, block_end: end, block_bytes: blockLen },
-    changes, insert_at: cloneOffset, updates: updates.slice(0, 200), updates_total: updates.length, new_id: maxId + 1, new_ids: newIds,
+    changes, insert_at: cloneOffset, updates: updates.slice(0, 200), updates_total: updates.length, new_id: freshIds ? maxId + 1 : source.id, new_ids: newIds, fresh_ids: freshIds,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures },
-    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
+    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, cross_section_words: crossWords.length, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
     findings: [findingId, ...extraFindings], method: 'reachable-clone (fixup-map relocation, header table registration)',
   };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, pre_pad, table_entry, pointers, findings, method, ...rest } = plan;
+  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, pre_pad, fresh_ids, table_entry, pointers, findings, method, ...rest } = plan;
   const strict = { ...rest, source: src };
   plan.schema_valid = v(strict); plan.schema_errors = v.errors ?? null;
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };

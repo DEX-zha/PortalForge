@@ -119,6 +119,13 @@ export async function ptrScan({ label = 'ptr-scan', game = gameFromConfig(), sta
     const readAt = (addr, n) => { for (const s of snaps) if (addr >= s.start && addr + n <= s.start + s.buf.length) return s.buf.subarray(addr - s.start, addr - s.start + n); return null; };
     const objSec = graph ? graph.sections[graph.object_section] : null;
     const inSection = a => objSec && a >= base + objSec.offset && a < base + objSec.offset + objSec.size;
+    if (dumpSection) {
+      // Raw snapshots of every scanned region: the other IGZ sections live in MEM2 and are located
+      // offline by content (igz sections-live), so cross-section pointers can be diffed too.
+      fs.mkdirSync(evidence, { recursive: true });
+      report.region_dumps = [];
+      for (const s of snaps) { const f = path.join(evidence, `${label}-mem-${s.start.toString(16)}.bin`); fs.writeFileSync(f, s.buf); report.region_dumps.push({ start: '0x' + s.start.toString(16), file: f, bytes: s.buf.length }); log(`region dump ${f} (${s.buf.length} bytes)`); }
+    }
     if (dumpSection && objSec) {
       // Resident copy of the whole object section: the offline diff against the file gives the complete
       // fixup map (pointers, class pointers, ids, strings) without guessing conventions.

@@ -1,0 +1,26 @@
+{
+  "id": "igz.pointer.section-indexed",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "u32: high byte = target section index among sections 1..8 (0 = section 1, 1 = section 2 ...), low 24 bits = offset in that section; 0x80xxxxxx = global handle",
+  "structure": "Section-indexed pointer encoding shared by all IGZ v5 words that become pointers at load",
+  "location": {
+    "offset": "any pointer field; object header word +8 (0x01xxxxxx -> section 2 string)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "The loader resolves a word by taking sections[high byte + 1].resident_address + low 24 bits: 0x00xxxxxx are section-1 offsets (the 157 690 plain pointers), 0x01xxxxxx point into section 2 (strings; header word +8 is such a pointer, e.g. \"Levels/Level_027/027_ART_MASTER.ma\" for tfbLightInfo, \"_worldLight1\" for the RHSValueStack root, \"balloonist.png_ALPHACHANNEL\" for a PlacementReference), 0x02000010 in tfbLightInfo +0x18 became section 3 + 0x10, and words with high bytes 3..7 (4 598 into section 5, 902 into section 7 ...) target the other MEM2 sections. A first pass rebases every such word (an intermediate state 80E0721B 00000001 911D20C8 80E071A0 was caught on the spawn record when a relocated level froze), later passes turn word +0 into the class pointer, word +4 into flags and clear bit 31 of the section-2 pointers. Consequence for relocation: inserting bytes in section 1 must rebase only words whose high byte is 0 (in every section), and words pointing into section 1 from sections 2..8 are candidates that the first relocation attempts did not rebase.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789254290299",
+      "summary": "intermediate loader state caught in RAM: word +8 -> section-2 MEM2 address + offset; word +0 (type 0x7B) -> section-1 address + 0x7B; word +0xC 0 -> section-1 address"
+    },
+    {
+      "probe": "ssa-archive experiment ptr-scan (ptr-scan2.json) + scratch survey",
+      "summary": "tfbLightInfo +0x18 0x02000010 -> 0x911F6C20 (section 3 resident address + 0x10); high-byte census of section-1 words: 18 776 -> section 2, 24 -> 3, 493 -> 4, 4 598 -> 5, 158 -> 6, 902 -> 7, 268 -> 8; 271 header words +8 beyond section 2 belong to the 272 objects the loader never touches (false headers)"
+    }
+  ]
+}

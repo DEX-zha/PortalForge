@@ -8,8 +8,46 @@
 //   zeroed    live == 0, file != 0
 //   filled    file == 0, live != 0 (runtime state)
 //   other
+// Pointer encoding (finding igz.pointer.section-indexed): high byte = target section index among
+// sections 1..8, low 24 bits = offset. `crossSectionPointers` locates every section in raw MEM1/MEM2
+// dumps and lists the words of sections 2..8 that point INTO section 1 (they must move with it).
 // The per-object verdict "visited" = header word +0 rewritten. Objects never rewritten were not seen by
 // the loader: that is the structural fact behind the M3 failure.
+export function crossSectionPointers(fileBuf, graph, regions) {
+  const S = graph.sections;
+  const locate = s => {
+    for (let off = 0; off + 48 <= s.size; off += 16) {
+      const sig = fileBuf.subarray(s.offset + off, s.offset + off + 48);
+      let nz = 0; for (const x of sig) if (x) nz++;
+      if (nz < 24) continue;
+      const hits = [];
+      for (const r of regions) { let p = r.buf.indexOf(sig); while (p !== -1 && hits.length < 4) { hits.push(r.start + p - off); p = r.buf.indexOf(sig, p + 1); } }
+      if (hits.length >= 1) return { address: hits[0], ambiguous: hits.length > 1 ? hits : null };
+    }
+    return null;
+  };
+  const loc = S.map(s => ({ ...s, live: locate(s) }));
+  const readLive = (addr, n) => { for (const r of regions) if (addr >= r.start && addr + n <= r.start + r.buf.length) return r.buf.subarray(addr - r.start, addr - r.start + n); return null; };
+  const baseOf = k => loc[k + 1]?.live?.address ?? null;
+  const out = { sections: loc.map(s => ({ index: s.index, live: s.live ? s.live.address : null, ambiguous: s.live?.ambiguous ?? null })), per_section: [], cross_pointer_words: [] };
+  for (const s of loc) {
+    if (!s.live || s.index === 0 || s.index === graph.object_section) continue;
+    const live = readLive(s.live.address, s.size); if (!live) { out.per_section.push({ section: s.index, error: 'dump does not cover the section' }); continue; }
+    const st = { section: s.index, changed: 0, by_target: {}, into_object_section: 0, unclassified: 0 };
+    for (let q = 0; q + 4 <= s.size; q += 4) {
+      const f = fileBuf.readUInt32BE(s.offset + q), l = live.readUInt32BE(q);
+      if (f === l) continue; st.changed++;
+      const idx = f >>> 24, low = f & 0xffffff; const b = idx <= 7 ? baseOf(idx) : null;
+      if (b !== null && loc[idx + 1] && low < loc[idx + 1].size && (l === ((b + low) >>> 0) || l === (((b + low) >>> 0) & 0x7fffffff))) {
+        st.by_target[idx + 1] = (st.by_target[idx + 1] ?? 0) + 1;
+        if (idx + 1 === graph.object_section) { st.into_object_section++; out.cross_pointer_words.push(s.offset + q); }
+      } else st.unclassified++;
+    }
+    out.per_section.push(st);
+  }
+  return out;
+}
+
 export function fixupMap(fileBuf, liveBuf, graph, { base = 0x80DBC020 } = {}) {
   const sec = graph.sections[graph.object_section];
   if (liveBuf.length < sec.size) throw new Error(`dump is ${liveBuf.length} bytes, section is ${sec.size}`);

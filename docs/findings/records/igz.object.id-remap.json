@@ -1,9 +1,9 @@
 {
-  "updated": "2026-09-13",
+  "updated": "2026-09-12",
   "editable": false,
   "id": "igz.object.id-remap",
   "category": "igz-objects",
-  "confidence": "LIKELY",
+  "confidence": "UNKNOWN",
   "type": "u32 0x01xxxxxx per object header (+8) and per embedded sub-object",
   "endian": "be",
   "structure": "Object ids are relocated by a constant at load",
@@ -12,7 +12,7 @@
     "file_pattern": "level/*.bld:level.bld (decoded)",
     "length": 4
   },
-  "meaning": "All 38 584 id words of the tutorial become id + 0x101C3408 at load (0x01011102 -> 0x111D450A). Ids are therefore relative handles inside one file, unique within it; a clone needs fresh ids (max+1 ...) rather than a copy of the source id. Heap gameplay objects carry ids of another range (0x12FDxxxx).",
+  "meaning": "Superseded by igz.pointer.section-indexed: header word +8 is a section-indexed pointer (0x01 = section 2) to a string that many objects share; the \"constant shift\" 0x101C3408 is the MEM2 base of section 2 (0x911C3408) minus 0x80000000. Clones keep the source value.",
   "evidence": [
     {
       "probe": "ssa-archive experiment ptr-scan (ptr-scan1.json)",
@@ -21,6 +21,10 @@
     {
       "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan2.json, ptr-scan2-section1.bin) + igz fixups",
       "summary": "38 584 id words, one delta"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789254290299",
+      "summary": "CONTRADICTION: intermediate loader state of the spawn tfbPhysicsModel: word +8 0x0100ECC0 -> 0x911D20C8 = MEM2 address of section 2 (0x911C3408) + 0xECC0; the final 0x111D20C8 is that pointer with bit 31 cleared. 2 621 distinct values for 21 680 objects (4 300 tfbSpriteInfo share one): a shared string pointer, not an id"
     }
   ]
 }
