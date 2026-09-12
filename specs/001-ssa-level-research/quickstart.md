@@ -62,6 +62,16 @@ node cli.mjs bindiff <challenge_000 decoded> <challenge_001 decoded>
 
 Expected: `--decode` produces decompressed entries only once chunk semantics are CONFIRMED (otherwise `decoded: false` with the reason); scanners output offsets and candidate triples for manual review and live-memory checks through the MCP (`dolphin_read_float`, `dolphin_write_float`).
 
+## Scenario 4b: locate a live position and match it to level data (R11)
+
+```powershell
+node cli.mjs experiment live-probe --figure "<Sonic Boom.sky>" --save-slot 6 --label live-probe1   # once: saves the tutorial-start state
+node cli.mjs experiment ram-diff --figure "<Sonic Boom.sky>" --save-slot 6 --label ram-diff2
+node research-probes\probe-igz-near.mjs <x> <y> <z> 3        # IGZ triples near the live position, with owner object type
+```
+
+Expected: `ram-diff` lists reversible world-scale triples (the Skylander position; `ram-diff2` found (91.34, 10.55, 44.22)); the near-probe lists candidate records with their owner type (ScriptSet, tfbPhysicsModel, ScriptSetReference boxes). Screen a candidate with `experiment m2 --repeat 1 --skip-control` (5 min) before the formal run.
+
 ## Scenario 5: M2 controlled mutation (FR-011, FR-012, SC-004)
 
 ```powershell

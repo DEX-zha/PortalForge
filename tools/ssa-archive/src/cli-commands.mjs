@@ -78,6 +78,11 @@ export const commands = {
       const r = await liveProbe({ script: o.script, figure: o.figure ?? null, label: o.label ?? 'live-probe', patterns: o.pattern ?? [], pokes, saveSlot: o['save-slot'] ? Number(o['save-slot']) : null });
       return { result: r, exitCode: r.status === 'DONE' ? 0 : 1, text: `${r.status} ${r.output}\n` + (r.scan ?? []).map(s => `${s.pattern.slice(0, 32)}…: ${s.matches.length} match(es) ${s.matches.slice(0, 5).join(' ')}`).join('\n') + (r.error ? '\nerror: ' + r.error : '') };
     }
+    if (kind === 'ram-diff') {
+      const { ramDiff } = await import('./experiments/live-probe.mjs');
+      const r = await ramDiff({ label: o.label ?? 'ram-diff', stateSlot: o['save-slot'] ? Number(o['save-slot']) : 6, figure: o.figure ?? null });
+      return { result: r, exitCode: r.status === 'DONE' ? 0 : 1, text: `${r.status} ${r.output}\ncandidates=${r.candidates?.length ?? 0}\n` + (r.candidates ?? []).slice(0, 15).map(c => `${c.address} before=${JSON.stringify(c.before)} right=${JSON.stringify(c.delta_right)} back=${JSON.stringify(c.delta_back)}`).join('\n') + (r.error ? '\nerror: ' + r.error : '') };
+    }
     if (kind === 'm2-judge') {
       const { judge } = await import('./experiments/m2-mutation.mjs');
       const r = judge({ id: need(o.id, 'id'), run: Number(need(o.run, 'run')), observed: need(o.observed, 'observed'), match: String(o.match ?? '').toLowerCase() === 'yes' });

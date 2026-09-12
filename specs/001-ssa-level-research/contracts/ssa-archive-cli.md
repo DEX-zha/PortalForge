@@ -100,6 +100,14 @@ Runs the M1 round-trip through the MCP: extract, rebuild (variant, default `sequ
 
 Applies one mutation (decoding the entry when LZMA-chunked), rebuilds re-encoding only that entry, patches, runs the control and `--repeat` patched runs with the same inputs, reads the watched addresses, captures screenshots. The record is written with `status: UNKNOWN`; the observed effect is a human judgement.
 
+### `experiment live-probe [--pattern <hex>]... [--poke match:<i>:<offset>=<value>[=<wait>]]... [--save-slot n] [--figure] [--script] [--label]`
+
+Boots the plain dump, enters the level, searches MEM1/MEM2 for byte patterns copied from a decoded IGZ, writes a float at a found address, keeps before/after screenshots and optionally saves a native state.
+
+### `experiment ram-diff [--save-slot 6] --figure <.sky> [--label]`
+
+Boots, loads the figure, restores the native state of the level start, snapshots MEM1, moves the character with the Nunchuk, snapshots again, moves back, snapshots a third time. Reports float triples that changed on the move and reversed on the way back (`candidates`), i.e. live positions; used to locate the player position and then match it against level data.
+
 ### `experiment m2-judge --id <experiment id> --run <n> --observed "<text>" --match yes|no`
 
 Records the observation for one run and re-evaluates the M2 rule: PASS only when every run has no crash or load error and matches the prediction (FR-012, SC-004); otherwise FAIL and the finding stays unconfirmed.

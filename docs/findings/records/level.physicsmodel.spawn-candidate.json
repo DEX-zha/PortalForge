@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-12",
+  "editable": false,
+  "id": "level.physicsmodel.spawn-candidate",
+  "type": "f32be x, y, z then 161.0 (heading?)",
+  "evidence": [
+    {
+      "probe": "research-probes/probe-igz-physmodel.mjs + ram-diff2",
+      "summary": "Position within 0.7 units of the live player start; 10 other physics models sit at the origin"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o1734528-1789237564649",
+      "summary": "Screening run: X 91.73 -> 99.73 in the served mutated level.bld moved the Skylander spawn visibly left toward the island edge, away from Hugo; camera followed; scenery unchanged (1 run, not yet SC-004)"
+    }
+  ],
+  "category": "world-entities",
+  "meaning": "The only tfbPhysicsModel of Level_027 with a non-zero position: (91.73, 10.31, 44.74), 0.7 units from the live Skylander start position, material RockA_01_MAT, a second position (91.52, 9.59, 48.17) with 160.0 near the end of the object. Candidate for the object the Skylander spawns on",
+  "structure": "tfbPhysicsModel instance at the tutorial start",
+  "endian": "be",
+  "location": {
+    "offset": 1734528,
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 12
+  },
+  "confidence": "LIKELY"
+}

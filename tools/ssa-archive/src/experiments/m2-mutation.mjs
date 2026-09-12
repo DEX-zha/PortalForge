@@ -111,8 +111,8 @@ function saveRecord(record) {
 }
 
 // Human judgement: records observed_effect for one run and re-evaluates the M2 rule.
-export function judge({ id, run, observed, match }) {
-  const file = path.join(experimentsDir, `${id}.json`);
+export function judge({ id, run, observed, match, dir = experimentsDir }) {
+  const file = path.join(dir, `${id}.json`);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
   const r = record.runs[run - 1];
   if (!r) throw new Error(`run ${run} does not exist (${record.runs.length} run(s))`);
@@ -120,9 +120,9 @@ export function judge({ id, run, observed, match }) {
   const judged = record.runs.filter(x => x.observed_effect);
   if (judged.length === record.runs.length) {
     const allMatch = record.runs.every(x => x.matches_prediction && !x.crash_or_load_error);
-    record.status = allMatch ? 'PASS' : 'FAIL';
-    record.failing_stage = allMatch ? null : 'observation';
-    record.notes = allMatch ? `predicted effect observed in ${record.runs.length}/${record.runs.length} runs` : 'observation did not match the prediction in every run; finding stays unconfirmed (FR-012)';
+    if (!allMatch) { record.status = 'FAIL'; record.failing_stage = 'observation'; record.notes = 'observation did not match the prediction in every run; finding stays unconfirmed (FR-012)'; }
+    else if (record.runs.length < 2) { record.status = 'UNKNOWN'; record.failing_stage = null; record.notes = 'predicted effect observed once; SC-004 requires the same input to be repeated at least twice before PASS (screening result)'; }
+    else { record.status = 'PASS'; record.failing_stage = null; record.notes = `predicted effect observed in ${record.runs.length}/${record.runs.length} runs`; }
   } else record.notes = `${judged.length}/${record.runs.length} run(s) judged`;
   record.output = file; saveRecord(record);
   return record;

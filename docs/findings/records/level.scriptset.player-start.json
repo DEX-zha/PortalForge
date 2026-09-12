@@ -1,0 +1,30 @@
+{
+  "updated": "2026-09-12",
+  "editable": false,
+  "id": "level.scriptset.player-start",
+  "type": "f32be x, y, z, radius(5.0) then heading 261.0 and 5.0",
+  "evidence": [
+    {
+      "probe": "ram-diff2 (2026-09-12)",
+      "summary": "Live player position (91.34, 10.55, 44.22) at three MEM1 addresses (0x804F81E0, 0x80512F00, 0x80660640) moved (-6.3, +0.9, -7.5) on stick right and returned on stick left"
+    },
+    {
+      "probe": "research-probes/probe-igz-near.mjs + probe-igz-spawn.mjs",
+      "summary": "Nearest world-scale triple in the IGZ: ScriptSet@0x35191C+0x6C = (92.39, 11.78, 42.52) with radius 5 and heading 261; other nearby triples are trigger boxes (ScriptSetReference pairs) and a tfbPhysicsModel instance"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o3479944-1789236713623",
+      "summary": "CONTRADICTION: X 92.39 -> 100.39 in the mutated, served level.bld produced no displacement of the Skylander in 2/2 runs; the ScriptSet position is not (or not solely) the spawn point"
+    }
+  ],
+  "category": "world-entities",
+  "meaning": "ScriptSet object at 0x35191C (type 111) holds a world position (92.39, 11.78, 42.52) 1.2 units from where Sonic Boom stands at the tutorial start (live position 91.34, 10.55, 44.22 found by RAM diff), followed by 5.0, 261.0 (heading in degrees?), 5.0. Hypothesis: the player spawn point of Level_027; mutation of X should displace the spawned Skylander",
+  "structure": "Player start position in a ScriptSet object",
+  "endian": "be",
+  "location": {
+    "offset": 3479944,
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 16
+  },
+  "confidence": "UNKNOWN"
+}
