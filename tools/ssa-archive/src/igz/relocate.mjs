@@ -69,7 +69,12 @@ export function insertBytes(buf, graph, { pointerWords, idWords = [] }, at, byte
 // section alignment so the later sections keep their alignment.
 const TYPES = { f32be: [4, (b, o, v) => b.writeFloatBE(v, o)], u32be: [4, (b, o, v) => b.writeUInt32BE(v >>> 0, o)], u16be: [2, (b, o, v) => b.writeUInt16BE(v, o)], u8: [1, (b, o, v) => b.writeUInt8(v, o)] };
 
-export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, findingsOpts = {}, extraFindings = [] }) {
+// Registration inserts one table entry (4 bytes) and, right after the header block, enough zero padding
+// for the whole object area to move by `registerShift` bytes (default: the section alignment, 32), so
+// every object keeps its alignment modulo 32: inline geometry and texture data in section 1 are read
+// by hardware that needs 32-byte alignment, and a 4-byte shift froze the level load (run
+// m3-level_027_tutorial-e3-1789253576009).
+export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, findingsOpts = {}, extraFindings = [] }) {
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`); e.exitCode = 1; throw e; }
   const graph = buildGraph(buf, { fields: false });
@@ -80,53 +85,69 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
   const blockLen = end - start;
   if (blockLen <= 0 || end > sec.offset + sec.size) throw new Error('bad clone range');
   const align = Math.max(4, sec.align || 4);
-  const entryBytes = register ? 4 : 0;
-  const pad = (align - ((blockLen + entryBytes) % align)) % align;
+  const shift = register ? (registerShift ?? Math.max(4, align)) : 0;    // total move of the object area
+  if (shift % 4 || (register && shift < 4)) throw new Error('registerShift must be a positive multiple of 4');
+  const entryBytes = shift;
   const insertAt = sec.offset + sec.size;                                   // end of the object section
-  const delta = insertAt - start;                                           // file delta of the copy
-  const copy = Buffer.alloc(blockLen + pad); buf.copy(copy, 0, start, end);
+  // The copy keeps the source's alignment class modulo the section alignment (inline data inside the
+  // block may be read by hardware with alignment requirements), so it may start after a small pre-pad.
+  const prePad = (((start - sec.offset) - sec.size) % align + align) % align;
+  const pad = (align - ((prePad + blockLen + entryBytes) % align)) % align;
+  const cloneStart = insertAt + prePad;
+  const delta = cloneStart - start;                                         // file delta of the copy
+  const copy = Buffer.alloc(prePad + blockLen + pad); buf.copy(copy, prePad, start, end);
   const failures = [], changes = [];
   // Pointers inside the block that point inside the block follow the copy; others keep pointing at
   // the shared originals. Pointers into the block from outside are left alone (the original keeps them).
   const inBlock = w => w >= start && w < end;
   const blockPointerWords = fixups.pointer_words.filter(inBlock);
   let internal = 0, external = 0;
+  const at = w => w - start + prePad;                                       // block offset -> copy buffer offset
   for (const w of blockPointerWords) {
-    const v = copy.readUInt32BE(w - start);
+    const v = copy.readUInt32BE(at(w));
     const target = sec.offset + (v & 0x7fffffff);
-    if (target >= start && target < end) { copy.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, w - start); internal++; } else external++;
+    if (target >= start && target < end) { copy.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, at(w)); internal++; } else external++;
   }
   // Fresh ids for every id word of the copy (ids are remapped by a constant at load; duplicates are avoided).
-  const maxId = Math.max(...graph.objects.map(o => o.id));
+  const maxId = graph.objects.reduce((m, o) => Math.max(m, o.id), 0);
   const idWordsInBlock = fixups.id_words.filter(inBlock).sort((a, b) => a - b);
   let nextId = maxId + 1; const newIds = [];
-  for (const w of idWordsInBlock) { const old = copy.readUInt32BE(w - start); copy.writeUInt32BE(nextId >>> 0, w - start); newIds.push({ field: '+0x' + (w - start).toString(16), old: '0x' + old.toString(16), new: '0x' + nextId.toString(16) }); nextId++; }
+  for (const w of idWordsInBlock) { const old = copy.readUInt32BE(at(w)); copy.writeUInt32BE(nextId >>> 0, at(w)); newIds.push({ field: '+0x' + (w - start).toString(16), old: '0x' + old.toString(16), new: '0x' + nextId.toString(16) }); nextId++; }
   if (!idWordsInBlock.includes(start + 8)) failures.push({ stage: 'validation', reason: 'the owner header id word is not in the fixup map' });
   for (const ed of edits) {
     const [width, write] = TYPES[ed.type] ?? [];
     if (!write) throw new Error(`unsupported edit type ${ed.type}`);
     if (ed.offset + width > blockLen) throw new Error(`edit +0x${ed.offset.toString(16)} outside the cloned block`);
-    const old_hex = copy.subarray(ed.offset, ed.offset + width).toString('hex');
-    write(copy, ed.offset, ed.value);
-    changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: copy.subarray(ed.offset, ed.offset + width).toString('hex') });
+    const old_hex = copy.subarray(prePad + ed.offset, prePad + ed.offset + width).toString('hex');
+    write(copy, prePad + ed.offset, ed.value);
+    changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: copy.subarray(prePad + ed.offset, prePad + ed.offset + width).toString('hex') });
   }
   // 1. append the copy
   const words = { pointerWords: [...fixups.pointer_words, ...fixups.head_pointer_words], idWords: fixups.id_words };
   let step = insertBytes(buf, graph, words, insertAt, copy);
   let updates = [...step.updates];
-  const copyPointerWords = blockPointerWords.map(w => w - start + insertAt);
-  let pointerWordsNow = [...step.pointerWords, ...copyPointerWords];
-  let out = step.buffer, tableEntry = null, cloneOffset = insertAt;
-  // 2. register: one more table entry at the end of the table (shifts everything after it by 4)
+  const copyPointerWords = blockPointerWords.map(w => w - start + cloneStart);
+  let pointerWordsNow = step.pointerWords.concat(copyPointerWords);
+  let out = step.buffer, tableEntry = null, cloneOffset = cloneStart;
+  // 2. register: one more table entry at the end of the table, then zero padding after the header block
+  //    so that the object area moves by `shift` bytes in total.
   if (register) {
     const graph1 = buildGraph(out, { fields: false });
     const sec1 = graph1.sections[graph1.object_section];
     const tableEnd = sec1.offset + (out.readUInt32BE(sec1.offset + HEAD_TABLE_END) & 0x7fffffff);
-    const entry = Buffer.alloc(4); entry.writeUInt32BE(cloneOffset + 4 - sec1.offset);   // the clone itself moves by 4
+    const entry = Buffer.alloc(4); entry.writeUInt32BE(cloneOffset + shift - sec1.offset);   // the clone itself moves by `shift`
     step = insertBytes(out, graph1, { pointerWords: pointerWordsNow, idWords: step.idWords }, tableEnd, entry);
     out = step.buffer; updates = updates.concat(step.updates); pointerWordsNow = step.pointerWords; cloneOffset += 4;
-    tableEntry = { location: tableEnd, value: cloneOffset - sec1.offset, index: (tableEnd - sec1.offset) / 4 };
-    updates.push({ location: tableEnd, field: 'head table entry (new)', old: null, new: cloneOffset - sec1.offset });
+    tableEntry = { location: tableEnd, value: cloneOffset + shift - 4 - sec1.offset, index: (tableEnd - sec1.offset) / 4 };
+    updates.push({ location: tableEnd, field: 'head table entry (new)', old: null, new: tableEntry.value });
+    if (shift > 4) {
+      const graph2 = buildGraph(out, { fields: false });
+      const sec2 = graph2.sections[graph2.object_section];
+      const blockEnd = sec2.offset + out.readUInt32BE(sec2.offset + HEAD_BLOCK_END);          // == first object
+      step = insertBytes(out, graph2, { pointerWords: pointerWordsNow, idWords: step.idWords }, blockEnd, Buffer.alloc(shift - 4));
+      out = step.buffer; updates = updates.concat(step.updates); pointerWordsNow = step.pointerWords; cloneOffset += shift - 4;
+      updates.push({ location: blockEnd, field: 'padding after the header block', old: null, new: shift - 4 });
+    }
   }
   // Validation: re-parse and check the copy resolves like the original.
   let after = null;
@@ -143,7 +164,7 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     if (!clone) failures.push({ stage: 'validation', reason: 'clone header not recognised', offset: cloneOffset });
     else if (clone.type !== source.type) failures.push({ stage: 'validation', reason: `clone type ${clone.type} != source ${source.type}` });
     // every original object keeps its type at its shifted position
-    const shift = register ? 4 : 0; const byOff = new Map(after.objects.map(o => [o.offset, o]));
+    const byOff = new Map(after.objects.map(o => [o.offset, o]));
     let mismatched = 0; for (const o of graph.objects) { const m = byOff.get(o.offset + shift); if (!m || m.type !== o.type) mismatched++; }
     if (mismatched) failures.push({ stage: 'validation', reason: `${mismatched} original object(s) not found at their shifted offset` });
     // pointer words of the copy resolve to the same object types as in the source
@@ -165,11 +186,11 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     source: { object_offset: start, type_name: source.type_name, finding_id: findingId, block_end: end, block_bytes: blockLen },
     changes, insert_at: cloneOffset, updates: updates.slice(0, 200), updates_total: updates.length, new_id: maxId + 1, new_ids: newIds,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures },
-    inserted_bytes: copy.length + entryBytes, register, table_entry: tableEntry, pointers: { internal, external, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
+    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
     findings: [findingId, ...extraFindings], method: 'reachable-clone (fixup-map relocation, header table registration)',
   };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, table_entry, pointers, findings, method, ...rest } = plan;
+  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, pre_pad, table_entry, pointers, findings, method, ...rest } = plan;
   const strict = { ...rest, source: src };
   plan.schema_valid = v(strict); plan.schema_errors = v.errors ?? null;
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };

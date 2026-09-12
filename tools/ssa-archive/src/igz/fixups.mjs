@@ -20,6 +20,7 @@ export function fixupMap(fileBuf, liveBuf, graph, { base = 0x80DBC020 } = {}) {
   const objects = [];
   const pointerWords = [];      // file offsets of words that are section-relative pointers (for relocation)
   const idWords = [];           // file offsets of 0x01xxxxxx ids (remapped by id_shift at load)
+  let adjusted = 0;             // pointer words whose live value is not the plain rebase (moved cursors, heap copies)
   let unvisited = [];
   for (const o of graph.objects) {
     const rel = o.offset - sec.offset;
@@ -33,13 +34,19 @@ export function fixupMap(fileBuf, liveBuf, graph, { base = 0x80DBC020 } = {}) {
       if (f === l) { kinds.unchanged++; continue; }
       entry.changed++;
       let kind;
+      const secLive = l >= base + sec.offset && l < base + sec.offset + sec.size;
+      const isStringStart = strSec && f > 0 && f < strSec.size && fileBuf[strSec.offset + f - 1] === 0 && fileBuf[strSec.offset + f] > 0x20;
       if (l === ((base + sec.offset + f) >>> 0) && f >= 0x20 && f < sec.size) { kind = 'ptr'; pointerWords.push(o.offset + q); }
       else if (idShift !== null && ((l - f) >>> 0) === idShift) { kind = 'id'; idWords.push(o.offset + q); }
       else if (f < 0x100000 && l >= 0x80400000 && l < 0x80600000 && (q === 0 || fileBuf.readUInt32BE(o.offset + q + 4) < 0x100)) kind = 'class';
       else if (l >= 0x80000000 && l < 0x80100000) kind = 'code';
       else if (l === 0) kind = 'zeroed';
       else if (f === 0) kind = 'filled';
-      else if (strSec && f < strSec.size && l >= 0x80000000 && !(l >= base + sec.offset && l < base + sec.offset + sec.size)) kind = 'string';
+      else if (isStringStart && l >= 0x80000000 && !secLive) kind = 'string';
+      // A section offset the loader read as a pointer and then moved (list cursor advanced, data copied
+      // to the heap): the file word still needs rebasing when the section is relocated.
+      else if (f >= 0x20 && f < sec.size && !isStringStart && (secLive || (l >= 0x80800000 && l < 0x81800000) || (l >= 0x90000000 && l < 0x94000000))) { kind = 'ptr'; pointerWords.push(o.offset + q); adjusted++; }
+      else if (f < 0x100000 && l >= 0x80700000 && l < 0x80800000) kind = 'string';                       // interned string pointer (mid-string offsets included)
       else kind = 'other';
       kinds[kind]++;
     }
@@ -53,5 +60,5 @@ export function fixupMap(fileBuf, liveBuf, graph, { base = 0x80DBC020 } = {}) {
   const visitedInside = objects.filter(o => o.visited && o.offset >= uMin && o.offset <= uMax).length;
   const unvisitedRange = unvisited.length ? { min: uMin, max: uMax, visited_objects_inside: visitedInside } : null;
   const byTypeUnvisited = new Map(); for (const u of unvisited) { const k = `${u.type} ${u.type_name}`; byTypeUnvisited.set(k, (byTypeUnvisited.get(k) ?? 0) + 1); }
-  return { base, id_shift: idShift, kinds, visited: objects.length - unvisited.length, total: objects.length, unvisited: unvisited.map(u => ({ offset: u.offset, type: u.type, type_name: u.type_name })), unvisited_by_type: [...byTypeUnvisited.entries()].map(([k, n]) => ({ key: k, count: n })).sort((a, b) => b.count - a.count), classes: [...classes.values()].sort((a, b) => a.type - b.type), head_changes: head.length, head_pointers: head.filter(h => h.ptr).length, unvisited_range: unvisitedRange, section_offset: sec.offset, first_object: first, head_pointer_words: head.filter(h => h.ptr).map(h => h.offset), pointer_words: pointerWords, id_words: idWords, objects };
+  return { base, id_shift: idShift, kinds, adjusted_pointer_words: adjusted, visited: objects.length - unvisited.length, total: objects.length, unvisited: unvisited.map(u => ({ offset: u.offset, type: u.type, type_name: u.type_name })), unvisited_by_type: [...byTypeUnvisited.entries()].map(([k, n]) => ({ key: k, count: n })).sort((a, b) => b.count - a.count), classes: [...classes.values()].sort((a, b) => a.type - b.type), head_changes: head.length, head_pointers: head.filter(h => h.ptr).length, unvisited_range: unvisitedRange, section_offset: sec.offset, first_object: first, head_pointer_words: head.filter(h => h.ptr).map(h => h.offset), pointer_words: pointerWords, id_words: idWords, objects };
 }

@@ -63,17 +63,22 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   const clonePhysics = after.objects.find(o => o.offset === r.plan.insert_at + 0x30);
   assert.equal(clonePhysics.type, 4);
   assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x14), clonePhysics.offset);             // internal pointer follows the copy
-  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x18), f.shared + 4);                    // shared pointer -> shifted original
+  const shift = r.plan.register_shift;
+  assert.equal(shift, 0x20);                                                                               // section alignment
+  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x18), f.shared + shift);                // shared pointer -> shifted original
   assert.equal(secA.offset + r.buffer.readUInt32BE(clonePhysics.offset + 0x2c), clone.offset);             // back pointer -> clone owner
   assert.equal(r.buffer.readFloatBE(clonePhysics.offset + 0x20).toFixed(2), '99.73');
-  assert.equal(r.buffer.readFloatBE(f.physics + 4 + 0x20).toFixed(2), '91.73');                            // original untouched
+  assert.equal(r.buffer.readFloatBE(f.physics + shift + 0x20).toFixed(2), '91.73');                        // original untouched
+  assert.equal((clone.offset - secA.offset) % 0x20, (f.owner - sec.offset) % 0x20);                     // alignment class preserved for the copy
+  for (const o of before.objects) assert.equal((o.offset + shift - secA.offset) % 0x20, (o.offset - sec.offset) % 0x20); // every original keeps its alignment mod 32
   assert.equal(clonePhysics.fields.find(x => x.offset === clonePhysics.offset + 0x30).target, 'RockA_01_MAT');
   // registration
   const count = r.buffer.readUInt32BE(secA.offset + 0x0c);
   assert.equal(count, f.buf.readUInt32BE(sec.offset + 0x0c) + 1);
   assert.equal(r.buffer.readUInt32BE(secA.offset + 0x14) & 0x7fffffff, count * 4);
   assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.table_entry.location), clone.offset);
-  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), f.owner + 4);                      // old entry still -> original owner
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), f.owner + shift);                  // old entry still -> original owner
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset);          // +0x1C -> first object, past the padding
   // fresh ids, unique
   const ids = after.objects.map(o => o.id);
   assert.equal(new Set(ids).size, ids.length);
