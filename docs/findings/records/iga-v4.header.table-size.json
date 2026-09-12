@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.table-size",
+    "type":  "u32",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-iga-header.mjs",
+                         "summary":  "count*16 on both .arc; .bld values equal tables + chunk area"
+                     },
+                     {
+                         "probe":  "src/iga/reader.mjs",
+                         "summary":  "Bounds the chunk area; all 7 samples VALID and decode fully"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "Size of hash table + entry table + chunk tables following the 0x30 header",
+    "structure":  "Header word 0x08",
+    "endian":  "le",
+    "location":  {
+                     "offset":  8,
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  4
+                 },
+    "confidence":  "CONFIRMED"
+}

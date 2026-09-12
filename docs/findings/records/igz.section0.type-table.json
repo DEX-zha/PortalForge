@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "igz.section0.type-table",
+    "type":  "u32 words then NUL-terminated names",
+    "evidence":  [
+                     {
+                         "probe":  "hexdump 0x800 of tutorial level.bld.decoded + magic search over section 0",
+                         "summary":  "Second header observed; 16 fixup magics searched, none found"
+                     },
+                     {
+                         "probe":  "igArchiveExtractor IGZ_Structure.cs",
+                         "summary":  "locations[5] is an empty array"
+                     }
+                 ],
+    "category":  "igz-objects",
+    "meaning":  "Section 0 (offset 0x800, the first descriptor) starts with a second \"IGZ\\x01\" v5 header: words 5, 0x00020000, 0x1C, 0xE, 0x1C, 0, 1, 0, 0, 0x24, 0x248, 0x18, then the type names (metaobject, tfbLightInfo, tfbSpriteInfo, tfbParticleInfo, tfbSoundInfo, CameraInfo, ScriptSet, ActorWaypoint, ...). No TMET/TSTR/ROFS fixup magics exist anywhere in the section: the v5 layout predates the tagged fixups the community reader handles (its offset table for version 5 is empty).",
+    "structure":  "IGZ v5 section 0 header and type-name table",
+    "endian":  "be",
+    "location":  {
+                     "offset":  2048,
+                     "file_pattern":  "level/*.bld:level.bld (decoded)",
+                     "length":  52
+                 },
+    "confidence":  "LIKELY"
+}

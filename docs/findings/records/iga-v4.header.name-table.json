@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.name-table",
+    "type":  "u32 x2",
+    "evidence":  [
+                     {
+                         "probe":  "src/iga/reader.mjs",
+                         "summary":  "Holds on all 7 samples; names resolve for 533 entries"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "Absolute offset and size of the name table; offset + size == file size",
+    "structure":  "Header words 0x18/0x1C",
+    "endian":  "le",
+    "location":  {
+                     "offset":  24,
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  8
+                 },
+    "confidence":  "CONFIRMED"
+}

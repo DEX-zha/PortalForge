@@ -1,0 +1,26 @@
+{
+  "updated": "2026-09-12",
+  "editable": false,
+  "id": "igz.section1.position-like-quads",
+  "type": "f32be x3, 0, f32be x3, 0, u16 x2",
+  "evidence": [
+    {
+      "probe": "research-probes/probe-igz-sections.mjs",
+      "summary": "Per-section census; sections 4/6/8 (10 MB buffers) hold few such quads"
+    },
+    {
+      "probe": "live-probe1 (2026-09-12)",
+      "summary": "All three 32-byte patterns from section 1 found once each in MEM1 (0x80ED1BA0, 0x80ED298C, 0x80ED29F8) with the same relative offsets as in the file (section base 0x80DBC020): the decoded level.bld is resident verbatim. Writing X -259.26 -> -159.26 at 0x80ED1BA0 succeeded but produced no visible change at the tutorial start camera; static collision/nav data or an object out of view"
+    }
+  ],
+  "category": "world-entities",
+  "meaning": "6 718 quadruples with |x| or |z| in 50..20000 and w=0 in section #1, many arranged as pairs of positions followed by two u16 indices (e.g. 0x0063 0x0065): plausibly collision or navigation edges rather than object placements",
+  "structure": "Float quadruples with world-scale coordinates in section 1",
+  "endian": "be",
+  "location": {
+    "offset": "0x115B80.. in the tutorial file",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 32
+  },
+  "confidence": "UNKNOWN"
+}

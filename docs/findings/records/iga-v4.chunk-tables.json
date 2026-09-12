@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.chunk-tables",
+    "type":  "u16 values / [flags,units] records",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-chunks.mjs",
+                         "summary":  "Full decode of 63 chunks incl. 6 raw chunks; records 80 01/02/03 match stored spans"
+                     },
+                     {
+                         "probe":  "tests/decode.test.mjs",
+                         "summary":  "Re-encoded entry decodes; untouched entries unchanged"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "Multi-chunk: N+1 u16 at index mode\u00260xFFFFFF, value = (compressed?0x8000:0)|offset/0x800, last = end; single-chunk: 2-byte [0x80|flags][units] at byte offset mode\u00260xFFFFFF in the record area",
+    "structure":  "Chunk tables for LZMA entries",
+    "endian":  "le",
+    "location":  {
+                     "offset":  "after entry table",
+                     "file_pattern":  "**/*.bld",
+                     "length":  2
+                 },
+    "confidence":  "CONFIRMED"
+}

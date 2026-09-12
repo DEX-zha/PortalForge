@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.chunk-counts",
+    "type":  "u32 x2",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-chunks.mjs",
+                         "summary":  "41/779/946 values match 40/778/945 decoded chunks; 12 bytes = 6 .pak records"
+                     },
+                     {
+                         "probe":  "src/iga/decode.mjs + tests/decode.test.mjs",
+                         "summary":  "Decoder driven by these words decodes 7/7 entries of three .bld"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "0x24 = number of u16 values in the multi-chunk table area (chunks+1 per multi-chunk entry); 0x28 = byte size of the single-chunk record area (2 per single-chunk entry)",
+    "structure":  "Header words 0x24/0x28",
+    "endian":  "le",
+    "location":  {
+                     "offset":  36,
+                     "file_pattern":  "**/*.bld",
+                     "length":  8
+                 },
+    "confidence":  "CONFIRMED"
+}

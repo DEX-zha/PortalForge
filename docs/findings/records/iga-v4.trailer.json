@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.trailer",
+    "type":  "u32 x8",
+    "evidence":  [
+                     {
+                         "probe":  "workspace manifest raw_gaps",
+                         "summary":  "Identical in tutorial-arc and gryphon-bld workspaces"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "EC4D4100 01000001 FFFFFFFF 00008000 FFFFFFFF x4; word 3 equals the chunk size; preserved verbatim as a raw gap",
+    "structure":  "32-byte record after the tables",
+    "endian":  "le",
+    "location":  {
+                     "offset":  "4-aligned end of tables",
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  32
+                 },
+    "confidence":  "LIKELY"
+}

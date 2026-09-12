@@ -1,0 +1,19 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.hash-algorithm",
+    "type":  "u32",
+    "evidence":  [
+
+                 ],
+    "category":  "container",
+    "meaning":  "Unknown; 533 name/hash pairs available locally for offline recovery; only needed for new or renamed entries (M3+)",
+    "structure":  "Hash function of entry names",
+    "endian":  "le",
+    "location":  {
+                     "offset":  "0x30",
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  4
+                 },
+    "confidence":  "UNKNOWN"
+}

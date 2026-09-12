@@ -1,0 +1,30 @@
+{
+  "updated": "2026-09-12",
+  "editable": false,
+  "id": "igz.header.section-table",
+  "type": "{u32 offset, u32 size, u32 alignment, u32 index} x N, zero-terminated",
+  "evidence": [
+    {
+      "probe": "hexdump of tutorial level.bld.decoded 2026-09-12",
+      "summary": "sections sum to 30935720 bytes = file size; all fields big-endian"
+    },
+    {
+      "probe": "ssa-archive scan strings",
+      "summary": "Type vocabulary shared by tutorial and challenge levels (10 851 common strings)"
+    },
+    {
+      "probe": "bindiff/section-table comparison 2026-09-12",
+      "summary": "Challenge_Level_000 and _001 level.bld share the same 9-section layout (same alignments, last section ends at file size) while 20.9 MB of content differs: comparative diff across different levels is not informative, structure must be parsed per file"
+    }
+  ],
+  "category": "igz-objects",
+  "meaning": "After magic 49475A01 and version 5 (two zero words), a table of 4-word section descriptors; the tutorial level.bld has 9 sections (alignments 0x800, 0x20, 2, 0x10, 0x20, 4, 0x20, 0x10, 0x10) and the last section ends exactly at the file size; a type-name string table (Default, String, Collision, Image, VertexObject, tfbActorInfo, PlacementReference, AbstractPlacement, igTransform, ...) sits between the table and the first section at 0x800",
+  "structure": "IGZ v5 header and section table",
+  "endian": "be",
+  "location": {
+    "offset": 16,
+    "file_pattern": "level/*.bld:level.bld, *.pak (decoded)",
+    "length": 16
+  },
+  "confidence": "LIKELY"
+}

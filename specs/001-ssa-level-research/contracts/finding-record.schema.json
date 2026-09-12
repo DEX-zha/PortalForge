@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portalforge/ssa-archive/finding-record",
+  "title": "Research finding",
+  "type": "object",
+  "required": ["id", "structure", "location", "type", "endian", "meaning", "evidence", "confidence", "editable", "updated"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$"},
+    "category": {"enum": ["container", "igz-objects", "world-entities", "visible-geometry", "collisions", "gameplay-logic", "references"], "description": "Separate evidence records per FR-014"},
+    "structure": {"type": "string"},
+    "location": {
+      "type": "object",
+      "required": ["file_pattern", "offset", "length"],
+      "properties": {
+        "file_pattern": {"type": "string"},
+        "offset": {"type": ["integer", "string"]},
+        "length": {"type": "integer", "minimum": 1}
+      }
+    },
+    "type": {"type": "string"},
+    "endian": {"enum": ["le", "be", "n/a", "unknown"]},
+    "meaning": {"type": "string"},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["summary"],
+        "properties": {
+          "experiment_id": {"type": "string"},
+          "probe": {"type": "string"},
+          "summary": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "confidence": {"enum": ["CONFIRMED", "LIKELY", "UNKNOWN"]},
+    "editable": {"type": "boolean"},
+    "updated": {"type": "string", "format": "date"}
+  },
+  "allOf": [
+    {"if": {"properties": {"editable": {"const": true}}}, "then": {"properties": {"confidence": {"const": "CONFIRMED"}}}},
+    {"if": {"properties": {"confidence": {"enum": ["LIKELY", "CONFIRMED"]}}}, "then": {"properties": {"evidence": {"minItems": 1}}}}
+  ]
+}

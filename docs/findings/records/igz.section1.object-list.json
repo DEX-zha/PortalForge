@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "igz.section1.object-list",
+    "type":  "u32 count, flagged u32 pointer, u32[] absolute offsets",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-igz-objects.mjs",
+                         "summary":  "Pointer arithmetic verified for 79 entries; records dumped"
+                     }
+                 ],
+    "category":  "igz-objects",
+    "meaning":  "Words 0,0,0,0xB32 | 0xB32, 0x80002CC8, 0x1C, 0x2CE4 then 79 consecutive absolute offsets 0xD8418 + 0x40*i pointing at 64-byte records of small integers and 24-bit values (attribute/enum records, not transforms); pointers with bit 31 set (0x8000xxxx) look like intra-section references. Interpretation UNKNOWN; 2866 objects listed",
+    "structure":  "Section 1 object pointer list",
+    "endian":  "be",
+    "location":  {
+                     "offset":  "section #1 start (0x4B180 in the tutorial file)",
+                     "file_pattern":  "level/*.bld:level.bld (decoded)",
+                     "length":  16
+                 },
+    "confidence":  "UNKNOWN"
+}

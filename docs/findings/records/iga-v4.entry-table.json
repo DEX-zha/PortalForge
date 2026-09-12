@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.entry-table",
+    "type":  "{u32 start, u32 size, u32 mode}",
+    "evidence":  [
+                     {
+                         "probe":  "src/iga/reader.mjs",
+                         "summary":  "533 entries consistent; byte-identical rebuild of 3 archives"
+                     },
+                     {
+                         "probe":  "igArchiveExtractor IGAE_Globals.cs",
+                         "summary":  "LocalHeaderLength 0x0C, ChecksumLocation 0x30 for version 4"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "start absolute and 0x800-aligned, size uncompressed, mode high byte 0xFF stored / 0x10 LZMA chunked, low 24 bits locate the chunk table",
+    "structure":  "Entry descriptors",
+    "endian":  "le",
+    "location":  {
+                     "offset":  "0x30 + 4*count",
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  12
+                 },
+    "confidence":  "CONFIRMED"
+}

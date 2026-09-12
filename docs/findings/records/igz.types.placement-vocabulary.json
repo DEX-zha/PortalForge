@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "igz.types.placement-vocabulary",
+    "type":  "NUL-terminated ASCII names",
+    "evidence":  [
+                     {
+                         "probe":  "ssa-archive scan strings --filter Placement|Actor|Spawn|Position",
+                         "summary":  "Found in tutorial level.bld at 0x88c-0x1403"
+                     }
+                 ],
+    "category":  "world-entities",
+    "meaning":  "Names such as tfbActorInfo, AbstractPlacement, PlacementReference, AbstractPlacementList, ActorWaypoint(List), igTransform, igTransformSequence1_5, igActor2, PositionMeasurement, OpSpawn, OpTeleportTo, CameraInfo, ScriptSet suggest placement objects with transforms; which bytes hold a position is UNKNOWN",
+    "structure":  "Entity/placement type names present in level IGZ files",
+    "endian":  "n/a",
+    "location":  {
+                     "offset":  "0x800..0xd00 type table",
+                     "file_pattern":  "level/*.bld:level.bld (decoded)",
+                     "length":  1
+                 },
+    "confidence":  "UNKNOWN"
+}

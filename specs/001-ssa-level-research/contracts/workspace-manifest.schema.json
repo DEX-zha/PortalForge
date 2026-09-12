@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portalforge/ssa-archive/workspace-manifest",
+  "title": "Extracted IGA v4 workspace manifest",
+  "type": "object",
+  "required": ["tool_version", "created_at", "source", "header_words", "hashes", "entries", "chunk_tables"],
+  "additionalProperties": false,
+  "properties": {
+    "tool_version": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "source": {
+      "type": "object",
+      "required": ["disc_path", "file", "size", "sha256"],
+      "properties": {
+        "disc_path": {"type": "string"},
+        "file": {"type": "string"},
+        "size": {"type": "integer", "minimum": 48},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "header_words": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 4294967295}, "minItems": 12, "maxItems": 12},
+    "hashes": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 4294967295}},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["index", "name", "hash", "start", "size", "stored_size", "mode", "compression", "file", "data_sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "name": {"type": "string", "minLength": 1},
+          "name_offset": {"type": "integer", "minimum": 0, "description": "Offset of the name string relative to the name table start, preserved for byte-identical rebuilds"},
+          "hash": {"type": "integer"},
+          "start": {"type": "integer", "multipleOf": 2048},
+          "size": {"type": "integer", "minimum": 0},
+          "stored_size": {"type": "integer", "minimum": 0},
+          "mode": {"type": "integer"},
+          "compression": {"enum": ["NONE", "LZMA_CHUNKED"]},
+          "chunk_table_index": {"type": ["integer", "null"]},
+          "file": {"type": "string"},
+          "decoded_file": {"type": ["string", "null"]},
+          "data_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "replaced": {"type": "boolean", "default": false}
+        }
+      }
+    },
+    "chunk_tables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["offset", "values"],
+        "properties": {
+          "offset": {"type": "integer", "minimum": 48},
+          "values": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 65535}},
+          "decoded": {"type": ["object", "null"]},
+          "confidence": {"enum": ["CONFIRMED", "LIKELY", "UNKNOWN"]}
+        }
+      }
+    },
+    "name_table": {
+      "type": "object",
+      "required": ["offset", "size"],
+      "properties": {
+        "offset": {"type": "integer", "minimum": 48},
+        "size": {"type": "integer", "minimum": 0},
+        "tail_hex": {"type": "string", "description": "Non-zero bytes of the name table not covered by offsets or strings, as offset:byte; pairs; empty when none"}
+      }
+    },
+    "raw_gaps": {
+      "type": "array",
+      "description": "Non-zero bytes found in padding regions, preserved for byte-identical rebuilds",
+      "items": {"type": "object", "required": ["offset", "hex"], "properties": {"offset": {"type": "integer"}, "hex": {"type": "string"}}}
+    }
+  }
+}

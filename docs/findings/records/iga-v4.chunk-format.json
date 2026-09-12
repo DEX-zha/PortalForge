@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.chunk-format",
+    "type":  "u16 BE size + 5-byte LZMA props + stream",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-chunks.mjs",
+                         "summary":  "Every decoded chunk carried these props; sizes consistent with alignment"
+                     },
+                     {
+                         "probe":  "src/iga/decode.mjs",
+                         "summary":  "Tutorial.bld 945 chunks decode in 1.8 s"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "0x8000-byte chunks; props always 5D 00 80 00 00 (lc3 lp0 pb2, dict 0x8000); next chunk 0x800-aligned; raw chunks when compression does not help",
+    "structure":  "Compressed chunk",
+    "endian":  "be",
+    "location":  {
+                     "offset":  "entry start + table offset",
+                     "file_pattern":  "**/*.bld",
+                     "length":  7
+                 },
+    "confidence":  "CONFIRMED"
+}

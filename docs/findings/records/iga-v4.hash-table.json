@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.hash-table",
+    "type":  "u32[count]",
+    "evidence":  [
+                     {
+                         "probe":  "src/iga/header.mjs",
+                         "summary":  "Sorted on all samples (533 pairs)"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "One 32-bit hash per entry in entry order, strictly ascending; algorithm unknown; copied verbatim on rebuild",
+    "structure":  "Name hash table",
+    "endian":  "le",
+    "location":  {
+                     "offset":  "0x30",
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  4
+                 },
+    "confidence":  "LIKELY"
+}

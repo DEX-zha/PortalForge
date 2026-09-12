@@ -1,0 +1,13 @@
+{
+  "gate": "M0 — Dolphin MCP opérationnel",
+  "status": "PASS",
+  "validated_on": "2026-09-12",
+  "details": "docs/dolphin-mcp.md",
+  "evidence": [
+    ".local/dolphin-evidence/m0-proof.json",
+    ".local/dolphin-evidence/live-test.json",
+    ".local/dolphin-evidence/calls.jsonl",
+    ".local/riivolution-proof/manifest.json"
+  ],
+  "does_not_validate": ["M1 archive round-trip", "M2 world mutation", "editor feasibility"]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "portalforge-ssa-archive",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSA Research Toolkit: IGA v4 inspection, extraction, verification, rebuild, diff, Riivolution patch workspaces and MCP-driven M1/M2 experiments.",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "ssa-archive": "./cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "m1": "node cli.mjs experiment m1",
+    "m2": "node cli.mjs experiment m2"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "lzma-purejs": "^0.9.3",
+    "lzma1": "^0.3.0"
+  }
+}

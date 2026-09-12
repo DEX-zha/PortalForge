@@ -1,0 +1,18 @@
+.local/
+node_modules/
+*.log
+.env*
+# Exported chat sessions (local paths, hundreds of KB); keep them out of the repository
+codex-session-*.md
+*.wbfs
+*.iso
+*.rvz
+*.gcz
+*.wud
+*.sky
+*.arc
+*.bld
+*.igz
+*.pak
+*.sav
+*.s[0-9][0-9]

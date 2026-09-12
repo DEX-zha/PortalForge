@@ -1,0 +1,19 @@
+{
+  "gate": "M1 — Archive round-trip",
+  "status": "PASS",
+  "validated_on": "2026-09-12",
+  "prerequisites": ["M0"],
+  "details": "docs/experiments/README.md, docs/iga-v4.md",
+  "evidence": [
+    ".local/dolphin-evidence/experiments/m1-level_027_tutorial-sequential-1789233660781.json",
+    ".local/dolphin-evidence/experiments/m1-level_027_tutorial-reencode-1789234744424.json",
+    ".local/dolphin-evidence/experiments/m1-level_027_tutorial-reencode-1789234236226.json (control run of the .bld; its patched run stalled on a capture before the level loaded)",
+    ".local/dolphin-evidence/experiments/m1-level_027_tutorial-sequential-1789233029926.json (negative result: XML external path relative to the XML folder)"
+  ],
+  "summary": {
+    "M1a": "level/Level_027_Tutorial.arc rebuilt with entries relaid in table order plus one 0x800 padding block (52 735 248 bytes, 486 222 diff regions all classified, 0 unclassified); served at 52 735 kB versus 52 733 kB in the control run; tutorial reached, Sonic Boom recognised and moved, 17 screenshots, no crash",
+    "M1b": "level/Level_027_Tutorial.bld with all 7 LZMA-chunked entries re-encoded (15 331 434 bytes, 60 989 diff regions all classified); served at 15 331 kB versus 15 241 kB original; tutorial reached with the re-encoded nested level.bld, 17 screenshots, no crash",
+    "byte_identical_rebuilds": "all five sample archives rebuild byte-identically from a workspace (tests/iga-fixtures.test.mjs); the in-game proof used byte-different but semantically equivalent variants because the file monitor cannot distinguish an identical rebuild"
+  },
+  "does_not_validate": ["M2 world mutation", "editor feasibility", "acceptance of archives with added, removed or renamed entries (hash algorithm unknown)"]
+}

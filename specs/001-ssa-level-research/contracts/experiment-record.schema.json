@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "portalforge/ssa-archive/experiment-record",
+  "title": "M1/M2 experiment record",
+  "type": "object",
+  "required": ["id", "kind", "started", "finished", "inputs", "control", "runs", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string"},
+    "kind": {"enum": ["M1_ROUNDTRIP", "M2_MUTATION"]},
+    "started": {"type": "string", "format": "date-time"},
+    "finished": {"type": "string", "format": "date-time"},
+    "inputs": {
+      "type": "object",
+      "required": ["game", "archive_disc_path", "original_sha256", "rebuilt_sha256", "patch_dir", "descriptor"],
+      "properties": {
+        "game": {"type": "string"},
+        "archive_disc_path": {"type": "string"},
+        "original_sha256": {"type": "string"},
+        "rebuilt_sha256": {"type": "string"},
+        "patch_dir": {"type": "string"},
+        "descriptor": {"type": "string"},
+        "figure": {"type": "string"},
+        "input_script": {"type": "string"},
+        "mutation": {
+          "type": "object",
+          "required": ["entry_index", "offset", "type", "old_hex", "new_hex", "predicted_effect"],
+          "properties": {
+            "entry_index": {"type": "integer"},
+            "offset": {"type": "integer"},
+            "type": {"enum": ["f32le", "f32be", "u32le", "u32be", "u16le", "u16be", "u8"]},
+            "old_hex": {"type": "string"},
+            "new_hex": {"type": "string"},
+            "predicted_effect": {"type": "string", "minLength": 1},
+            "finding_id": {"type": "string"}
+          }
+        }
+      }
+    },
+    "control": {"$ref": "#/$defs/run"},
+    "runs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/run"}},
+    "status": {"enum": ["PASS", "FAIL", "UNKNOWN"]},
+    "failing_stage": {"enum": ["extract", "rebuild", "verify", "diff", "patch", "boot", "consumption", "level_entry", "observation", null]},
+    "notes": {"type": "string"}
+  },
+  "$defs": {
+    "run": {
+      "type": "object",
+      "required": ["pid", "started", "finished", "monitor_lines", "screenshots", "crash_or_load_error"],
+      "properties": {
+        "pid": {"type": "integer"},
+        "started": {"type": "string"},
+        "finished": {"type": "string"},
+        "monitor_lines": {"type": "array", "items": {"type": "string"}},
+        "screenshots": {"type": "array", "items": {"type": "string"}},
+        "log_excerpt": {"type": "array", "items": {"type": "string"}},
+        "memory_reads": {"type": "array", "items": {"type": "object", "required": ["address", "bytes_hex"], "properties": {"address": {"type": "integer"}, "bytes_hex": {"type": "string"}}}},
+        "observed_effect": {"type": "string"},
+        "crash_or_load_error": {"type": "boolean"},
+        "stop": {"type": "object"}
+      }
+    }
+  }
+}

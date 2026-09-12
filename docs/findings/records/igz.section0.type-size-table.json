@@ -1,0 +1,22 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "igz.section0.type-size-table",
+    "type":  "u32[type count]",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-igz-objects.mjs",
+                         "summary":  "202 names counted between 0x834 and 0x14E0; a u32 array starts immediately after"
+                     }
+                 ],
+    "category":  "igz-objects",
+    "meaning":  "One u32 per type name (202 in the tutorial level.bld): 0xC, 0, 0, 0xA4, 0x2A8, 0x18, ... plausibly the instance size of each type (metaobject 12 bytes); followed by other tables",
+    "structure":  "Per-type size table after the type names",
+    "endian":  "be",
+    "location":  {
+                     "offset":  "0x14E0 in the tutorial file (4-aligned end of the name list)",
+                     "file_pattern":  "level/*.bld:level.bld (decoded)",
+                     "length":  4
+                 },
+    "confidence":  "UNKNOWN"
+}

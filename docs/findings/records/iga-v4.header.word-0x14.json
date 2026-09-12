@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.word-0x14",
+    "type":  "u32",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/probe-word10-formula.mjs",
+                         "summary":  "Matches on 7/7 local samples including 14 for the 477-entry arc and 2 for every 7-entry bld"
+                     },
+                     {
+                         "probe":  "src/iga/reader.mjs LOOKUP_WORDS_MISMATCH",
+                         "summary":  "Enforced by verify; all samples VALID"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "max over entries of |i - min(count-1, floor(hash_i / word0x10))|: how far the interpolation estimate can be from the real index. Must be recomputed whenever hashes change.",
+    "structure":  "Header word 0x14: maximum probe distance",
+    "endian":  "le",
+    "location":  {
+                     "offset":  20,
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  4
+                 },
+    "confidence":  "CONFIRMED"
+}

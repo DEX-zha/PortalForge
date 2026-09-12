@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.word-0x10",
+    "type":  "u32",
+    "evidence":  [
+                     {
+                         "probe":  "research-probes/survey-level-headers.ps1 + probe-word10-formula.mjs",
+                         "summary":  "152/152 level archives satisfy word = floor(0xFFFFFFFF/count) (counts 6 to 1080)"
+                     },
+                     {
+                         "probe":  "src/iga/reader.mjs LOOKUP_WORDS_MISMATCH",
+                         "summary":  "All 7 local samples VALID with the check enforced"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "floor(0xFFFFFFFF / count): divisor turning a name hash into an estimated index in the sorted hash table (interpolation lookup). Must be recomputed whenever the entry count changes.",
+    "structure":  "Header word 0x10: hash lookup scale",
+    "endian":  "le",
+    "location":  {
+                     "offset":  16,
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  4
+                 },
+    "confidence":  "CONFIRMED"
+}

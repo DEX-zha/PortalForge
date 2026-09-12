@@ -1,0 +1,26 @@
+{
+    "updated":  "2026-09-12",
+    "editable":  false,
+    "id":  "iga-v4.header.magic-version",
+    "type":  "u32 x2",
+    "evidence":  [
+                     {
+                         "probe":  "tools/ssa-archive/tests/iga-fixtures.test.mjs",
+                         "summary":  "All 7 local samples parse; verify rejects other magics/versions"
+                     },
+                     {
+                         "probe":  "igArchiveExtractor IGA_Version.cs",
+                         "summary":  "SkylandersSpyrosAdventureWii = 0x04"
+                     }
+                 ],
+    "category":  "container",
+    "meaning":  "Magic 0x1A414749 (\"IGA\\x1A\") followed by version 4",
+    "structure":  "IGA v4 header magic and version",
+    "endian":  "le",
+    "location":  {
+                     "offset":  0,
+                     "file_pattern":  "**/*.arc, **/*.bld",
+                     "length":  8
+                 },
+    "confidence":  "CONFIRMED"
+}
