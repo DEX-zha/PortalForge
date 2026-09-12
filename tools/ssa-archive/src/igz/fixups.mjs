@@ -13,23 +13,33 @@
 // dumps and lists the words of sections 2..8 that point INTO section 1 (they must move with it).
 // The per-object verdict "visited" = header word +0 rewritten. Objects never rewritten were not seen by
 // the loader: that is the structural fact behind the M3 failure.
-export function crossSectionPointers(fileBuf, graph, regions) {
+export function crossSectionPointers(fileBuf, graph, regions, { overrides = {} } = {}) {
   const S = graph.sections;
+  // A section is found by a window of its file bytes that survives loading unchanged: sections whose
+  // objects are rewritten in place (5, 7) only keep short runs, so shorter windows are tried, and a
+  // window is accepted only when it occurs exactly once in the dumps and the candidate address is
+  // consistent for two different windows.
   const locate = s => {
-    for (let off = 0; off + 48 <= s.size; off += 16) {
-      const sig = fileBuf.subarray(s.offset + off, s.offset + off + 48);
-      let nz = 0; for (const x of sig) if (x) nz++;
-      if (nz < 24) continue;
-      const hits = [];
-      for (const r of regions) { let p = r.buf.indexOf(sig); while (p !== -1 && hits.length < 4) { hits.push(r.start + p - off); p = r.buf.indexOf(sig, p + 1); } }
-      if (hits.length >= 1) return { address: hits[0], ambiguous: hits.length > 1 ? hits : null };
+    for (const win of [48, 32, 16]) {
+      const found = new Map();
+      const step = Math.max(16, Math.floor(s.size / 120 / 16) * 16);      // at most ~120 probes per window size
+      for (let off = 0; off + win <= s.size; off += step) {
+        const sig = fileBuf.subarray(s.offset + off, s.offset + off + win);
+        let nz = 0; for (const x of sig) if (x) nz++;
+        if (nz < win / 2) continue;
+        const hits = [];
+        for (const r of regions) { let p = r.buf.indexOf(sig); while (p !== -1 && hits.length < 3) { hits.push(r.start + p - off); p = r.buf.indexOf(sig, p + 1); } }
+        if (hits.length === 1 && hits[0] % 4 === 0) { found.set(hits[0], (found.get(hits[0]) ?? 0) + 1); if (found.get(hits[0]) >= 2) return { address: hits[0], ambiguous: null, window: win }; }
+      }
     }
     return null;
   };
-  const loc = S.map(s => ({ ...s, live: locate(s) }));
+  // overrides: {sectionIndex: address} for sections the signature search cannot place (section 5 of the
+  // tutorial is rewritten too densely; its address follows section 4 in the MEM2 allocation order).
+  const loc = S.map(s => ({ ...s, live: overrides[s.index] !== undefined ? { address: Number(overrides[s.index]), ambiguous: null, window: 'override' } : locate(s) }));
   const readLive = (addr, n) => { for (const r of regions) if (addr >= r.start && addr + n <= r.start + r.buf.length) return r.buf.subarray(addr - r.start, addr - r.start + n); return null; };
   const baseOf = k => loc[k + 1]?.live?.address ?? null;
-  const out = { sections: loc.map(s => ({ index: s.index, live: s.live ? s.live.address : null, ambiguous: s.live?.ambiguous ?? null })), per_section: [], cross_pointer_words: [] };
+  const out = { sections: loc.map(s => ({ index: s.index, live: s.live ? s.live.address : null, ambiguous: s.live?.ambiguous ?? null, window: s.live?.window ?? null })), per_section: [], cross_pointer_words: [] };
   for (const s of loc) {
     if (!s.live || s.index === 0 || s.index === graph.object_section) continue;
     const live = readLive(s.live.address, s.size); if (!live) { out.per_section.push({ section: s.index, error: 'dump does not cover the section' }); continue; }

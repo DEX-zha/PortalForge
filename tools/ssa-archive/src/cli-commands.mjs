@@ -203,7 +203,8 @@ export const commands = {
       if (o.regions) {
         const files = o.regions.split(',').map(f => path.resolve(f.trim()));
         const regions = files.map(f => ({ start: /90000000/.test(path.basename(f)) ? 0x90000000 : 0x80000000, buf: fs.readFileSync(f) }));
-        cross = crossSectionPointers(buf, g, regions);
+        const overrides = Object.fromEntries((o['section-address'] ?? []).map(s => { const [i, a] = s.split('='); return [Number(i), Number(a)]; }));
+        cross = crossSectionPointers(buf, g, regions, { overrides });
         m.cross_pointer_words = cross.cross_pointer_words; m.cross_sections = cross.sections; m.cross_per_section = cross.per_section;
       }
       const { pointer_words, id_words, head_pointer_words, cross_pointer_words = [], objects, ...summary } = m;
