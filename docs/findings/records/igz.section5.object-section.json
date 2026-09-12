@@ -1,0 +1,26 @@
+{
+  "id": "igz.section5.object-section",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "section 5 (tag 44, align 4, 0x5CA3C bytes in the tutorial): objects {type, refcount, ...} from +0x04 with section-indexed pointers",
+  "structure": "Section 5 is a second object section whose objects point into section 1",
+  "location": {
+    "offset": "section 5, whole section",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "At load, section 5 (resident right after section 4 in MEM2, 0x91C5E280 in the tutorial state) is rewritten like section 1: 4 584 type words become class pointers (0x8049F228 ...), refcounts become 0x0488000N, 7 582 words 0x04xxxxxx become pointers into section 5 itself and 2 320 words 0x00xxxxxx become pointers into section 1 (e.g. +0x48 0x47F8 -> 0x80E0B998). Section 7 (tag 65) also holds objects (473 classes, 72 self pointers) but none into section 1; sections 2, 4, 6, 8 are never rewritten (strings, geometry, textures). Any relocation of section 1 must therefore rebase these 2 320 section-5 words too (igz fixups --regions, cross_pointer_words), which the first two reachable-clone attempts missed.",
+  "evidence": [
+    {
+      "probe": "ssa-archive experiment ptr-scan --dimensions (ptr-scan3, MEM1+MEM2 dumps) + igz fixups --regions",
+      "summary": "section 5: 28 924/94 863 words changed; by target: 2 320 -> section 1 (plain, delta 0), 7 582 -> section 5; 4 584 class pointers; 1 786 filled MEM2 pointers"
+    },
+    {
+      "probe": "static census of section 5 words",
+      "summary": "header words {0, 0xF, 1, 0x3C, 0x80000004, 0x0400002C, ...}: high byte 4 = section 5 self references consistent with the section-indexed encoding"
+    }
+  ]
+}

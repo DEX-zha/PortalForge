@@ -74,7 +74,11 @@ const TYPES = { f32be: [4, (b, o, v) => b.writeFloatBE(v, o)], u32be: [4, (b, o,
 // every object keeps its alignment modulo 32: inline geometry and texture data in section 1 are read
 // by hardware that needs 32-byte alignment, and a 4-byte shift froze the level load (run
 // m3-level_027_tutorial-e3-1789253576009).
-export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, freshIds = false, findingsOpts = {}, extraFindings = [] }) {
+// replaceEntry: instead of growing the table (which shifts the object area), overwrite one existing
+// table entry with the clone's offset. The object that entry used to register becomes unreachable, so
+// this is a diagnostic: it tests "a table entry makes the clone alive" without any relocation.
+export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, replaceEntry = null, freshIds = false, findingsOpts = {}, extraFindings = [] }) {
+  if (replaceEntry !== null) register = false;
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`); e.exitCode = 1; throw e; }
   const graph = buildGraph(buf, { fields: false });
@@ -153,6 +157,15 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
       updates.push({ location: blockEnd, field: 'padding after the header block', old: null, new: shift - 4 });
     }
   }
+  if (replaceEntry !== null) {
+    const loc = sec.offset + 4 * replaceEntry;
+    const tableEnd = sec.offset + (buf.readUInt32BE(sec.offset + HEAD_TABLE_END) & 0x7fffffff);
+    if (loc < sec.offset + 0x20 || loc >= tableEnd) throw new Error(`table index ${replaceEntry} outside the header table`);
+    const old = out.readUInt32BE(loc);
+    out.writeUInt32BE(cloneOffset - sec.offset, loc);
+    tableEntry = { location: loc, value: cloneOffset - sec.offset, index: replaceEntry, replaced: old, replaced_object: sec.offset + old };
+    updates.push({ location: loc, field: `head table entry #${replaceEntry} (replaced)`, old, new: cloneOffset - sec.offset });
+  }
   // Validation: re-parse and check the copy resolves like the original.
   let after = null;
   try {
@@ -190,11 +203,11 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     source: { object_offset: start, type_name: source.type_name, finding_id: findingId, block_end: end, block_bytes: blockLen },
     changes, insert_at: cloneOffset, updates: updates.slice(0, 200), updates_total: updates.length, new_id: freshIds ? maxId + 1 : source.id, new_ids: newIds, fresh_ids: freshIds,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures },
-    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, cross_section_words: crossWords.length, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
+    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, replace_entry: replaceEntry, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, cross_section_words: crossWords.length, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
     findings: [findingId, ...extraFindings], method: 'reachable-clone (fixup-map relocation, header table registration)',
   };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, pre_pad, fresh_ids, table_entry, pointers, findings, method, ...rest } = plan;
+  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, replace_entry, pre_pad, fresh_ids, table_entry, pointers, findings, method, ...rest } = plan;
   const strict = { ...rest, source: src };
   plan.schema_valid = v(strict); plan.schema_errors = v.errors ?? null;
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
