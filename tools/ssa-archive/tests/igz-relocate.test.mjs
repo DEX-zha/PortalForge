@@ -8,6 +8,10 @@ import { buildGraph } from '../src/igz/graph.mjs';
 import { insertBytes, planReachableClone } from '../src/igz/relocate.mjs';
 import { save } from '../src/research/findings.mjs';
 
+// The graph detector recognises headers with refcount 1 only; bumped refcounts are restored for re-parsing.
+const shiftOf = r => r.plan.register_shift;
+const parseView = r => { const c = Buffer.from(r.buffer); for (const u of r.plan.refcounts) c.writeUInt32BE(u.old, u.location); return c; };
+
 const finding = (id, confidence) => ({ id, category: 'world-entities', structure: 'test spawn', location: { file_pattern: 'x', offset: 0, length: 12 }, type: 'f32be x3', endian: 'be', meaning: 'test', evidence: confidence === 'UNKNOWN' ? [] : [{ probe: 'p', summary: 's' }], confidence, editable: confidence === 'CONFIRMED', updated: '2026-09-13' });
 
 // owner (type 3) -> physics (type 4, stored right after it) and -> a shared object (type 1);
@@ -45,6 +49,33 @@ test('insertBytes at the table end shifts every object by the inserted length an
   assert.deepEqual(r.pointerWords.slice(0, 3), f.fixups.pointer_words.map(w => w + 4));
 });
 
+test('planReachableClone can insert the block before an object: later objects move by the block length, pointers follow, refcounts grow', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-reloc-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  const f = fixture();
+  const before = buildGraph(f.buf); const sec = before.sections[1];
+  const r = planReachableClone(f.buf, f.fixups, { start: f.owner, end: f.physics + 0x40, findingId: 'test.spawn', register: false, insertBefore: f.shared, findingsOpts: { dir } });
+  assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
+  assert.equal(r.plan.insert_at, f.shared);                                  // no pre-pad inside the range
+  assert.equal(r.plan.inserted_bytes % 0x20, 0);
+  const after = buildGraph(parseView(r)); const secA = after.sections[1];
+  const blockLen = 0x70;
+  const sharedNew = f.shared + blockLen;
+  assert.equal(after.objects.length, 5);
+  assert.deepEqual(after.objects.map(o => o.type), [3, 4, 3, 4, 1]);
+  assert.equal(secA.offset + r.buffer.readUInt32BE(f.owner + 0x18), sharedNew);                  // original owner -> moved shared
+  assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.insert_at + 0x18), sharedNew);         // clone -> moved shared
+  assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.insert_at + 0x14), r.plan.insert_at + 0x30); // clone -> its own physics
+  assert.equal(r.buffer.readUInt32BE(sharedNew + 4), 2);                                          // refcount 1 -> 2
+  assert.equal(r.plan.refcounts.length, 1);
+  assert.equal(r.buffer.readUInt32BE(secA.offset + 0x0c), f.buf.readUInt32BE(sec.offset + 0x0c)); // table untouched
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset);
+  assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
+  // the padding sits after the last object, not between objects
+  const last = after.objects.at(-1);
+  assert.equal(secA.offset + secA.size - (last.offset + 0x20), r.plan.end_pad);
+});
+
 test('planReachableClone copies owner+child, rebases internal pointers, registers a table entry and stays VALID', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-reloc-'));
   save(finding('test.spawn', 'CONFIRMED'), { dir });
@@ -55,8 +86,9 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
   assert.equal(r.plan.schema_valid, true, JSON.stringify(r.plan.schema_errors));
   assert.equal(r.plan.inserted_bytes % 0x20, 0);
-  const after = buildGraph(r.buffer, { fields: true });
+  const after = buildGraph(parseView(r), { fields: true });
   const secA = after.sections[1];
+  assert.equal(r.buffer.readUInt32BE(f.shared + shiftOf(r) + 4), 2);                                  // shared object gained one owner
   assert.equal(after.objects.length, before.objects.length + 2);
   const clone = after.objects.find(o => o.offset === r.plan.insert_at);
   assert.equal(clone.type, 3);

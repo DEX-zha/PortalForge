@@ -77,7 +77,7 @@ const TYPES = { f32be: [4, (b, o, v) => b.writeFloatBE(v, o)], u32be: [4, (b, o,
 // replaceEntry: instead of growing the table (which shifts the object area), overwrite one existing
 // table entry with the clone's offset. The object that entry used to register becomes unreachable, so
 // this is a diagnostic: it tests "a table entry makes the clone alive" without any relocation.
-export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, replaceEntry = null, freshIds = false, findingsOpts = {}, extraFindings = [] }) {
+export function planReachableClone(buf, fixups, { start, end, findingId, edits = [], register = true, registerShift = null, replaceEntry = null, insertBefore = null, bumpRefcounts = true, freshIds = false, findingsOpts = {}, extraFindings = [] }) {
   if (replaceEntry !== null) register = false;
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`); e.exitCode = 1; throw e; }
@@ -92,26 +92,40 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
   const shift = register ? (registerShift ?? Math.max(4, align)) : 0;    // total move of the object area
   if (shift % 4 || (register && shift < 4)) throw new Error('registerShift must be a positive multiple of 4');
   const entryBytes = shift;
-  const insertAt = sec.offset + sec.size;                                   // end of the object section
-  // The copy keeps the source's alignment class modulo the section alignment (inline data inside the
-  // block may be read by hardware with alignment requirements), so it may start after a small pre-pad.
-  const prePad = (((start - sec.offset) - sec.size) % align + align) % align;
+  const secEnd = sec.offset + sec.size;
+  // Where the copy goes. Appending after the last object is outside the range the loader enumerates
+  // (run m3-…-1789256664691: an appended clone stays raw while the level is alive), so the default is
+  // to insert it before a given object (`insertBefore`, e.g. the first of the six tail objects); the
+  // objects after that point move by the block length and every pointer to them is rebased.
+  const insertAt = insertBefore ?? secEnd;
+  if (insertAt !== secEnd && !graph.objects.some(o => o.offset === insertAt)) throw new Error(`insertBefore 0x${insertAt.toString(16)} is not an object header`);
+  const inside = insertAt !== secEnd;
+  // Appending: the copy keeps the source's alignment class modulo the section alignment (pre-pad) and is
+  // padded to the alignment. Inserting inside the walked range: no padding may separate objects, so the
+  // block is inserted as is and the alignment padding goes to the end of the section.
+  const prePad = inside ? 0 : (((start - sec.offset) - sec.size) % align + align) % align;
   const pad = (align - ((prePad + blockLen + entryBytes) % align)) % align;
   const cloneStart = insertAt + prePad;
   const delta = cloneStart - start;                                         // file delta of the copy
-  const copy = Buffer.alloc(prePad + blockLen + pad); buf.copy(copy, prePad, start, end);
+  const copy = Buffer.alloc(prePad + blockLen + (inside ? 0 : pad)); buf.copy(copy, prePad, start, end);
+  const endPad = inside ? pad : 0;
   const failures = [], changes = [];
   // Pointers inside the block that point inside the block follow the copy; others keep pointing at
-  // the shared originals. Pointers into the block from outside are left alone (the original keeps them).
+  // the shared originals (rebased when those move). Pointers into the block from outside are left
+  // alone (the original keeps them).
   const inBlock = w => w >= start && w < end;
   const blockPointerWords = fixups.pointer_words.filter(inBlock);
   let internal = 0, external = 0;
   const at = w => w - start + prePad;                                       // block offset -> copy buffer offset
+  const externalTargets = new Map();                                        // original file offset -> count
   for (const w of blockPointerWords) {
     const v = copy.readUInt32BE(at(w));
-    const target = sec.offset + (v & 0x7fffffff);
-    if (target >= start && target < end) { copy.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, at(w)); internal++; } else external++;
+    const rel = v & 0x7fffffff, target = sec.offset + rel;
+    if (target >= start && target < end) { copy.writeUInt32BE(((v & 0x80000000) | (rel + delta)) >>> 0, at(w)); internal++; }
+    else { external++; externalTargets.set(target, (externalTargets.get(target) ?? 0) + 1); if (target >= insertAt) copy.writeUInt32BE(((v & 0x80000000) | (rel + copy.length)) >>> 0, at(w)); }
   }
+  const work = buf;
+  const refcountUpdates = [];
   // Header word +8 ("id") is a section-indexed pointer (0x01 = section 2) to a string shared by many
   // objects (4 300 tfbSpriteInfo share one), not a unique id: the copy keeps every such word unchanged
   // (finding igz.pointer.section-indexed). `freshIds` remains available for experiments.
@@ -132,11 +146,17 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
   // with region dumps) the words of the other sections that point into section 1.
   const crossWords = fixups.cross_pointer_words ?? [];
   const words = { pointerWords: fixups.pointer_words.concat(fixups.head_pointer_words, crossWords), idWords: fixups.id_words };
-  let step = insertBytes(buf, graph, words, insertAt, copy);
+  let step = insertBytes(work, graph, words, insertAt, copy);
   let updates = [...step.updates];
   const copyPointerWords = blockPointerWords.map(w => w - start + cloneStart);
   let pointerWordsNow = step.pointerWords.concat(copyPointerWords);
   let out = step.buffer, tableEntry = null, cloneOffset = cloneStart;
+  if (endPad) {
+    const g1 = buildGraph(out, { fields: false }); const s1 = g1.sections[g1.object_section];
+    step = insertBytes(out, g1, { pointerWords: pointerWordsNow, idWords: step.idWords }, s1.offset + s1.size, Buffer.alloc(endPad));
+    out = step.buffer; updates = updates.concat(step.updates); pointerWordsNow = step.pointerWords;
+    updates.push({ location: s1.offset + s1.size, field: 'alignment padding at the section end', old: null, new: endPad });
+  }
   // 2. register: one more table entry at the end of the table, then zero padding after the header block
   //    so that the object area moves by `shift` bytes in total.
   if (register) {
@@ -182,7 +202,8 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
     else if (clone.type !== source.type) failures.push({ stage: 'validation', reason: `clone type ${clone.type} != source ${source.type}` });
     // every original object keeps its type at its shifted position
     const byOff = new Map(after.objects.map(o => [o.offset, o]));
-    let mismatched = 0; for (const o of graph.objects) { const m = byOff.get(o.offset + shift); if (!m || m.type !== o.type) mismatched++; }
+    const moved = o => o.offset + shift + (o.offset >= insertAt ? copy.length : 0);
+    let mismatched = 0; for (const o of graph.objects) { const m = byOff.get(moved(o)); if (!m || m.type !== o.type) mismatched++; }
     if (mismatched) failures.push({ stage: 'validation', reason: `${mismatched} original object(s) not found at their shifted offset` });
     // pointer words of the copy resolve to the same object types as in the source
     for (const w of blockPointerWords) {
@@ -199,15 +220,28 @@ export function planReachableClone(buf, fixups, { start, end, findingId, edits =
       if (out.readUInt32BE(tableEntry.location) !== cloneOffset - secA2.offset) failures.push({ stage: 'reference', reason: 'table entry does not point at the clone' });
     }
   } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  // Reference counts (finding igz.object.refcount): each shared target gains one owning reference per
+  // pointer word of the copy. Applied after validation because the graph detector only recognises
+  // headers whose refcount is 1; locations are mapped from original to final coordinates.
+  if (bumpRefcounts) {
+    const finalOf = L => L + (L >= insertAt ? copy.length : 0) + shift;
+    for (const [t, n] of externalTargets) {
+      const loc = finalOf(t) + 4;
+      const rc = out.readUInt32BE(loc);
+      if (rc >= 1 && rc <= 100000) { out.writeUInt32BE(rc + n, loc); refcountUpdates.push({ location: loc, field: 'refcount', old: rc, new: rc + n }); }
+      else failures.push({ stage: 'reference', reason: `shared target 0x${t.toString(16)} has no plausible refcount (${rc})`, offset: t });
+    }
+    updates = refcountUpdates.concat(updates);
+  }
   const plan = {
     source: { object_offset: start, type_name: source.type_name, finding_id: findingId, block_end: end, block_bytes: blockLen },
     changes, insert_at: cloneOffset, updates: updates.slice(0, 200), updates_total: updates.length, new_id: freshIds ? maxId + 1 : source.id, new_ids: newIds, fresh_ids: freshIds,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures },
-    inserted_bytes: copy.length + entryBytes, register, register_shift: shift, replace_entry: replaceEntry, pre_pad: prePad, table_entry: tableEntry, pointers: { internal, external, cross_section_words: crossWords.length, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
+    inserted_bytes: copy.length + endPad + entryBytes, register, register_shift: shift, replace_entry: replaceEntry, insert_before: inside ? insertAt : null, pre_pad: prePad, end_pad: endPad, refcounts: refcountUpdates, table_entry: tableEntry, pointers: { internal, external, cross_section_words: crossWords.length, rebased_after_shift: updates.filter(u => u.field === 'pointer').length },
     findings: [findingId, ...extraFindings], method: 'reachable-clone (fixup-map relocation, header table registration)',
   };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, replace_entry, pre_pad, fresh_ids, table_entry, pointers, findings, method, ...rest } = plan;
+  const { source: { block_end, block_bytes, ...src }, updates_total, new_ids, inserted_bytes, register: _r, register_shift, replace_entry, insert_before, pre_pad, end_pad, refcounts, fresh_ids, table_entry, pointers, findings, method, ...rest } = plan;
   const strict = { ...rest, source: src };
   plan.schema_valid = v(strict); plan.schema_errors = v.errors ?? null;
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };

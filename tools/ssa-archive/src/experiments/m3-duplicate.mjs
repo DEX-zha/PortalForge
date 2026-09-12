@@ -73,7 +73,7 @@ async function observe(session, label, target, { script, figure, archive, probes
   return run;
 }
 
-export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], dumpSection = false, log = console.log }) {
+export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], dumpSection = false, dumpAnchor = null, log = console.log }) {
   for (const g of ['m0', 'm1', 'm2']) if (gateStatus(g).status !== 'PASS') { const e = new Error(`${g.toUpperCase()} is not PASS`); e.exitCode = 2; throw e; }
   const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
   if (plan.validation?.status !== 'VALID') { const e = new Error('Duplication plan is not VALID'); e.exitCode = 1; throw e; }
@@ -99,14 +99,16 @@ export async function runM3({ archive, entry, planFile, clonedFile, predict, rep
     record.inputs.probes = probes;
     // Section dump anchored on the probe named 'original-physics' (the unmoved source record, whose
     // file offset in the cloned file is known from the plan: source + register shift).
+    // Anchor: a probe whose pattern is unique in RAM (the clone's position triple), with the file offset
+    // of the object holding it in the cloned file (`--dump-anchor`, e.g. plan.insert_at + 0x94).
     let dump = null;
-    if (dumpSection && probes.some(p => p.label === 'original-physics')) {
+    if (dumpSection && dumpAnchor !== null && probes.length) {
       const { buildGraph } = await import('../igz/graph.mjs');
       const cloned = fs.readFileSync(path.resolve(clonedFile ?? plan.output));
       const gc = buildGraph(cloned, { fields: false }); const sc = gc.sections[gc.object_section];
-      const srcOffset = plan.source.object_offset + (plan.register_shift ?? 0) + (plan.source.type_name === 'tfbPhysicsModel' ? 0 : 0x94);   // owner block: physics follows the 0x94-byte owner
-      dump = { probe_label: 'original-physics', object_file_offset: srcOffset, section_offset: sc.offset, section_size: sc.size, out: path.join(evidenceDir, `%label%-section${gc.object_section}.bin`) };
-      record.inputs.section_dump = { anchor_object_file_offset: srcOffset, section_offset: sc.offset, section_size: sc.size };
+      const anchor = probes.find(p => p.label === 'clone-physics') ?? probes[0];
+      dump = { probe_label: anchor.label, object_file_offset: dumpAnchor, section_offset: sc.offset, section_size: sc.size, out: path.join(evidenceDir, `%label%-section${gc.object_section}.bin`) };
+      record.inputs.section_dump = { anchor_probe: anchor.label, anchor_object_file_offset: dumpAnchor, section_offset: sc.offset, section_size: sc.size };
     }
     record.control = skipControl ? { label: 'skipped', pid: 0, started: '', finished: '', monitor_lines: [], screenshots: [], crash_or_load_error: false, note: 'control skipped by flag' } : await observe(session, `${id}-control`, game, { script, figure, archive, probes, log });
     for (let i = 1; i <= repeat; i++) record.runs.push(await observe(session, `${id}-run${i}`, patch.descriptor, { script, figure, archive, probes, dump, log }));
