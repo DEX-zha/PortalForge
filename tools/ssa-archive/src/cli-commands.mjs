@@ -15,6 +15,8 @@ const need = (v, name) => { if (v === undefined || v === null || v === '') throw
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const parseReplace = (list, keyName) => Object.fromEntries((list ?? []).map(s => { const i = s.indexOf('='); if (i < 1) throw new CliError(`--replace expects <${keyName}>=<file>: ${s}`); return [s.slice(0, i), s.slice(i + 1)]; }));
 
+const oneFixup = v => (Array.isArray(v) ? v[0] : v);
+
 export const commands = {
   async rebuild(pos, o) {
     const dir = path.resolve(need(pos[0], 'workspace dir'));
@@ -188,7 +190,7 @@ export const commands = {
     if (sub === 'models') {
       const M = await import('./igz/model-resolve.mjs');
       const S = await import('./editor/safety.mjs');
-      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(o.fixups), 'utf8')) : null;
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(oneFixup(o.fixups)), 'utf8')) : null;
       const res = M.resolveAll(buf, g, fixups);
       const lines = [M.formatResolve(res, { limit: o.limit ? Number(o.limit) : 20 })];
       if (fixups && o.validate) {
@@ -208,7 +210,7 @@ export const commands = {
     }
     if (sub === 'placements') {
       const P = await import('./igz/placements.mjs');
-      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(oneFixup(o.fixups), 'fixups')), 'utf8'));
       const near = o.near ? o.near.split(',').map(Number) : null;
       if (near && near.length !== 3) throw new CliError('--near expects x,z,radius');
       const res = P.listPlacements(buf, g, fixups, { layer: o.layer ?? null, near, all: !!o.all });
@@ -216,7 +218,7 @@ export const commands = {
     }
     if (sub === 'script' || sub === 'scripts') {
       const S = await import('./igz/script.mjs');
-      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(o.fixups), 'utf8')) : null;
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(oneFixup(o.fixups)), 'utf8')) : null;
       if (sub === 'scripts') {
         const a = S.auditScripts(buf, g, fixups);
         const bad = a.rows.filter(r => r.error || r.issues || !r.headers || r.uncovered);
@@ -239,7 +241,7 @@ export const commands = {
     if (sub === 'clone-entity') {
       const R = await import('./igz/relocate.mjs');
       const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });
-      const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
+      const fixups = R.loadFixups(path.resolve(need(oneFixup(o.fixups), 'fixups')));
       const common = { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, bumpRefcounts: !o['no-refcounts'], extraFindings: o['also-finding'] ?? [] };
       let r, p;
       if (o['replace-record'] !== undefined) {
@@ -274,7 +276,7 @@ export const commands = {
     }
     if (sub === 'pick-overwrite-target') {
       const { buildGraph } = await import('./igz/graph.mjs');
-      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(oneFixup(o.fixups), 'fixups')), 'utf8'));
       const gg = buildGraph(buf, { fields: false }); const s1 = gg.sections[gg.object_section];
       const type = Number(need(o.type, 'type')); const block = Number(need(o.end, 'end')) - Number(need(pos[2], 'owner offset'));
       const tableEnd = s1.offset + (buf.readUInt32BE(s1.offset + 0x14) & 0x7fffffff);
@@ -288,7 +290,7 @@ export const commands = {
     }
     if (sub === 'relocation-probe') {
       const R = await import('./igz/relocation.mjs');
-      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(oneFixup(o.fixups), 'fixups')), 'utf8'));
       const truth = R.relocationTruth(buf, fixups);
       const results = [];
       const onlyTemplate = o.probe && o.probe.includes('template');
@@ -374,7 +376,7 @@ export const commands = {
   async edit(pos, o) {
     const E = await import('./editor/placements.mjs');
     const sub = pos[0]; const file = path.resolve(need(pos[1], 'level.bld.decoded file'));
-    const level = E.openLevel(file, path.resolve(need(o.fixups, 'fixups')));
+    const level = E.openLevel(file, path.resolve(need(oneFixup(o.fixups), 'fixups')));
     const nums = s => s.split(',').map(Number);
     if (sub === 'list') {
       const near = o.near ? nums(o.near) : null; if (near && near.length !== 3) throw new CliError('--near expects x,z,radius');
@@ -428,6 +430,23 @@ export const commands = {
       return { result: { file: f }, text: f };
     }
     throw new CliError(`Unknown shot subcommand ${sub} (diff|crop)`, 3);
+  },
+  // corpus: run the frozen placement model v1 over several IGZ files and report rates, schema conformance
+  // and safety grading. `--fixups <file>=<map>` attaches a runtime map to one file for a ground-truth check.
+  async corpus(pos, o) {
+    const C = await import('./igz/corpus.mjs');
+    const files = pos.map(p => path.resolve(p));
+    if (!files.length) throw new CliError('corpus needs at least one decoded IGZ file', 3);
+    const fixups = {};
+    for (const spec of (o.fixups ? (Array.isArray(o.fixups) ? o.fixups : [o.fixups]) : [])) {
+      const eq = spec.lastIndexOf('=');
+      if (eq < 0) throw new CliError('corpus --fixups expects <igz file>=<fixup map>', 3);
+      fixups[path.resolve(spec.slice(0, eq))] = JSON.parse(fs.readFileSync(path.resolve(spec.slice(eq + 1)), 'utf8'));
+    }
+    const rep = C.corpusReport(files, { fixups });
+    if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify(rep, null, 2));
+    const bad = rep.totals.schema_invalid > 0 || rep.totals.failed > 0;
+    return { result: rep, exitCode: bad ? 1 : 0, text: C.formatCorpus(rep) + (o.out ? String.fromCharCode(10) + 'report ' + path.resolve(o.out) : '') };
   },
   async gates() {
     const docs = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../docs');   // repo docs/, not the caller's cwd

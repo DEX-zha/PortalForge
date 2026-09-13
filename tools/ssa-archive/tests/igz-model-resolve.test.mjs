@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { buildIgz } from './helpers/synthetic-igz.mjs';
 import { buildGraph } from '../src/igz/graph.mjs';
 import { levelContext, detectClasses, resolveAll, resolveModel, validateAgainstFixups, FIELDS } from '../src/igz/model-resolve.mjs';
@@ -135,4 +138,66 @@ test('safety rules: track-bound behaviour is critical, a plain script is medium,
   assert.equal(mismatch[0].id, 'SPAN_MISMATCH');
   assert.equal(blocked(mismatch), true);
   assert.deepEqual(SEVERITY, ['blocking', 'critical', 'high', 'medium', 'info']);
+});
+
+test('placement v1 is frozen: every produced record validates against placement-v1.schema.json', async () => {
+  const { schemaValidator, contracts002 } = await import('../src/workspace/manifest.mjs');
+  const validate = schemaValidator('placement-v1.schema.json', contracts002);
+  const built = level();
+  const res = resolveAll(built.buf, buildGraph(built.buf, { fields: false }), null);
+  for (const r of res.rows) assert.ok(validate(r), `row 0x${r.offset.toString(16)}: ${JSON.stringify(validate.errors)}`);
+  assert.equal(res.rows[0].model_version, 1);
+  // the frozen shape must not grow silently: additionalProperties is false, so an extra key fails
+  assert.equal(validate({ ...res.rows[0], surprise: 1 }), false);
+  // and a missing one too
+  const { layers, ...withoutLayers } = res.rows[0];
+  assert.equal(validate(withoutLayers), false);
+});
+
+test('layers: a named list record that references a placement is a layer; scripts, models and other placements are not', async () => {
+  const { levelContext: lc, detectClasses: dc, placementReferrers, layersOf } = await import('../src/igz/model-resolve.mjs');
+  const strings = ['Crate_01', 'C:/tfb/Content/Models/Objects/crate.mdl', 'Plants', 'C:/tfb/Content/Levels/L/Scripts/Hat_Pickup.ai', 'Level_027_plants.lvl'];
+  const at = []; let acc = 0; for (const s of strings) { at.push(acc); acc += s.length + 1; }
+  const str = i => (0x01000000 | at[i]) >>> 0;
+  const built = buildIgz({ types: Array.from({ length: 120 }, (_, i) => 't' + i), strings, objects: [
+    { type: 77, size: 0x120, fields: [{ at: 0x08, u32: str(0) }, { at: 0x24, f32: 5 }, { at: 0x28, f32: 1 }, { at: 0x2c, f32: 9 }, { at: 0x34, f32: 0 }, { at: 0xb8, f32: 100 }, { at: 0xdc, obj: 1 }] },
+    { type: 12, size: 0x20, fields: [{ at: 0x08, u32: str(1) }] },                                   // model record
+    { type: 77, size: 0x120, fields: [{ at: 0x08, u32: str(0) }, { at: 0x24, f32: 6 }, { at: 0x28, f32: 1 }, { at: 0x2c, f32: 9 }, { at: 0x34, f32: 0 }, { at: 0xb8, f32: 100 }, { at: 0xdc, obj: 1 }] },
+    { type: 77, size: 0x120, fields: [{ at: 0x08, u32: str(0) }, { at: 0x24, f32: 7 }, { at: 0x28, f32: 1 }, { at: 0x2c, f32: 9 }, { at: 0x34, f32: 0 }, { at: 0xb8, f32: 100 }, { at: 0xdc, obj: 1 }] },
+    { type: 40, size: 0x40, fields: [{ at: 0x08, u32: str(2) }, { at: 0x20, obj: 0 }] },              // "Plants" list -> the first placement
+    { type: 90, size: 0x40, fields: [{ at: 0x08, u32: str(3) }, { at: 0x20, obj: 0 }] },              // a .ai script also referencing it
+    { type: 41, size: 0x40, fields: [{ at: 0x08, u32: str(4) }, { at: 0x20, obj: 0 }] },              // "Level_027_plants.lvl" registry
+  ], headTable: [0, 1, 2, 3, 4, 5, 6] });
+  const g = buildGraph(built.buf, { fields: false });
+  const ctx = lc(built.buf, g, null); dc(ctx);
+  const [P] = built.objectOffsets;
+  const refs = placementReferrers(ctx, [P]);
+  const layers = layersOf(ctx, P, refs).sort();
+  assert.deepEqual(layers, ['Level_027_plants.lvl', 'Plants']);      // the .ai referrer is excluded
+  const res = resolveAll(built.buf, g, null);
+  assert.deepEqual(res.rows[0].layers.sort(), ['Level_027_plants.lvl', 'Plants']);
+  assert.equal(res.rows[0].evidence.layers, 'structural');
+});
+
+test('corpusReport aggregates rates, schema conformance and safety over several files', async () => {
+  const { corpusReport, formatCorpus } = await import('../src/igz/corpus.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-corpus-'));
+  const a = path.join(dir, 'a.igz'), b = path.join(dir, 'b.igz');
+  fs.writeFileSync(a, level({ placementType: 77 }).buf);
+  fs.writeFileSync(b, level({ placementType: 195 }).buf);            // the same level under a different class index
+  const rep = corpusReport([a, b]);
+  assert.equal(rep.model_version, 1);
+  assert.equal(rep.totals.files, 2);
+  assert.equal(rep.totals.failed, 0);
+  assert.equal(rep.totals.placements, 8);                            // 4 placements per file
+  assert.equal(rep.totals.direct, 6);
+  assert.equal(rep.totals.absent, 2);
+  assert.equal(rep.totals.ambiguous, 0);
+  assert.equal(rep.totals.schema_invalid, 0);
+  assert.equal(rep.totals.rates.resolved, 75);
+  assert.equal(rep.totals.rates.schema_valid, 100);
+  assert.equal(rep.rows[0].detected.placement_type, 77);
+  assert.equal(rep.rows[1].detected.placement_type, 195);            // detection is per file, not global
+  assert.ok(rep.totals.safety.critical >= 2);                        // the push block in each file
+  assert.match(formatCorpus(rep), /placement model v1 over 2 file\(s\)/);
 });

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "placement-v1.schema.json",
+  "title": "Placement v1",
+  "description": "The frozen placement record of an IGZ level, as produced by src/igz/model-resolve.mjs. A placement is a header-table record carrying a transform, an optional behaviour script and an optional model reference. Its class index is per file and is detected structurally (finding igz.types.per-file-indices), never hardcoded. Every attribute is accompanied by the evidence that produced it: a value obtained from the runtime fixup map of a booted level is not the same claim as a value read from the file structure alone. Frozen on 2026-09-13; a later revision must be published as placement-v2.",
+  "type": "object",
+  "required": ["model_version", "offset", "span", "name", "position", "rotation", "scale", "behavior", "model", "layers", "shared_state", "evidence", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "model_version": { "const": 1, "description": "schema revision of this record" },
+    "offset": { "type": "integer", "minimum": 0, "description": "file offset of the placement record; it is a header-table entry" },
+    "span": { "type": "integer", "minimum": 1, "description": "bytes from this record to the next header-table entry; a replacement must match it exactly" },
+    "name": { "type": ["string", "null"], "description": "section-2 string at +0x08" },
+    "position": {
+      "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" },
+      "description": "world position, f32be x/y/z at +0x24"
+    },
+    "rotation": {
+      "type": "object", "required": ["heading"], "additionalProperties": false,
+      "properties": { "heading": { "type": "number", "description": "degrees, f32be at +0x34" } }
+    },
+    "scale": { "type": "number", "description": "f32be at +0xB8; 100 means 1.0" },
+    "behavior": {
+      "type": ["object", "null"], "required": ["offset", "path"], "additionalProperties": false,
+      "properties": { "offset": { "type": "integer", "minimum": 0 }, "path": { "type": "string" } },
+      "description": "record referenced by +0xA8, named by its .ai path; null when the placement runs no script"
+    },
+    "model": {
+      "type": "object", "required": ["status", "field", "offset", "path"], "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["direct", "indirect", "ambiguous", "absent"] },
+        "field": { "type": ["integer", "null"], "description": "offset of the field that resolved the model; 0xDC in every case observed so far" },
+        "offset": { "type": ["integer", "null"] },
+        "path": { "type": ["string", "null"], "description": ".mdl path, read from the model record's +0x08" }
+      }
+    },
+    "model_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["offset", "path", "field"], "additionalProperties": false,
+        "properties": { "offset": { "type": "integer" }, "path": { "type": ["string", "null"] }, "field": { "type": "integer" } }
+      },
+      "description": "every model record reachable from the placement; more than one entry with status ambiguous"
+    },
+    "layers": {
+      "type": "array", "items": { "type": "string" },
+      "description": "names of the header-table records that reference this placement, excluding its own blob, other placements, and .ai/.mdl records. On the tutorial this rule keeps 1170 words of which 100% are runtime pointers, and recovers every layer the runtime-based implementation reported."
+    },
+    "shared_state": {
+      "type": ["object", "null"], "required": ["model_record", "users", "shared", "rewritten_by_replacing"], "additionalProperties": false,
+      "properties": {
+        "model_record": { "type": "integer" },
+        "users": { "type": "integer", "minimum": 1, "description": "number of placements resolving to this model record" },
+        "shared": { "type": "boolean" },
+        "rewritten_by_replacing": { "type": ["integer", "null"], "description": "offset of the placement whose blob physically holds the model record; replacing that blob rewrites the model for every user" }
+      }
+    },
+    "status": { "enum": ["direct", "indirect", "ambiguous", "absent"], "description": "model resolution status, repeated at the top level for filtering" },
+    "evidence": {
+      "type": "object", "required": ["layout", "model", "behavior", "layers"], "additionalProperties": false,
+      "properties": {
+        "layout": { "type": "string", "description": "which finding the field offsets come from and how far it is proven" },
+        "model": { "enum": ["runtime-pointer", "structural", "structural-only", "none"] },
+        "behavior": { "enum": ["runtime-pointer", "structural", "structural-only", "none"] },
+        "layers": { "enum": ["runtime-pointer", "structural", "none"] }
+      },
+      "description": "runtime-pointer: the word is in the level's runtime fixup map, so the game rewrote it at load. structural: only the file's construction supports it. structural-only: the structural reader claims a pointer the runtime map does not confirm."
+    }
+  }
+}

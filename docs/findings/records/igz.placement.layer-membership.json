@@ -1,0 +1,30 @@
+{
+  "id": "igz.placement.layer-membership",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "membership by reference: a layer is a named header-table record holding a section-1 pointer word to the placement record; the rule excludes the placement's own blob, records of the placement class itself, and records named by an .ai or .mdl path",
+  "structure": "Which named groups a placement belongs to, resolved without a runtime fixup map",
+  "location": {
+    "offset": "e.g. the tutorial placement 0x189088 is referenced by 0x3E4C10 inside the record 0x3E4BCC named \"HatBoxPickup.lvl\" and by 0x189084 inside 0x186EFC named \".../Hat_Pickup.ai\" (the script, excluded); layer names seen include Plants, Loot, OpeningCS, Mabu_Citizens, Level_027_plants.lvl",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "Layers are the natural object list of an editor and were previously only obtainable from a runtime fixup map, which costs two boots per level. Reading them structurally needs a reverse index over the object section, but a raw index is not usable on its own: of the 2 123 words that resolve to a placement in the tutorial only 68.3% are words the game actually rewrote. The rule above makes it exact. Measured against the tutorial's runtime fixup map, the 1 170 words it keeps are runtime pointers at 100.00%, and it reproduces every layer label the fixup-based implementation reported (1 077 of 1 077) while recovering 93 further referrers that implementation had dropped through a hardcoded class whitelist (classes 83, 151, 68 and 160). Applied to five IGZ files, 97.6% to 100% of placements carry at least one layer. Still LIKELY rather than CONFIRMED: the rule is validated against a runtime map on one level, not by a boot that depends on it.",
+  "evidence": [
+    {
+      "probe": "scratch layers2.mjs / layers3.mjs: structural reverse index over section 1 compared label by label with the layers derived from the runtime fixup map (ptr-scan3)",
+      "summary": "recall 1077/1077 layer labels; the variant that also excludes referrers of the placement class itself cuts the extra labels from 333 to 75 and raises exact set matches from 409 to 595 of 664"
+    },
+    {
+      "probe": "scratch precision.mjs / extras.mjs: provenance of every word the rule keeps",
+      "summary": "1170 of 1170 kept words are in the runtime fixup map (100.00%); all 75 extra labels come from runtime pointer words whose owning class the previous whitelist excluded, so they are recovered referrers rather than false positives"
+    },
+    {
+      "probe": "ssa-archive corpus over five IGZ files",
+      "summary": "placements carrying at least one layer: 98.7% tutorial, 98.1% Challenge_000, 99.4% Challenge_001, 97.6% Mining, 100% Gryphon"
+    }
+  ]
+}

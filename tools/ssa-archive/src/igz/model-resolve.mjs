@@ -148,13 +148,51 @@ export function ownerOf(ctx, offset) {
   return offset < owner + span ? { offset: owner, type: ctx.buf.readUInt32BE(owner), span, inside: offset > owner } : null;
 }
 
+// One pass over the object section collecting every word that resolves to one of the given offsets.
+// 68% of the words that resolve to a placement in the tutorial are real pointers, so the raw index is not
+// usable as such; the layer rule below is what makes it precise.
+export function placementReferrers(ctx, offsets) {
+  const want = new Set(offsets);
+  const refs = new Map();
+  const base = ctx.sec.offset, end = base + ctx.sec.size;
+  for (let p = base; p + 4 <= end; p += 4) {
+    const v = ctx.buf.readUInt32BE(p); const off = v & 0x7fffffff;
+    if (off % 4 !== 0 || off === 0 || off >= ctx.sec.size) continue;
+    const t = base + off;
+    if (!want.has(t)) continue;
+    if (!refs.has(t)) refs.set(t, []);
+    refs.get(t).push(p);
+  }
+  return refs;
+}
+
+// A LAYER is a named header-table record that references the placement: "Plants", "Loot", "OpeningCS",
+// "Level_027_plants.lvl". The rule excludes the placement's own blob, other placements, and records named by
+// an .ai or .mdl path (those are the behaviour script and the model, not a grouping).
+// Measured on the tutorial against the runtime fixup map: the rule keeps 1170 words, 100.00% of which are
+// runtime pointers, and it reproduces every layer label the fixup-based implementation reported (1077/1077),
+// plus 93 referrers that implementation dropped through a hardcoded class whitelist.
+export function layersOf(ctx, offset, refs) {
+  const out = new Set();
+  for (const w of refs.get(offset) ?? []) {
+    const o = ownerOf(ctx, w);
+    if (!o || o.offset === offset) continue;
+    if (ctx.placementType !== null && ctx.buf.readUInt32BE(o.offset) === ctx.placementType) continue;
+    const nm = stringAt(ctx, ctx.buf.readUInt32BE(o.offset + 8));
+    if (!nm || !/[A-Za-z]{2}/.test(nm) || /.(ai|mdl)$/i.test(nm)) continue;
+    out.add(nm);
+  }
+  return [...out];
+}
+
 // The stable placement record. Every attribute carries where its value comes from.
-export function describePlacement(ctx, offset, resolved) {
+export function describePlacement(ctx, offset, resolved, layers = []) {
   const buf = ctx.buf;
   const behaviorTarget = targetOf(ctx, buf.readUInt32BE(offset + FIELDS.behavior));
   const behavior = behaviorTarget !== null && behaviorTarget + 12 <= buf.length ? { offset: behaviorTarget, type: buf.readUInt32BE(behaviorTarget), path: stringAt(ctx, buf.readUInt32BE(behaviorTarget + 8)) } : null;
   const runtime = ctx.ptrSet;
   return {
+    model_version: 1,
     offset, span: ctx.spans.get(offset) ?? 0,
     name: stringAt(ctx, buf.readUInt32BE(offset + FIELDS.name)),
     position: [0, 4, 8].map(d => Math.round(buf.readFloatBE(offset + FIELDS.position + d) * 1000) / 1000),
@@ -162,11 +200,13 @@ export function describePlacement(ctx, offset, resolved) {
     scale: Math.round(buf.readFloatBE(offset + FIELDS.scale) * 10) / 10,
     behavior: behavior && behavior.path ? { offset: behavior.offset, path: behavior.path } : null,
     model: resolved.model ? { offset: resolved.model.offset, path: resolved.model.path, field: resolved.field, status: resolved.status } : { offset: null, path: null, field: null, status: resolved.status },
-    model_candidates: resolved.candidates.map(c => ({ offset: c.offset, path: c.path, field: c.field })),
+    model_candidates: resolved.candidates.map(c => ({ offset: c.offset, path: c.path, field: c.field ?? FIELDS.model })),
+    layers,
     evidence: {
       layout: 'igz.placement.type104-record (CONFIRMED on Level_027_Tutorial by two boots; structural elsewhere)',
       model: resolved.model ? (runtime ? (runtime.has(offset + resolved.field) ? 'runtime-pointer' : 'structural-only') : 'structural') : 'none',
       behavior: behavior && behavior.path ? (runtime ? (runtime.has(offset + FIELDS.behavior) ? 'runtime-pointer' : 'structural-only') : 'structural') : 'none',
+      layers: layers.length ? (runtime ? 'runtime-pointer' : 'structural') : 'none',
     },
   };
 }
@@ -175,10 +215,12 @@ export function resolveAll(buf, graph, fixups = null, { detect = true, placement
   const ctx = levelContext(buf, graph, fixups);
   const detection = detect ? detectClasses(ctx) : null;
   if (placementType !== null) { ctx.placementType = placementType; }
+  const list = placements(ctx);
+  const refs = placementReferrers(ctx, list);
   const rows = [];
-  for (const p of placements(ctx)) {
+  for (const p of list) {
     const r = resolveModel(ctx, p);
-    const d = describePlacement(ctx, p, r);
+    const d = describePlacement(ctx, p, r, layersOf(ctx, p, refs));
     d.status = r.status;
     rows.push(d);
   }

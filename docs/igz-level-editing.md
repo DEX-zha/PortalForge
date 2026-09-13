@@ -178,16 +178,34 @@ node cli.mjs edit replace <level.bld.decoded> <source offset> --over <victim off
 
 ## 7. Model resolution and safety, validated across levels
 
-### The stable placement record
+### Placement v1, frozen
 
-    Placement = {
-      offset, span, name,
-      position  +0x24 f32 x,y,z        rotation  +0x34 f32 heading (deg)     scale  +0xB8 f32 (100 = 1.0)
-      behavior  +0xA8 -> script record or none
-      model     +0xDC -> model record; { status: direct | indirect | ambiguous | absent, field, offset, path }
-      shared_state { model_record, users, shared, rewritten_by_replacing }
-      evidence  { layout, model, behavior }   where each value is runtime-pointer | structural | none
+The record is a published contract: `specs/002-igz-entity-model/contracts/placement-v1.schema.json`. It is closed
+(`additionalProperties: false`), every field is required, and `model_version` is `1`. A later revision must be
+published as v2 rather than grown in place, and the test suite fails if a produced record stops matching it.
+
+    Placement v1 = {
+      model_version: 1, offset, span, name, status,
+      position   +0x24 f32 x,y,z       rotation { heading }  +0x34 deg      scale  +0xB8 (100 = 1.0)
+      behavior   +0xA8 -> { offset, path } or null
+      model      +0xDC -> { status: direct | indirect | ambiguous | absent, field, offset, path }
+      model_candidates [ { offset, path, field } ]
+      layers     [ names of the header-table records that reference this placement ]
+      shared_state { model_record, users, shared, rewritten_by_replacing } or null
+      evidence   { layout, model, behavior, layers }
     }
+
+`evidence` is the point of the record: it says how a value was obtained, never just what it is. `runtime-pointer`
+means the word is in the level's runtime fixup map, so the game itself rewrote it at load. `structural` means only
+the file's own construction supports it. `structural-only` means the structural reader claims a pointer the runtime
+map does not confirm, which on the five files tested never happens.
+
+**Layers** are resolved structurally too (`igz.placement.layer-membership`): a layer is a named header-table record
+holding a pointer to the placement, excluding the placement's own blob, records of the placement class itself, and
+records named by an `.ai` or `.mdl` path. A raw reverse index is not enough, since only 68.3% of the words that
+resolve to a placement in the tutorial are words the game actually rewrote; after the rule, **1 170 of 1 170 kept
+words are runtime pointers**, every runtime layer label is reproduced (1 077 of 1 077), and 93 further referrers are
+recovered that the earlier fixup-based implementation dropped through a hardcoded class whitelist.
 
 `evidence` is the point of the record: it says how a value was obtained, never just what it is. `runtime-pointer`
 means the word is in the level's runtime fixup map, so the game itself rewrote it at load. `structural` means only
@@ -206,28 +224,36 @@ is unambiguous, with no runner-up scoring above zero.
 node cli.mjs igz models <level.bld.decoded> [--fixups <map> --validate] [--limit N]
 ```
 
-### Validation across five IGZ files
+### Corpus validation
 
-| Level | placement class | placements | direct | indirect | ambiguous | absent | model records | shared | inside a blob | critical | medium |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `Level_027_Tutorial` | type 104 (models 64), detected 429/673, runner-up 0 | 673 | 453 | 0 | 0 | 220 | 210 | 61 | 210 | 31 | 409 |
-| `Challenge_Level_000` | type 95 (models 53), detected 229/319, runner-up 0 | 319 | 239 | 0 | 0 | 80 | 38 | 11 | 38 | 0 | 272 |
-| `Challenge_Level_001` | type 97 (models 55), detected 205/361, runner-up 0 | 361 | 224 | 0 | 0 | 137 | 101 | 23 | 101 | 0 | 301 |
-| `Level_000_Mining` | type 98 (models 58), detected 351/617, runner-up 0 | 617 | 374 | 0 | 0 | 243 | 134 | 38 | 134 | 39 | 469 |
-| `001_Gryphon` (character) | type 57 (models 9), detected 8/18, runner-up 0 | 18 | 14 | 0 | 0 | 4 | 11 | 3 | 11 | 0 | 13 |
+```
+node cli.mjs corpus <file...> [--fixups <igz file>=<map>] [--out report.json]
+```
 
-Read it this way. **Resolved** cases are the `direct` column: 1 304 of 1 988 placements across the five files, every
-one of them through `+0xDC`. **Ambiguous** cases: none, anywhere. **Absent** cases are the `absent` column, 684
-placements that resolve no model at all; they are the markers, cameras, cutscene points, sound emitters and trigger
-volumes, and moving one changes a cutscene rather than a visible prop. The character archive behaves like a small
-level, which is the expected answer rather than a failure: placements are an engine-wide structure, not a level one.
+It resolves every file, validates every record against the frozen schema, grades it with the safety rules and prints
+rates. It exits non-zero if any record fails the schema or any file fails to parse. The stored report for the five
+files of the sample disc is `docs/placement-corpus-v1.json`.
 
-Ground truth: on the tutorial, the only file with a runtime fixup map, the structural resolver agrees with the map on
-**673/673 placements**, with no false positive and nothing missed. That agreement is why its answers on the four other
-files are usable, and it is also the limit of the claim: those four have not been booted.
+| File | class | placements | resolved | ambiguous | absent | layered | model records | shared | schema |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `Level_027_Tutorial` | t104 | 673 | 67.3% | 0% | 32.7% | 98.7% | 210 | 29.0% | 673/673 |
+| `Challenge_Level_000` | t95 | 319 | 74.9% | 0% | 25.1% | 98.1% | 38 | 28.9% | 319/319 |
+| `Challenge_Level_001` | t97 | 361 | 62.0% | 0% | 38.0% | 99.4% | 101 | 22.8% | 361/361 |
+| `Level_000_Mining` | t98 | 617 | 60.6% | 0% | 39.4% | 97.6% | 134 | 28.4% | 617/617 |
+| `001_Gryphon` (character) | t57 | 18 | 77.8% | 0% | 22.2% | 100% | 11 | 27.3% | 18/18 |
+| **total** | | **1 988** | **65.6%** | **0%** | **34.4%** | | **494** | **27.5%** | **1988/1988** |
 
-Every model record of every file lies inside some other placement's blob (210/210, 38/38, 101/101, 134/134, 11/11), so
-a same-size replacement always rewrites at least one model record. The only question is how many placements share it.
+Read it this way. **Resolved** means a model was found, always through `+0xDC`: 1 304 of 1 988 placements.
+**Ambiguous**: none, anywhere. **Absent** is the remaining 34.4%, the markers, cameras, cutscene points, sound
+emitters and trigger volumes; moving one changes a cutscene rather than a visible prop. Safety over the corpus:
+0 blocking, 70 critical (every one a push block), 1 464 medium (placements carrying a behaviour script), 454 info.
+
+Ground truth: on the tutorial, the only file with a runtime fixup map, the resolver agrees with the map on
+**673/673 placements**, with no false positive and nothing missed. That agreement is what makes its answers on the
+four other files usable, and it is also the limit of the claim, since those four have never been booted.
+
+Every model record of every file lies inside some other placement's blob (494 of 494), so a same-size replacement
+always rewrites at least one model record. The only question is how many placements share it.
 
 ### Safety rules
 

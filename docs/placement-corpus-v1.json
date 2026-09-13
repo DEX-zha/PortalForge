@@ -1,0 +1,262 @@
+{
+  "model_version": 1,
+  "generated": "2026-09-13",
+  "rows": [
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\tutorial-bld\\entries\\3-level.bld.decoded",
+      "name": "tutorial-bld",
+      "has_runtime_map": true,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 64,
+        "strict": 429,
+        "entries": 673,
+        "runner_up": 0
+      },
+      "placements": 673,
+      "counts": {
+        "direct": 453,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 220
+      },
+      "rates": {
+        "resolved": 67.3,
+        "ambiguous": 0,
+        "absent": 32.7,
+        "layered": 98.7
+      },
+      "models": {
+        "records": 210,
+        "shared": 61,
+        "inside_a_placement": 210,
+        "shared_rate": 29,
+        "max_users": 42
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 31,
+        "high": 0,
+        "medium": 409,
+        "info": 233
+      },
+      "schema": {
+        "checked": 673,
+        "invalid": 0,
+        "errors": []
+      },
+      "ground_truth": {
+        "total": 673,
+        "agreed": 673,
+        "agreement": 100,
+        "false_positives": 0,
+        "missed": 0
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_000-bld\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_000-bld",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 53,
+        "strict": 229,
+        "entries": 319,
+        "runner_up": 0
+      },
+      "placements": 319,
+      "counts": {
+        "direct": 239,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 80
+      },
+      "rates": {
+        "resolved": 74.9,
+        "ambiguous": 0,
+        "absent": 25.1,
+        "layered": 98.1
+      },
+      "models": {
+        "records": 38,
+        "shared": 11,
+        "inside_a_placement": 38,
+        "shared_rate": 28.9,
+        "max_users": 154
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 272,
+        "info": 47
+      },
+      "schema": {
+        "checked": 319,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_001-bld\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_001-bld",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 55,
+        "strict": 205,
+        "entries": 361,
+        "runner_up": 0
+      },
+      "placements": 361,
+      "counts": {
+        "direct": 224,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 137
+      },
+      "rates": {
+        "resolved": 62,
+        "ambiguous": 0,
+        "absent": 38,
+        "layered": 99.4
+      },
+      "models": {
+        "records": 101,
+        "shared": 23,
+        "inside_a_placement": 101,
+        "shared_rate": 22.8,
+        "max_users": 40
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 301,
+        "info": 60
+      },
+      "schema": {
+        "checked": 361,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\mining-bld\\entries\\3-level.bld.decoded",
+      "name": "mining-bld",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 58,
+        "strict": 351,
+        "entries": 617,
+        "runner_up": 0
+      },
+      "placements": 617,
+      "counts": {
+        "direct": 374,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 243
+      },
+      "rates": {
+        "resolved": 60.6,
+        "ambiguous": 0,
+        "absent": 39.4,
+        "layered": 97.6
+      },
+      "models": {
+        "records": 134,
+        "shared": 38,
+        "inside_a_placement": 134,
+        "shared_rate": 28.4,
+        "max_users": 41
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 39,
+        "high": 0,
+        "medium": 469,
+        "info": 109
+      },
+      "schema": {
+        "checked": 617,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\gryphon-bld\\entries\\3-level.bld.decoded",
+      "name": "gryphon-bld",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 57,
+        "model_type": 9,
+        "strict": 8,
+        "entries": 18,
+        "runner_up": 0
+      },
+      "placements": 18,
+      "counts": {
+        "direct": 14,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 4
+      },
+      "rates": {
+        "resolved": 77.8,
+        "ambiguous": 0,
+        "absent": 22.2,
+        "layered": 100
+      },
+      "models": {
+        "records": 11,
+        "shared": 3,
+        "inside_a_placement": 11,
+        "shared_rate": 27.3,
+        "max_users": 2
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 13,
+        "info": 5
+      },
+      "schema": {
+        "checked": 18,
+        "invalid": 0,
+        "errors": []
+      }
+    }
+  ],
+  "totals": {
+    "files": 5,
+    "failed": 0,
+    "placements": 1988,
+    "direct": 1304,
+    "indirect": 0,
+    "ambiguous": 0,
+    "absent": 684,
+    "model_records": 494,
+    "shared_models": 136,
+    "models_inside": 494,
+    "schema_checked": 1988,
+    "schema_invalid": 0,
+    "safety": {
+      "blocking": 0,
+      "critical": 70,
+      "high": 0,
+      "medium": 1464,
+      "info": 454
+    },
+    "rates": {
+      "resolved": 65.6,
+      "ambiguous": 0,
+      "absent": 34.4,
+      "shared_models": 27.5,
+      "models_inside": 100,
+      "schema_valid": 100
+    }
+  }
+}
