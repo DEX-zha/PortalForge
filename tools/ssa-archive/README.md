@@ -35,6 +35,12 @@ Commands and JSON shapes: `specs/001-ssa-level-research/contracts/ssa-archive-cl
 - `src/disc/` DolphinTool wrappers (identify, list, extract). `src/workspace/` manifest. `src/patch/` Riivolution workspace.
 - `src/research/` float/string scanners, bindiff, findings records and rendering, categories.
 - `src/igz/` (feature 002) IGZ v5 object graph: header and sections, block type table, object enumeration with 100 % accounting, string/object/flagged references, entity position candidates (feet-dimension and box filters), RAM-address matching; CLI `igz sections|types|objects|show|near|match|fields`.
+- `src/editor/` (feature 003) the placement editor: session and undo, safety rules, save/patch/launch, the local
+  HTTP server, and `preview.mjs`, which renders the 3D view to a PNG with no browser so the viewport can be
+  checked by counting pixels (`edit preview <level> --archive .. --entry 3 --out x.png`; it exits 1 when a proxy
+  falls below six pixels, the state in which the view reads as empty).
+- `src/view/` the browser view, served verbatim with no build step. Sizes, camera placement and palette live in
+  `framing.mjs`, which imports no three.js, so the shipped view and the headless preview cannot drift apart.
 - `src/experiments/` MCP-driven runs: `run-game.mjs` (session helpers, input scripts), `explore-entry.mjs`, `m1-roundtrip.mjs`, `m2-mutation.mjs`, `live-probe.mjs`; `input-scripts/level-027-entry.json`.
 - `research-probes/` one-off diagnostics that produced the findings in `docs/iga-v4.md` (header words, chunk tables, LZMA, IGZ sections/objects, header survey). They read `.local/samples` and are kept as reproducible evidence, not as library code.
 - `tests/` `node --test`: synthetic archives (no game data) plus fixture tests that skip when `.local/samples` is absent.

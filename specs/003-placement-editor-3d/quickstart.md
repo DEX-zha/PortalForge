@@ -146,6 +146,17 @@ node --test
 node cli.mjs corpus ../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded ... --fixups <file>=<map>
 ```
 
+Then check that the viewport is still legible, which needs no browser:
+
+```
+node cli.mjs edit preview ../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded \
+  --archive level/Level_027_Tutorial.bld --entry 3 --out <tmp>.png
+```
+
+**Must be true**: the median proxy is at least 6 pixels across and at least 95% of the level is inside the
+picture. The command exits 1 below the legible floor, which is the state the editor shipped in at first: 673
+proxies drawn, each about three pixels wide, reported by every test as working.
+
 **Must be true**: the whole suite passes, the corpus report still validates every record against the frozen
 contract, and the duplication that was confirmed in game still reproduces byte for byte:
 
@@ -284,3 +295,19 @@ the same as three.js. No axis is negated.
 **Scenario 8 (T040) is still open.** The session lock is covered at the API level in
 `tests/editor-api-edit.test.mjs`, where a launch takes the lock and a rebuild is refused with `SESSION_LOCKED`.
 Doing it as the scenario describes, against a game that is actually running, needs the boot that T041 spends.
+
+
+**Scenario 1, run 2026-09-13, failed and was repaired.** Opened on the tutorial, the layer list, the counts and
+the inspector were all correct and the viewport was black. Two independent defects, neither visible to any test:
+
+- The canvas took its size from a percentage-height chain that resolved to zero, so the drawing buffer was one
+  pixel and was stretched across the column as a single flat colour. It is now positioned absolutely inside a
+  measured wrapper, a zero size is never accepted, and the view carries an on-screen diagnostics line reporting
+  proxy count, canvas size, drawing buffer, level bounds and camera.
+- A proxy was a fixed 1.6 world units. The tutorial spans 489 units with no outliers, so framed whole each proxy
+  covered about three pixels: drawn, correct, and unreadable. Proxy size is now one part in 110 of the level
+  extent, the camera fits the objects rather than the diagonal of the box around them, and the ground carries a
+  grid stepped on a 1-2-5 scale. The tutorial reads at about 9 pixels a proxy and Mining at about 11.
+
+Both are now covered headlessly by `edit preview` and `tests/editor-preview.test.mjs`, and the framing is unit
+tested in `tests/view-framing.test.mjs`. The GPU path itself is still only checkable by looking.

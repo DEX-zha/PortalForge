@@ -263,11 +263,19 @@ purpose, and a test written after the fact does not become a test written before
   of failing first. The tests are real and they do constrain the endpoints: they check the frozen schema, the
   evidence fields, the layer grades and the same-size filter. What is missing is the demonstration that they would
   have caught the absence of that code. Every other test in this feature was written first and observed to fail.
-- **The 3D rendering has no automated test at all**, by the plan's design rather than by omission. Everything
+- **The 3D rendering had no automated test at all**, by the plan's design rather than by omission. Everything
   decidable without a screen was pushed into pure modules and is covered: layer visibility, hit cycling, the axis
   derivation, and the inspector markup, which is checked against the real tutorial records in
-  `tests/view-inspector.test.mjs`. What remains unverified is what a GPU draws, which is what quickstart
+  `tests/view-inspector.test.mjs`. What remained unverified was what a GPU draws, which is what quickstart
   scenarios 1 and 2 exist for.
+
+  That gap then cost something. On first real use the viewport looked empty, and no test could contradict it: the
+  proxies were all being drawn, at three pixels each on a 489-unit level, and a canvas whose drawing buffer had
+  collapsed to one pixel looks exactly the same as a canvas with nothing in it. The framing arithmetic now lives in
+  `src/view/framing.mjs`, which holds no three.js and is unit tested, and `edit preview` renders a level through
+  that same arithmetic to a PNG. `tests/editor-preview.test.mjs` counts the ink and the proxy size on the two
+  real levels, so "the view shows nothing" is now a number. What is still untested is the GPU itself: WebGL
+  context creation, the instanced draw, the gizmo handles.
 
 ---
 

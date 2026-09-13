@@ -448,6 +448,21 @@ export const commands = {
       if (o.open) { const { spawn } = await import('node:child_process'); spawn(process.platform === 'win32' ? 'cmd' : 'open', process.platform === 'win32' ? ['/c', 'start', '', served.url] : [served.url], { detached: true, stdio: 'ignore' }).unref(); }
       return { result: { session: session.id, url: served.url, placements: session.placements.length }, text: lines.join(String.fromCharCode(10)), keepAlive: true };
     }
+    // `preview` renders the 3D view headlessly. It needs no fixup map for the same reason `serve` does not, and
+    // it is the only way to check what the viewport shows on a machine with no browser automation.
+    if (sub === 'preview') {
+      const { openSession } = await import('./editor/session.mjs');
+      const { renderPreview, formatPreview, LEGIBLE_PX } = await import('./editor/preview.mjs');
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(oneFixup(o.fixups)), 'utf8')) : null;
+      const session = openSession(file, { archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), fixups });
+      const r = renderPreview(session, {
+        out: o.out ? path.resolve(o.out) : null,
+        width: o.width ? Number(o.width) : 1100,
+        height: o.height ? Number(o.height) : 780,
+        layer: o.layer ?? null,
+      });
+      return { result: r, exitCode: r.proxy_px_median < LEGIBLE_PX ? 1 : 0, text: formatPreview(r) };
+    }
     const level = E.openLevel(file, path.resolve(need(oneFixup(o.fixups), 'fixups')));
     const nums = s => s.split(',').map(Number);
     if (sub === 'list') {
