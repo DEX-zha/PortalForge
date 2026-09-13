@@ -33,6 +33,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789304493862",
       "summary": "formal confirmation: second boot of the byte-identical rebuilt archive (sha256 8bd2ef6b…, same as 1789303984407) reproduces the result exactly: level plays, three sunflowers by the windmill. Same input matched 2/2 (SC-004, judged with --replicates). The type-111 placement record (+0x6C position, +0x1A0 model) is a visible, editable and duplicatable handle via igz clone-entity --replace-record."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304824550",
+      "summary": "generalisation G1+G3 (screening, 1 boot): weed_2_Template(8) copied over the sunflower_Template(1) slot at (85.5, 10, 42) -> a weed stands there and the sunflower is gone (different model, same recipe); sunflower_Template(2) (0x1E4 variant, model by reference at +0x124) moved in place via +0x6C -> it stands further left. Not a sunflower special case."
     }
   ]
 }

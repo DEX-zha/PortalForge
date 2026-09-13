@@ -1,0 +1,30 @@
+{
+  "id": "igz.placement.record-layout",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type-111 wrapper {+0x1C -> shared type-112 template class; +0x24/+0x3C/+0x44/+0x10C internal pointers; +0x48 embedded type-104 record whose offset is a header-table entry; +0x50 name; +0x6C f32 xyz; +0x7C f32 heading; +0x100 f32 scale; +0x174 f32 x3 bounds} with size-dependent tails: 0x1C8 (+0x1A0 model path, companions +0x128/+0x1AC/+0x1B0/+0x1B8), 0x1E4 (+0x124 -> type-64), 0x198 (none; push blocks +0xF0 -> type-92 script), 0x140 (+0xF0 script, +0x10C..+0x12C companions)",
+  "structure": "Layout of script placement records (ScriptSet \"set [set]||to\" wrappers) and the header-table entry they embed",
+  "location": {
+    "offset": "30 positioned instances in the tutorial file, e.g. 0x34959C/0x34AC18 (0x1C8), 0x34AA34 (0x1E4), 0x34D850/0x232258/0x2B7BF0 (0x198), 0x1E0490 (0x140); embedded type-104 entries at +0x48: 0x3495E4, 0x34AC60, 0x34AA7C, 0x34D898, 0x2322A0, 0x2B7C38",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 456
+  },
+  "meaning": "Every placement the header table lists is a type-104 record at +0x48 of a type-111 wrapper carrying the same name; the wrapper holds the transform and, depending on its size class, the model (inline path or type-64 reference), companions and an optional behaviour script. Same-size replacement therefore overwrites a table-listed record in place with another of the same type: the table, the count-bounded walks and the relocation stay consistent, which is why --replace-record works with zero shift. Pointer offsets come from the runtime fixup map (words rewritten in RAM), not from heuristics; the size classes and their extra fields were read on all 30 instances.",
+  "evidence": [
+    {
+      "probe": "scratch layouts.mjs: runtime fixup map (ptr-scan3) pointer words per record, targets typed from their headers, header-table entries around each placement",
+      "summary": "identical pointer layout inside each size class; +0x48 is a header-table entry of type 104 for every placement checked; template-class record at +0x1C shared with refcount = number of placements of that class"
+    },
+    {
+      "probe": "igz script / decodeScript on all 157 scripts (opcode text, section-2 strings, f32 triples)",
+      "summary": "30 type-111 records carry a world-scale triple at +0x6C; names at +0x50 match the type-104 table-entry names; model path at +0x1A0 only in the 0x1C8 class (sunflower(1), weed(8)); the 0x1E4 class references its model through +0x124"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304824550",
+      "summary": "moving +0x6C of the 0x1E4 instance (sunflower(2)) moved the visible plant; copying the 0x1C8 weed over the 0x1C8 sunflower slot showed a weed there — the layout reading holds on two size classes"
+    }
+  ]
+}
