@@ -3,7 +3,7 @@
   "updated": "2026-09-13",
   "editable": false,
   "category": "world-entities",
-  "confidence": "UNKNOWN",
+  "confidence": "LIKELY",
   "endian": "be",
   "type": "four f32be world-position triples as arguments of one OpUseMacro \"move to || working | until within | with anim\" instruction",
   "structure": "Hugo`s intro-cutscene path: script-argument positions in 027_HugoCS.ai",
@@ -12,11 +12,15 @@
     "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
     "length": 12
   },
-  "meaning": "The visible dynamic actors of the tutorial are not placed records: the island is baked geometry (sections 4/6; no 4x4 transform table in section 1 — the 913 matrix-like patterns are vertex-format/script data, and the type-42 object 0x115B50 is a bounding-volume tree), the 957 type-52 nodes are an asset registry (176 .lvl names x 11), and actors are spawned by scripts with positions as arguments. Hugo`s cutscene script carries four waypoints 3–6 units from the spawn as arguments of a single \"move to\" macro call. Candidate for an M2-style visible mutation (move one waypoint by +8 X: Hugo should walk elsewhere in the intro) — the visible handle needed for T018 and for the visible-duplication chantier. UNKNOWN until observed.",
+  "meaning": "The visible dynamic actors of the tutorial are not placed records: the island is baked geometry (sections 4/6; no 4x4 transform table in section 1 — the 913 matrix-like patterns are vertex-format/script data, and the type-42 object 0x115B50 is a bounding-volume tree), the 957 type-52 nodes are an asset registry (176 .lvl names x 11), and actors are spawned by scripts with positions as arguments. Hugo`s cutscene script carries four waypoints 3–6 units from the spawn as arguments of a single \"move to\" macro call. Candidate for an M2-style visible mutation (move one waypoint by +8 X: Hugo should walk elsewhere in the intro) — the visible handle needed for T018 and for the visible-duplication chantier. UNKNOWN until observed. OBSERVED (screening): moving the last waypoint by +8 X made Hugo walk to the displaced point during the intro, and he went back to his original spot when the cutscene ended — the waypoint drives only the cutscene path; the post-cutscene idle position comes from another instruction (candidates: a \"displace|||LENGTH:|HEADING:|PITCH:\" or a position parameter in the Hugo/balloonist scripts or Level_Definition.ai). Formal confirmation (2 runs) pending; the field is a script argument of an OpUseMacro record, editable in place.",
   "evidence": [
     {
       "probe": "scratch ops.mjs / opmacro.mjs (header table + strings + triples)",
       "summary": "single OpUseMacro in 027_HugoCS.ai with 4 world-scale triples near PortalEntry_P1; record constructed at runtime (49 words changed)"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o2847700-1789303050823",
+      "summary": "screening run (1 boot): waypoint +0x25C X 92.69 -> 100.69. The user watched the intro: Hugo walked to the displaced point (visible), then RETURNED to his original position once the cutscene ended (his gameplay/idle position is set elsewhere). Screenshots after the cutscene show Hugo at his usual spot next to the signpost."
     }
   ]
 }

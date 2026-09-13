@@ -184,6 +184,28 @@ export const commands = {
       const written = C.writePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
       return { result: { ...r.plan, ...written, graph_after: r.graph_after }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `plan ${r.plan.validation.status}: clone of ${r.plan.source.type_name}@0x${r.plan.source.object_offset.toString(16)} at 0x${r.plan.insert_at.toString(16)} (+${r.plan.inserted_bytes} B, id 0x${r.plan.new_id.toString(16)}), ${r.plan.changes.length} edit(s), ${r.plan.updates.length} table update(s)` + (r.plan.validation.failures.length ? '\n' + r.plan.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n') : '') + `\n-> ${written.outFile}${written.planFile ? ' ; plan ' + written.planFile : ''}` };
     }
+    if (sub === 'script' || sub === 'scripts') {
+      const S = await import('./igz/script.mjs');
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(o.fixups), 'utf8')) : null;
+      if (sub === 'scripts') {
+        const a = S.auditScripts(buf, g, fixups);
+        const bad = a.rows.filter(r => r.error || r.issues || !r.headers || r.uncovered);
+        return { result: a, text: `type-92 scripts: ${a.scripts}; model OK (count==capacity, size word, array at +0x34, every pointer lands on a record header, blob fully tiled): ${a.model_ok}\n` + (bad.length ? 'deviations:\n' + bad.slice(0, 15).map(r => `  0x${r.record.toString(16)} ${r.name ?? ''} ${r.error ?? `issues ${r.issues} headers ${r.headers} uncovered ${r.uncovered}`}`).join('\n') : 'no deviations') + '\n' + a.rows.filter(r => !r.error).slice(0, 12).map(r => `  0x${r.record.toString(16)} ${String(r.count).padStart(4)} instr  ${r.name}`).join('\n') };
+      }
+      const d = S.decodeScript(buf, g, fixups, Number(need(pos[2], 'script record offset')));
+      const lines = [`script 0x${d.record.toString(16)} "${d.name}" blob 0x${d.blob_bytes.toString(16)} owner 0x${(d.owner_size ?? 0).toString(16)} instructions ${d.count}; issues: ${d.issues.join('; ') || 'none'}; coverage ${d.coverage.covered_bytes}/${d.blob_bytes} bytes in ${d.coverage.records_in_blob} records`];
+      for (const e of d.instructions) {
+        if (o.limit && e.index >= Number(o.limit)) { lines.push(`  … ${d.count - e.index} more`); break; }
+        if (!e.header) { lines.push(`  [${String(e.index).padStart(3)}] 0x${e.target.toString(16)} (no record header)${e.in_blob ? '' : ' OUTSIDE BLOB'}`); continue; }
+        const a = e.args; const parts = [];
+        if (a.strings.length) parts.push(a.strings.map(s => `"${s.text}"`).join(' '));
+        if (a.triples.length) parts.push(a.triples.map(tr => `(${tr.xyz.join(', ')})@+0x${tr.at.toString(16)}`).join(' '));
+        else if (a.floats.length) parts.push(a.floats.slice(0, 4).map(f => f.value).join(' '));
+        if (a.refs.length) parts.push(a.refs.map(r => `->${r.kind === 'instruction' ? '#' : ''}${r.opcode ? '"' + r.opcode + '"' : '0x' + r.target.toString(16)}`).slice(0, 4).join(' '));
+        lines.push(`  [${String(e.index).padStart(3)}] 0x${e.target.toString(16)} ${String(e.type).padStart(3)} ${(e.opcode ?? '?').padEnd(42)} ${parts.join(' | ')}${e.in_blob ? '' : '  OUTSIDE BLOB'}`);
+      }
+      return { result: d, text: lines.join('\n') };
+    }
     if (sub === 'clone-entity') {
       const R = await import('./igz/relocate.mjs');
       const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });

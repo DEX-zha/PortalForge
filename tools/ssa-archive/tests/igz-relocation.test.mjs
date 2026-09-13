@@ -41,3 +41,26 @@ test('structuralModel credits type-consistent fixed fields', () => {
   assert.ok(sm.fixed >= 2, `fixed ${sm.fixed}`);
   assert.equal(sm.unexplained, 0);
 });
+
+test('decodeScript reads a type-92 script: count/capacity/size word, array at +0x34, instruction opcodes and blob coverage', async () => {
+  const { decodeScript, scriptTable } = await import('../src/igz/script.mjs');
+  const { buildGraph } = await import('../src/igz/graph.mjs');
+  // synthetic script: owner (type 92, 0x34 header + 2 pointers = 0x3c) followed by two instruction records
+  const built = buildIgz({ types: ['metaobject', 'a', 'b', 'c', 'd'].concat(Array.from({ length: 88 }, (_, i) => 't' + i)).concat(['script']), strings: ['x', 'set value||=', 'clone||at|facing||cloned'],
+    objects: [
+      { type: 92, size: 0x3c, fields: [{ at: 0x24, u32: 2 }, { at: 0x28, u32: 2 }, { at: 0x2c, u32: 0x80000008 }, { at: 0x30, obj: 0 }, { at: 0x34, obj: 1 }, { at: 0x38, obj: 2 }] },
+      { type: 3, size: 0x20, fields: [{ at: 0x08, u32: 0x01000002 }] },   // section-indexed string pointer: 0x01 | offset of "set value||="
+      { type: 4, size: 0x20, fields: [{ at: 0x08, u32: 0x0100000f }] },   // 0x01 | offset of "clone||at|facing||cloned"
+    ], headTable: [0] });
+  const [S, i1, i2] = built.objectOffsets;
+  // owner +0x30 must point at own +0x34 (the array), not at the owner header: patch it
+  const secOff = built.sections.s1; built.buf.writeUInt32BE(S + 0x34 - secOff, S + 0x30);
+  const g = buildGraph(built.buf);
+  assert.deepEqual(scriptTable(built.buf, g), [S]);
+  const d = decodeScript(built.buf, g, { pointer_words: [S + 0x34, S + 0x38] }, S);
+  assert.equal(d.count, 2); assert.deepEqual(d.issues, []);
+  assert.equal(d.instructions[0].target, i1); assert.equal(d.instructions[0].opcode, 'set value||=');
+  assert.equal(d.instructions[1].target, i2); assert.equal(d.instructions[1].opcode, 'clone||at|facing||cloned');
+  assert.ok(d.instructions.every(e => e.in_blob && e.header));
+  assert.equal(d.coverage.uncovered_bytes, 0);
+});

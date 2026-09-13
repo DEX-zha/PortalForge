@@ -1,0 +1,26 @@
+{
+  "id": "igz.script.record-model",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "gameplay-logic",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type-92 header-table record = one compiled script: owner header {+0x24 count, +0x28 capacity (== count), +0x2C 0x80000000|count*4, +0x30 -> own +0x34, +0x34.. count section-1 pointers}; the blob [entry, next entry) is tiled by the instruction records",
+  "structure": "How a script is stored: an instruction-pointer array in the owner, instruction records after it",
+  "location": {
+    "offset": "all 157 type-92 header-table records of the tutorial (e.g. 027_HugoCS.ai at 0x2B633C: 204 pointers, 37 records, 0xE94 bytes)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "Verified on 157/157 scripts (igz scripts): count == capacity, the size word is 0x80000000 | count*4, the array starts at +0x34 and the blob is fully tiled by records (0 uncovered bytes). Each pointer designates either a local instruction record (in the blob) or a shared record/value elsewhere (variables, attributes, array elements — arguments by reference; refcount-N records the header heuristic misses). An instruction record`s word +0 is its opcode CLASS (type index) and word +8 its opcode TEXT in section 2; 287 distinct opcodes in the tutorial (\"parameter\" 8 310, \"set value||=\" 7 140, \"check value\" 3 364, \"set *reference||to\" 2 274, \"use macro\" 1 052, \"displace|||LENGTH:|HEADING:|PITCH:\" 644, \"clone||at|facing||cloned\" 592, ...). The section-0 type names are therefore VM class names, not meanings: a \"tfbSpriteInfo\" (113) is a \"set value\" instruction, an \"igIntKey\" (100) a \"parameter\", a \"ScriptSet\" (111) a \"set [set]\", and \"tfbPhysicsModel\" (123) is the CLONE opcode class. Tool: igz script <decoded> <record> --fixups lists a script; igz scripts audits the model.",
+  "evidence": [
+    {
+      "probe": "igz scripts (tutorial level.bld, ptr-scan3 fixup map)",
+      "summary": "157/157 scripts: issues 0, uncovered 0"
+    },
+    {
+      "probe": "igz script 0x2B633C (027_HugoCS.ai)",
+      "summary": "204 pointers: PRESCRIPT, set value \"HitState\", set [set] \"LocalOuchSounds\", parameters shutdown/destructible/hp/unkillable, check/play/set *reference ..., last instruction OpUseMacro \"move to\" with 4 waypoints"
+    }
+  ]
+}

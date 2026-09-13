@@ -1,0 +1,26 @@
+{
+  "id": "igz.script.clone-opcode",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "gameplay-logic",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "opcode class type 123 (misnamed tfbPhysicsModel), text \"clone||at|facing||cloned\"; compact form 0x40 {7B, rc, name, 0,0,0, flags, 0, ->own+0x30 sub-object (type 0x7C), 0, ->B (type 114 record), ->C (type 102 record), 7C 1 1 1}; extended form 0x214 with an inline position at +0x94",
+  "structure": "The engine`s own entity-spawn instruction, and what the M2-confirmed spawn record really is",
+  "location": {
+    "offset": "592 instances; 138 local to their script; extended form: InitializeLevel.ai instruction #2 at 0x1A76EC (+0x94 = (91.731, 10.31, 44.741))",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 64
+  },
+  "meaning": "The CONFIRMED spawn record (level.physicsmodel.spawn-candidate) is instruction #2 of the level-init script InitializeLevel.ai: a \"clone ... at ... facing\" that clones the player character at the start position, which is why moving its +0x94 argument moved the Skylander (M2). The 137 compact clones (lanterns, bridges, chompy spawners, cannon balls, cracked-wall parts ...) carry no inline position: their asset/position/facing come from referenced type-114/102 expression records (shared, e.g. 0x188CBC / 0x187BA8, or local like 0x25D9C8 in Chompie_Spawner_Arena.ai). Consequences for a VISIBLE duplication: (a) duplicating a compact clone instruction spawns a second entity at the SAME computed position (overlapping); (b) a visible offset needs an instruction whose position is inline (the extended form) or a modified position expression; (c) any duplicate must be a same-size replacement of a sacrificable record inside the same script (the owner`s pointer array already addresses that slot), never an insertion.",
+  "evidence": [
+    {
+      "probe": "scratch clones.mjs / clonerefs.mjs over the script decoder",
+      "summary": "138 local clone instructions, all type 123; compact refs -> own+0x30, type-114 and type-102 records; InitializeLevel #2 is the 0x214 form with the spawn triple inline"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o1734528-1789248814839",
+      "summary": "moving +0x94 of that instruction displaced the Skylander spawn in 2/2 runs (M2 PASS)"
+    }
+  ]
+}
