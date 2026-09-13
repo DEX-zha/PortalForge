@@ -1,0 +1,26 @@
+{
+  "id": "igz.placement.shared-model-record",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type-64 model record: +0x08 section-2 string = the .mdl path; addressed by the +0xDC field of every type-104 placement that uses that model; physically located inside ONE placement's blob (the first user), so it lies between two header-table entries that belong to another placement",
+  "structure": "Model records are shared between placements and live inside one placement's blob; a same-size replacement of that blob rewrites the model for every user",
+  "location": {
+    "offset": "0x34ADB0 \"C:/tfb/Content/Models/Objects/plants_weed2_whole.mdl\" sits inside the weed_2_Template(8) wrapper blob (0x34AC18..0x34ADE0, i.e. victim+0x198) and is referenced by 25 placements outside that blob, e.g. weed_2_Template(10) 0x3D349C..(30) 0x3D5330; 0x3CFBE0 is the plant_flowerB_whole.mdl record; 0x349734 the plant_sunflower_whole.mdl record",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 248
+  },
+  "meaning": "A placement's blob is not private: records inside it can be shared by other placements. The CONFIRMED sunflower duplication (copying the sunflower wrapper over the weed_2_Template(8) wrapper) therefore also rewrote the shared weed model record at victim+0x198, renaming it from plants_weed2_whole.mdl to plant_sunflower_whole.mdl for the 25 other weeds of the level. The level played and the start island looked exactly as predicted because every affected weed is far from the spawn, but the side effect is real and an editor must report it. `planReplaceRecord` now lists `shared_records` (offset, number of external users, whether the copy changes its bytes, name before/after) and raises a validation warning for each one it rewrites. It also refuses a replacement when a header-table record inside the victim blob has no counterpart of the same type in the source. The t104-generic recipe (copying one standalone type-104 placement over another of the same span) touches no shared record at all, which makes it the cleaner duplication path when both placements exist without a type-111 wrapper.",
+  "evidence": [
+    {
+      "probe": "fixup-map reverse index on the confirmed sunflower file: pointer words outside [0x34AC18, 0x34ADE0) whose target lands inside that range, and byte diff of the confirmed file",
+      "summary": "25 external placements point at 0x34ADB0; the confirmed replacement changed 0x34ADB4 (refcount) and 0x34ADB8 (the .mdl path string id) of that record, plus the embedded type-104 header at victim+0x48 (2 external users: the Plants and Level_027_plants.lvl layers)"
+    },
+    {
+      "probe": "igz placements / edit show on the 43 span-0x19C static placements",
+      "summary": "each weed placement's +0xDC points at the single shared record 0x34ADB0; the flowerB placements point at 0x3CFBE0; models are therefore per-template records, not per-placement copies"
+    }
+  ]
+}

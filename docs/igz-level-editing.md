@@ -105,6 +105,27 @@ Then rebuild and boot: `experiment m3 --archive level/Level_027_Tutorial.bld --e
 `experiment m2-judge --id <id> --run 1 --observed "…" --match yes|no`. A second boot of the byte-identical
 rebuilt archive can be counted with `--replicates <first id>` (SC-004: same input, twice).
 
+
+### Shared records inside a blob (important)
+
+A placement blob is not private. The **type-64 model record** of a template lives inside the blob of the first
+placement that uses it and is addressed by the `+0xDC` field of every other placement using the same model
+(`igz.placement.shared-model-record`). Copying a blob therefore rewrites those shared records for every user:
+the confirmed sunflower duplication also renamed the weed model record at `victim+0x198` (25 users) from
+`plants_weed2_whole.mdl` to `plant_sunflower_whole.mdl`, so every other weed of the level took the sunflower model.
+The level played and the start island matched the prediction because all affected weeds are far from the spawn.
+
+The planner now reports this. Every `replace` plan carries:
+
+- `inbound_midblob`: pointers from outside that land inside the victim blob;
+- `shared_records`: each such record with its number of external users, whether the copy changes its bytes, and its
+  name before/after;
+- a **validation warning** per shared record the copy rewrites, and a **validation failure** when the victim blob
+  holds a header-table record with no counterpart of the same type at the same offset in the source.
+
+Prefer a source/victim pair whose `shared_records` list is empty: the **t104-generic** recipe on two standalone
+placements of the same span touches none.
+
 ## 4. Limits (honest)
 
 - **Push blocks froze twice** (G2 cross-script/cross-class, G2b same script/class/size with the slot`s name, script and

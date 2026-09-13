@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph, validateGraph } from './graph.mjs';
+import { scriptTable } from './script.mjs';
 import { schemaValidator, contracts002 } from '../workspace/manifest.mjs';
 import * as Findings from '../research/findings.mjs';
 
@@ -452,6 +453,7 @@ export function planReplaceNode(buf, fixups, { source, victim = null, linkField 
 // `resolve(buf, offset)` may supply record bounds for header-table records the refcount==1 graph detector does not list
 // (type-104 placements have refcount 3..7); `refcount` = 'one' (wrapper recipe) or 'victim' (slot keeps its inbound count).
 export function planReplaceRecord(buf, fixups, { source, victim, keep = [], findingId, edits = [], findingsOpts = {}, extraFindings = [], resolve = null, refcount = 'one' }) {
+  const warnings = [];
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED'); e.exitCode = 1; throw e; }
   const graph = buildGraph(buf, { fields: false }); const sec = graph.sections[graph.object_section];
@@ -475,6 +477,41 @@ export function planReplaceRecord(buf, fixups, { source, victim, keep = [], find
   }
   // the victim's own pointer fields that are NOT kept and were pointers lose their referent: no decrement (safe over-count)
   for (const ed of edits) { const [width, write] = TYPES[ed.type] ?? []; if (!write) throw new Error('unsupported edit type ' + ed.type); if (ed.offset + width > S.size) throw new Error('edit outside the record'); const old_hex = out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex'); write(out, V.offset + ed.offset, ed.value); changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex') }); }
+  // Pointers from OUTSIDE that land in the MIDDLE of the victim blob keep pointing at those bytes after the copy.
+  // That is fine when the byte at that offset keeps the same role (the proven wrapper recipe: a layer points at the
+  // embedded type-104 placement at +0x48 of both source and victim). It is NOT fine when the victim has a header-table
+  // record there and the source does not, or of another type: the table entry would then address foreign bytes.
+  const tableSet = new Set(scriptTable(buf, graph));
+  const midblob = [];
+  for (const w of fixups.pointer_words) {
+    const t = sec.offset + (buf.readUInt32BE(w) & 0x7fffffff);
+    if (!(t > V.offset && t < V.offset + V.size)) continue;
+    if (w >= V.offset && w < V.offset + V.size) continue;
+    const d = t - V.offset; const entry = { from: w, delta: d, victim_table_entry: tableSet.has(t), source_table_entry: tableSet.has(S.offset + d) };
+    if (entry.victim_table_entry) {
+      entry.victim_type = buf.readUInt32BE(t); entry.source_type = buf.readUInt32BE(S.offset + d);
+      if (!entry.source_table_entry) failures.push({ stage: 'validation', reason: 'a pointer from 0x' + w.toString(16) + ' addresses the header-table record at victim+0x' + d.toString(16) + ', but the source has no header-table record at that offset' });
+      else if (entry.victim_type !== entry.source_type) failures.push({ stage: 'validation', reason: 'the header-table record at victim+0x' + d.toString(16) + ' is type ' + entry.victim_type + ' but the source has type ' + entry.source_type + ' there' });
+    }
+    midblob.push(entry);
+  }
+  // Records INSIDE the victim blob that outside records point at are SHARED (typically the type-64 model record of a
+  // template, referenced by every placement using that model). Copying the source over the blob rewrites them for every
+  // user: the proven sunflower replacement rewrote the weed model record at victim+0x198, shared by 25 placements, so
+  // every one of those weeds took the sunflower model. Report each shared record, its users, and whether bytes changed.
+  const s2 = graph.sections[2];
+  const readName = (b, p) => { const v = b.readUInt32BE(p + 8); if ((v >>> 24) !== 1) return null; const off = (v & 0xffffff); if (off >= s2.size) return null; const q = s2.offset + off; const e2 = b.indexOf(0, q); return b.toString('latin1', q, e2 < 0 ? q + 60 : Math.min(e2, q + 200)); };
+  const deltas = [...new Set(midblob.map(e => e.delta))].sort((a, b2) => a - b2);
+  const shared = [];
+  for (let k = 0; k < deltas.length; k++) {
+    const d = deltas[k]; const stop = deltas[k + 1] ?? V.size;
+    const users = midblob.filter(e => e.delta === d).length;
+    let touched = false; for (let q = d; q < stop && q + 4 <= V.size; q += 4) if (buf.readUInt32BE(V.offset + q) !== out.readUInt32BE(V.offset + q)) { touched = true; break; }
+    const before = readName(buf, V.offset + d), afterName = readName(out, V.offset + d);
+    shared.push({ delta: d, offset: V.offset + d, external_users: users, bytes_changed: touched, name_before: before, name_after: afterName });
+  }
+  const warn = shared.filter(x => x.bytes_changed);
+  if (warn.length) warnings.push(...warn.map(x => 'the record at victim+0x' + x.delta.toString(16) + ' is referenced by ' + x.external_users + ' record(s) outside the victim and the copy changes its bytes' + (x.name_before !== x.name_after ? ' (name "' + x.name_before + '" -> "' + x.name_after + '")' : '') + ': every user of that shared record is affected'));
   if (out.length !== buf.length) failures.push({ stage: 'validation', reason: 'file length changed' });
   const rcLocs = new Set(); for (let q = 12; q + 4 <= S.size; q += 4) if (!keep.includes(q) && ptrSet.has(S.offset + q)) { const t = sec.offset + (buf.readUInt32BE(S.offset + q) & 0x7fffffff); if (!(t >= S.offset && t < S.offset + S.size)) rcLocs.add(t + 4); }
   for (let p = 0; p + 4 <= buf.length; p += 4) { if (p >= V.offset && p < V.offset + V.size) continue; if (rcLocs.has(p)) continue; if (buf.readUInt32BE(p) !== out.readUInt32BE(p)) { failures.push({ stage: 'validation', reason: 'byte change outside the victim at 0x' + p.toString(16) }); break; } }
@@ -483,7 +520,10 @@ export function planReplaceRecord(buf, fixups, { source, victim, keep = [], find
   const plan = { source: { object_offset: S.offset, type_name: S.type_name, finding_id: findingId }, changes, insert_at: V.offset, updates: [{ location: V.offset + 4, field: 'refcount', old: buf.readUInt32BE(V.offset + 4), new: out.readUInt32BE(V.offset + 4) }], new_id: S.id,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'replace-record', victim: V.offset, victim_type_name: V.type_name, kept_fields: keep.map(q => '+0x' + q.toString(16)), pointers: { internal, external, kept }, refcounts: [...rcLocs].map(l => ({ location: l, field: 'refcount +1' })), findings: [findingId, ...extraFindings], method: 'same-size same-type record replacement inside a script; victim companions and name kept' };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { mode, victim: _v, victim_type_name, kept_fields, pointers, refcounts, findings, method, ...rest } = plan;
+  const { mode, victim: _v, victim_type_name, kept_fields, pointers, refcounts, findings, method, inbound_midblob, shared_records, recipe, placement_source, placement_victim, ...rest } = plan;
+  plan.inbound_midblob = midblob;
+  plan.shared_records = shared;
+  if (warnings.length) plan.validation.warnings = [...(plan.validation.warnings ?? []), ...warnings];
   plan.schema_valid = v(rest); plan.schema_errors = v.errors ?? null;
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
 }
