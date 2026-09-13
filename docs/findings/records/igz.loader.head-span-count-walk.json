@@ -21,6 +21,10 @@
     {
       "probe": "scratch findstart.mjs",
       "summary": "no u32/u16 in the header, sections 0/2-8 or non-rebased section-1 words equals the first-table-record offset (abs/rel), the head-span length, or a record count in a list-header position"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789301273731",
+      "summary": "same-size replacement in the head span (no insertion) keeps the walk aligned: the type-52 array constructed normally and the level played — consistent with a count-bounded head walk"
     }
   ]
 }

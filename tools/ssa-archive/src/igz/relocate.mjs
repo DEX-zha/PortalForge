@@ -402,6 +402,47 @@ export function planLinkClone(buf, fixups, { source, linkField, findingId, inser
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
 }
 
+// Zero-shift duplication by replacement (the path that finally instantiated a duplicate, run
+// m3-…-1789301273731): the bytes of a same-size, same-type chain node V (the victim, by default P's own
+// successor) are replaced by a copy of P; the copy keeps V's "next" link and gets refcount 1, so the chain
+// reads pred -> P -> copy -> V.next. Nothing else changes: no record moves, no table/count/size is
+// touched, which is what the count-bounded head walk requires (finding igz.loader.head-span-count-walk).
+export function planReplaceNode(buf, fixups, { source, victim = null, linkField = 0x64, findingId, edits = [], findingsOpts = {}, extraFindings = [] }) {
+  const finding = Findings.load(findingId, findingsOpts);
+  if (finding.confidence !== 'CONFIRMED') { const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED'); e.exitCode = 1; throw e; }
+  const graph = buildGraph(buf, { fields: false }); const sec = graph.sections[graph.object_section];
+  const P = graph.objects.find(o => o.offset === source); if (!P) throw Object.assign(new Error('no object at 0x' + source.toString(16)), { exitCode: 1 });
+  const V = victim ?? sec.offset + (buf.readUInt32BE(P.offset + linkField) & 0xffffff);
+  const Vo = graph.objects.find(o => o.offset === V); if (!Vo) throw Object.assign(new Error('victim 0x' + V.toString(16) + ' is not an object header'), { exitCode: 1 });
+  const failures = [], changes = [];
+  if (Vo.type !== P.type) failures.push({ stage: 'validation', reason: 'victim type ' + Vo.type + ' != source type ' + P.type });
+  if (Vo.size !== P.size) failures.push({ stage: 'validation', reason: 'victim size 0x' + Vo.size.toString(16) + ' != source size 0x' + P.size.toString(16) });
+  const ptrSet = new Set(fixups.pointer_words);
+  for (const o of [P, Vo]) for (let q = 12; q < o.size; q += 4) if (q !== linkField && ptrSet.has(o.offset + q)) failures.push({ stage: 'reference', reason: (o === P ? 'source' : 'victim') + ' has another section-1 pointer at +0x' + q.toString(16), offset: o.offset + q });
+  const vNext = buf.readUInt32BE(V + linkField);
+  const out = Buffer.from(buf);
+  buf.copy(out, V, P.offset, P.offset + P.size);
+  out.writeUInt32BE(1, V + 4);
+  out.writeUInt32BE(vNext, V + linkField);
+  for (const ed of edits) { const [width, write] = TYPES[ed.type] ?? []; if (!write) throw new Error('unsupported edit type ' + ed.type); if (ed.offset + width > P.size) throw new Error('edit outside the record'); const old_hex = out.subarray(V + ed.offset, V + ed.offset + width).toString('hex'); write(out, V + ed.offset, ed.value); changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: out.subarray(V + ed.offset, V + ed.offset + width).toString('hex') }); }
+  if (out.length !== buf.length) failures.push({ stage: 'validation', reason: 'file length changed' });
+  for (let p = 0; p + 4 <= buf.length; p += 4) { if (p >= V && p < V + P.size) continue; if (buf.readUInt32BE(p) !== out.readUInt32BE(p)) { failures.push({ stage: 'validation', reason: 'byte change outside the victim at 0x' + p.toString(16) }); break; } }
+  let after = null;
+  try {
+    after = buildGraph(out, { fields: false });
+    const c = after.objects.find(o => o.offset === V); if (!c || c.type !== P.type) failures.push({ stage: 'validation', reason: 'copy not recognised at the victim slot', offset: V });
+    if (sec.offset + (out.readUInt32BE(P.offset + linkField) & 0xffffff) !== V) failures.push({ stage: 'reference', reason: 'source.next does not point at the victim slot' });
+    if (out.readUInt32BE(V + linkField) !== vNext) failures.push({ stage: 'reference', reason: 'copy.next lost the victim old next' });
+    if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset })));
+  } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  const plan = { source: { object_offset: P.offset, type_name: P.type_name, finding_id: findingId }, changes, insert_at: V, updates: [{ location: V + 4, field: 'refcount', old: buf.readUInt32BE(V + 4), new: 1 }, { location: V + linkField, field: 'copy.next (victim old next kept)', old: vNext, new: vNext }], new_id: P.id,
+    validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'replace-node', victim: V, victim_type_name: Vo.type_name, victim_old_next: vNext, link_field: linkField, findings: [findingId, ...extraFindings], method: 'zero-shift duplication: source copied over a same-size same-type chain node; only that block changes' };
+  const v = schemaValidator('duplication-plan.schema.json', contracts002);
+  const { mode, victim: _v, victim_type_name, victim_old_next, link_field, findings, method, ...rest } = plan;
+  plan.schema_valid = v(rest); plan.schema_errors = v.errors ?? null;
+  return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
+}
+
 export function writeReachablePlan(result, { outFile, planFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, result.buffer);

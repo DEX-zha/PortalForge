@@ -186,3 +186,29 @@ test('planLinkClone duplicates a chain node: copy inserted before the tail, pred
   assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
   assert.equal(r.plan.moved_records, 1);
 });
+
+test('planReplaceNode duplicates a chain node in place: only the victim block changes, chain pred -> P -> copy -> victim.next, no shift', async () => {
+  const { planReplaceNode } = await import('../src/igz/relocate.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-repl-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  const built = buildIgz({ objects: [
+    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }, { at: 0x20, u32: 0x11111111 }] },   // A (pred)
+    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 2 }, { at: 0x20, u32: 0x22222222 }] },   // P
+    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 3 }, { at: 0x20, u32: 0x33333333 }] },   // V (victim = P.next)
+    { type: 3, size: 0x30, fields: [{ at: 0x20, u32: 0x44444444 }] },                         // W (V.next)
+  ], headTable: [3] });
+  const [A, P, V, Wo] = built.objectOffsets;
+  const fixups = { section_offset: built.sections.s1, pointer_words: [A + 0x14, P + 0x14, V + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+  const r = planReplaceNode(built.buf, fixups, { source: P, linkField: 0x14, findingId: 'test.spawn', findingsOpts: { dir } });
+  assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
+  assert.equal(r.plan.victim, V);
+  assert.equal(r.buffer.length, built.buf.length);
+  const sec = buildGraph(built.buf).sections[1];
+  for (let p = 0; p + 4 <= built.buf.length; p += 4) { if (p >= V && p < V + 0x30) continue; assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16)); }
+  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0x22222222);                        // copy carries P's content
+  assert.equal(r.buffer.readUInt32BE(V + 4), 1);                                     // refcount 1
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Wo);                    // copy.next = victim's old next
+  assert.equal(sec.offset + r.buffer.readUInt32BE(P + 0x14), V);                     // P.next still -> slot
+  assert.equal(sec.offset + r.buffer.readUInt32BE(A + 0x14), P);                     // pred untouched
+  assert.equal(buildGraph(r.buffer).objects.length, 4);
+});

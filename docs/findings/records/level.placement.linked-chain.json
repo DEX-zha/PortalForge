@@ -21,6 +21,10 @@
     {
       "probe": "igz fixups (ptr-scan3)",
       "summary": "the +0x64/+0x74 words are runtime-confirmed pointers (rebased to MEM1 addresses)"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789301273731",
+      "summary": "chain relinking works: pred -> P -> copy -> old next all constructed; the +0x64 link is the only pointer these 0x70 nodes need. Their word +8 strings are texture paths (checker.png, focus_mapper.png): these nodes are texture references, not positioned props."
     }
   ]
 }
