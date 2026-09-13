@@ -88,7 +88,7 @@ export function renderDuplicate(p, targets = [], hasRuntimeMap = true) {
     `<option value="${t.offset}">${esc(t.name ?? hex(t.offset))}${t.layers?.length ? ' — ' + esc(t.layers.join(', ')) : ''}</option>`).join('');
   return `<div class="row"><span class="k">sacrificable slots</span><span class="v">${targets.length} of the same size
       <div class="ev">a duplicate takes one of them: the object in that slot stops existing</div></span></div>
-    <div style="padding:0 12px"><select id="dup-target" style="width:100%;background:#23272f;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:4px">${options}</select>
+    <div style="padding:0 12px"><select id="dup-target" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:4px">${options}</select>
       <div style="display:flex;gap:6px;margin:6px 0"><button id="dup-prepare">Prepare</button><button id="dup-confirm" disabled>Confirm</button></div>
       <div id="dup-plan"></div></div>`;
 }
@@ -104,7 +104,7 @@ export function renderDuplicatePlan(prepared) {
   const critical = rules.filter(r => r.severity === 'critical');
   const blocking = rules.filter(r => r.severity === 'blocking');
   return [
-    `<div class="ev" style="margin-top:6px">recipe ${esc(plan.recipe ?? 'unknown')} · ${(plan.changes ?? []).length} field edit(s) · file length unchanged</div>`,
+    `<div class="ev" style="margin-top:6px">recipe ${esc(plan.recipe ?? 'unknown')}, ${(plan.changes ?? []).length} field edits, file length unchanged</div>`,
     shared.length
       ? `<h2>What else this rewrites</h2>` + shared.map(r => `<div class="rule ${r.external_users > 0 ? 'critical' : ''}">
           <span class="id">${r.external_users > 0 ? r.external_users + ' other record(s) point at this' : 'used by nothing outside'}</span>

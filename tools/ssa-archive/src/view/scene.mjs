@@ -10,39 +10,32 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { mapping, scaleToView, scaleToGame, headingToGame } from './coords.mjs';
-
-const PROXY_SIZE = 1.6;          // world units, uniform: the record carries no bounds
-const MARKER_SIZE = 0.7;
-
-const GRADE_COLOUR = {
-  blocking: 0xe5484d,
-  critical: 0xe5484d,
-  high: 0xe59a3a,
-  medium: 0xd6c02e,
-  info: 0x7fc08a,
-};
-const MARKER_COLOUR = 0x6a7b93;
-const SELECTED_COLOUR = 0xffffff;
+// Sizes, camera placement and palette live in framing.mjs, which holds no three.js and is unit tested, so the
+// headless preview command renders exactly what this scene renders rather than an approximation of it.
+import {
+  MARKER_RATIO, MIN_INSTANCE_SCALE, FOV, VIEW_DIR, TRIM, GROUND, GRID_MAJOR, GRID_MINOR,
+  GRADE_COLOUR, MARKER_COLOUR, SELECTED_COLOUR, extentOf, proxySize, bulkBox, viewAxes, fitDistance, fitBox, gridOf,
+} from './framing.mjs';
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x16181d);
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 20000);
+  scene.background = new THREE.Color(GROUND);
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 20000);
   camera.position.set(40, 40, 40);
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.12;
 
-  scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x2a2f3a, 2.2));
+  scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x1b2430, 2.6));
   const key = new THREE.DirectionalLight(0xffffff, 1.1);
   key.position.set(1, 2, 1);
   scene.add(key);
-  scene.add(new THREE.GridHelper(400, 40, 0x2c313b, 0x22262e));
+  let grid = null;   // sized to the level once its extent is known
 
-  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, entries: [], selected: null, outline: null, size: { w: 0, h: 0 }, drawn: 0, box: null };
+  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, entries: [], selected: null, outline: null, size: { w: 0, h: 0 }, drawn: 0, box: null, proxy: 1, grid: null };
 
   // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
   // reported as zero before layout settles, and a zero-sized drawing buffer renders one flat colour across the
@@ -81,9 +74,14 @@ export function createScene(canvas) {
     const withModel = placements.filter(p => p.model && p.model.offset !== null);
     const markers = placements.filter(p => !p.model || p.model.offset === null);
 
-    state.boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(PROXY_SIZE, PROXY_SIZE, PROXY_SIZE),
+    // Extent first: it sets the proxy size, the grid and the camera, so every level reads at the same scale.
+    const { lo, hi, reach } = extentOf(placements.map(p => mapping.toView(p.position)));
+    const extent = new THREE.Box3(new THREE.Vector3(...lo), new THREE.Vector3(...hi));
+    state.proxy = proxySize(reach);
+
+    state.boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(state.proxy, state.proxy, state.proxy),
       new THREE.MeshLambertMaterial(), Math.max(withModel.length, 1));
-    state.markers = new THREE.InstancedMesh(new THREE.OctahedronGeometry(MARKER_SIZE),
+    state.markers = new THREE.InstancedMesh(new THREE.OctahedronGeometry(state.proxy * MARKER_RATIO),
       new THREE.MeshBasicMaterial({ wireframe: true }), Math.max(markers.length, 1));
     for (const m of [state.boxes, state.markers]) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; scene.add(m); }
 
@@ -91,7 +89,16 @@ export function createScene(canvas) {
     place(state.boxes, withModel, grades, false);
     place(state.markers, markers, grades, true);
 
-    const g = new THREE.BoxGeometry(PROXY_SIZE * 1.25, PROXY_SIZE * 1.25, PROXY_SIZE * 1.25);
+    // A measured ground, so an object's height reads as height rather than as a position on a black field.
+    if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose?.(); }
+    const centre = extent.isEmpty() ? new THREE.Vector3() : extent.getCenter(new THREE.Vector3());
+    const { step, span } = gridOf(reach);
+    grid = new THREE.GridHelper(span, Math.max(4, Math.round(span / step)), GRID_MAJOR, GRID_MINOR);
+    grid.position.set(centre.x, extent.isEmpty() ? 0 : extent.min.y - state.proxy, centre.z);
+    scene.add(grid);
+    state.grid = { span, step };
+
+    const g = new THREE.BoxGeometry(state.proxy * 1.3, state.proxy * 1.3, state.proxy * 1.3);
     state.outline = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: SELECTED_COLOUR, wireframe: true }));
     state.outline.visible = false;
     scene.add(state.outline);
@@ -104,7 +111,7 @@ export function createScene(canvas) {
   function diagnostics() {
     const b = state.box;
     return { proxies: state.drawn, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
-      canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0,
+      canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0, proxy: Math.round(state.proxy * 10) / 10,
       bounds: b && !b.isEmpty() ? { min: b.min.toArray().map(v => Math.round(v)), max: b.max.toArray().map(v => Math.round(v)) } : null,
       camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)) };
   }
@@ -128,7 +135,7 @@ export function createScene(canvas) {
     const [x, y, z] = mapping.toView(p.position);
     obj.position.set(x, y, z);
     obj.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
-    const s = visible ? Math.max(scaleToView(p.scale) || 1, 0.05) : 0;
+    const s = visible ? Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE) : 0;   // never so small it disappears
     obj.scale.setScalar(s);
     obj.updateMatrix();
   }
@@ -225,34 +232,50 @@ export function createScene(canvas) {
     const [x, y, z] = mapping.toView(p.position);
     state.outline.position.set(x, y, z);
     state.outline.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
-    state.outline.scale.setScalar(Math.max(scaleToView(p.scale) || 1, 0.05));
+    state.outline.scale.setScalar(Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE));
     state.outline.visible = true;
   }
 
-  function frameBox(box) {
+  // Point the camera at a box, with framing.mjs deciding how far back. When the objects themselves are given
+  // they are fitted directly: a level is a diagonal ridge inside a wide axis-aligned box whose corners hold
+  // nothing, so fitting the corners pushes the camera back to make room for empty space.
+  function frameBox(box, points = null) {
     if (box.isEmpty()) return;
-    const size = box.getSize(new THREE.Vector3()).length() || 10;
     const centre = box.getCenter(new THREE.Vector3());
+    const c = centre.toArray();
+    const opts = { fov: camera.fov, aspect: camera.aspect, dir: VIEW_DIR };
+    const distance = points?.length
+      ? fitDistance(points.map(p => p.toArray()), c, opts)
+      : fitBox(box.min.toArray(), box.max.toArray(), c, opts);
     controls.target.copy(centre);
-    camera.position.copy(centre).add(new THREE.Vector3(1, 0.8, 1).normalize().multiplyScalar(size * 0.8 + 5));
-    camera.near = Math.max(size / 5000, 0.05);
-    camera.far = size * 50 + 1000;
+    camera.position.copy(centre).add(new THREE.Vector3(...viewAxes(VIEW_DIR).z).multiplyScalar(distance));
+    camera.near = Math.max(distance / 5000, 0.05);
+    camera.far = distance * 50 + 1000;
     camera.updateProjectionMatrix();
     controls.update();
   }
 
   function frameAll() {
     const box = new THREE.Box3();
-    for (const p of state.placements) box.expandByPoint(new THREE.Vector3(...mapping.toView(p.position)));
+    const points = state.placements.map(p => new THREE.Vector3(...mapping.toView(p.position)));
+    for (const v of points) box.expandByPoint(v);
     state.box = box.clone();
-    frameBox(box.expandByScalar(PROXY_SIZE * 2));
+    frameBox(bulk().expandByScalar(state.proxy * 2), points);
+  }
+
+  // The middle 92% of the objects on each axis, from framing.mjs: framing the true extremes lets a few distant
+  // markers decide the zoom for the whole level, which is how 673 proxies ended up three pixels wide.
+  function bulk(trim = TRIM) {
+    if (!state.placements.length) return new THREE.Box3();
+    const { lo, hi } = bulkBox(state.placements.map(p => mapping.toView(p.position)), trim);
+    return new THREE.Box3(new THREE.Vector3(...lo), new THREE.Vector3(...hi));
   }
 
   function frameSelection() {
     const p = state.selected === null ? null : state.byOffset.get(state.selected);
     if (!p) return frameAll();
     const c = new THREE.Vector3(...mapping.toView(p.position));
-    frameBox(new THREE.Box3().setFromCenterAndSize(c, new THREE.Vector3(1, 1, 1).multiplyScalar(PROXY_SIZE * 8)));
+    frameBox(new THREE.Box3().setFromCenterAndSize(c, new THREE.Vector3(1, 1, 1).multiplyScalar(state.proxy * 8)));
   }
 
   // A top-down view, used by quickstart scenario 2 to check the layout against an in-game screenshot.

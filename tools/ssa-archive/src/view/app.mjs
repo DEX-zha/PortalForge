@@ -6,6 +6,7 @@ import { layerIndex, showAll, hideAll, toggle, visibleSet } from './layers.mjs';
 import { orderHits, pickNext } from './select.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
+import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
 
 const $ = id => document.getElementById(id);
 const api = async (path, body) => {
@@ -32,15 +33,21 @@ async function main() {
   state.layers = data.layers;
 
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
-  $('counts').textContent = `${session.placement_count} placements · ${session.counts.direct} with a model · `
-    + `${session.counts.absent} markers · class type ${session.detection.placement_type}`;
+  // A tally rather than a run-on meta line: these are four different measurements, not one sentence.
+  $('tally').innerHTML = [
+    [session.placement_count, 'placed'],
+    [session.counts.direct, 'with a model'],
+    [session.counts.absent, 'markers'],
+    [session.layer_count, 'layers'],
+  ].map(([n, label]) => `<span><b>${n}</b> ${label}</span>`).join('')
+    + `<span title="detected from the record layout, not assumed">class ${session.detection.placement_type}</span>`;
   $('evidence-note').textContent = session.has_runtime_map
     ? 'runtime map loaded'
     : 'no runtime map: every pointer-derived value is structural';
 
   if (!state.placements.length) return fail('This file carries no placements, so there is nothing to show.');
   if (!HANDEDNESS.verified) {
-    $('hint').textContent += ' · axis handedness UNVERIFIED (quickstart scenario 2)';
+    $('hint').textContent += ' Axis handedness is unverified: see quickstart scenario 2.';
   }
 
   // Grade every placement once, so the scene can colour by risk and the layer bars can show where it sits.
@@ -98,14 +105,6 @@ async function main() {
   });
 }
 
-// The worst severity the layer bars and the proxy colours use. The rules themselves come from the API per
-// placement; this is the cheap local grading that only needs the record.
-function gradeOf(p) {
-  if (p.behavior && /PushBlock/i.test(p.behavior.path ?? '')) return 'critical';
-  if (p.model.status === 'ambiguous') return 'high';
-  if (p.behavior) return 'medium';
-  return 'info';
-}
 
 // On screen rather than in a console: if the view is empty, this says whether the proxies exist, whether the
 // canvas has a size, and where the camera is pointing.
@@ -114,7 +113,8 @@ function showDiagnostics() {
     const d = state.scene.diagnostics();
     $('diag').textContent = [
       d.proxies + ' proxies (' + d.boxes + ' boxes, ' + d.markers + ' markers)',
-      'canvas ' + d.canvas.w + '×' + d.canvas.h + ' · buffer ' + d.pixels + 'px',
+      'canvas ' + d.canvas.w + '×' + d.canvas.h + ', buffer ' + d.pixels + 'px',
+      'proxy ' + d.proxy + ' units',
       d.bounds ? 'level ' + d.bounds.min.join(',') + ' to ' + d.bounds.max.join(',') : 'no bounds',
       'camera ' + d.camera.join(',') + ' looking at ' + d.target.join(','),
     ].join(String.fromCharCode(10));
@@ -240,7 +240,7 @@ async function doSave() {
   try {
     const b = await api('/api/save', {});
     state.saved = b.written; state.patched = null; state.dirty = b.dirty;
-    note('written ' + b.written + '; ' + b.plan.changes.length + ' field(s) changed, nothing outside them');
+    note('Written to ' + b.written + '. ' + b.plan.changes.length + ' field' + (b.plan.changes.length === 1 ? '' : 's') + ' changed, nothing outside them.');
   } catch (e) { state.saved = null; note('refused: ' + e.message); }
   refreshSaveState();
 }
