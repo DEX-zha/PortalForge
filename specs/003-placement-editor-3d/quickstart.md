@@ -247,6 +247,19 @@ Three ways forward, none of them free:
 3. **Write an input script that plays from the tutorial to Mining.** Long, fragile, and likely to waste several
    boots before it works.
 
+
+**Option 2 was checked and is not worth a boot, 2026-09-13.** The plan was to open the tutorial WITHOUT its
+runtime fixup map, so every value would be structural, edit it and boot. A byte comparison settles it for free:
+opening the same level with and without the map produces **byte-identical saved files**, and all 673 placements
+resolve the same model, the same status and the same layers either way. The map changes what the editor CLAIMS
+about a value, not what it writes. A boot of the structural path could therefore only reproduce what T041 already
+showed, so none was spent, and `tests/editor-multilevel.test.mjs` now guards the equivalence: if the two paths
+ever diverge, a level read structurally would be edited differently from the same level read with its map, and
+nothing in game would say which one was right.
+
+That leaves exactly one thing unproven for User Story 4, and it is the one the story is about: **a level other
+than the tutorial, loaded by the game, showing an edit.** Only option 1 answers it.
+
 **Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
 in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
 the same as three.js. No axis is negated.

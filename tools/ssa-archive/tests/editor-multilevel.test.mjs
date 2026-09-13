@@ -88,3 +88,32 @@ test('a save refuses an unwritable destination with a reason rather than an inte
   assert.equal(r.written, null);
   assert.ok(r.plan.failures.some(f => /could not be written/.test(f.reason)));
 });
+
+test('the runtime map changes what the editor CLAIMS, never what it writes', { skip: !haveSamples && 'local samples absent' }, () => {
+  // This is what makes a boot of the structural path pointless, and it is worth guarding: if the two paths ever
+  // diverge, a level read structurally would be edited differently from the same level read with its map, and
+  // nothing in game would tell us which one was right.
+  const map = JSON.parse(fs.readFileSync(path.resolve(here, '../../../.local/dolphin-evidence/ptr-scan3-fixups.json'), 'utf8'));
+  const edit = fixups => {
+    const s = openSession(TUTORIAL, { archive: 'a', entry: 3, fixups, deps: gates });
+    const p = s.placements.find(x => x.offset === 0x3495e4);
+    applyEdit(s, { kind: 'transform', target: p.offset, position: [p.position[0], 16, p.position[2]], heading: 200, scale: 150 });
+    const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-eq-')), 'edited.decoded');
+    return { s, written: save(s, { out }).written };
+  };
+  const withMap = edit(map), without = edit(null);
+
+  assert.ok(fs.readFileSync(withMap.written).equals(fs.readFileSync(without.written)),
+    'the same edit through the structural path must produce the same bytes');
+  assert.equal(withMap.s.placements.length, without.s.placements.length);
+  for (const p of withMap.s.placements) {
+    const q = without.s.placements.find(x => x.offset === p.offset);
+    assert.equal(q.model.offset, p.model.offset, `model differs at 0x${p.offset.toString(16)}`);
+    assert.equal(q.model.status, p.model.status);
+    assert.deepEqual(q.layers, p.layers);
+  }
+  // What the map does change is the claim, and only the claim.
+  const a = withMap.s.placements.find(p => p.model.path), b = without.s.placements.find(p => p.offset === a.offset);
+  assert.equal(a.evidence.model, 'runtime-pointer');
+  assert.equal(b.evidence.model, 'structural');
+});
