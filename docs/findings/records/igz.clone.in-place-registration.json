@@ -21,6 +21,10 @@
     {
       "probe": "ssa-archive igz pick-overwrite-target",
       "summary": "129 type-92 table entries with blob >= 0x2A8; 0x3EDEFC has 0 external references into its blob"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789261575772",
+      "summary": "CONTRADICTION of the \"registration is enough\" hypothesis: the in-place overwrite onto 0x3EDEFC loaded with the file length unchanged and nothing shifted, and the ORIGINAL spawn constructed normally (class pointer 0x80486514), but the load still froze on \"Loading\" and the clone`s position (99.73) was absent from MEM1 entirely — construction hangs before reaching/finishing the duplicated record. Registering a same-type record in a valid slot is necessary but NOT sufficient; duplicating a type-92 entity is blocked by a deeper construction constraint (candidate: the type-92 walk iterates children by the blob/size or a count and mis-parses the zeroed leftover, or a duplicated record conflicts on an identity/handle/dependency that in-place M2 mutation never triggers)."
     }
   ]
 }
