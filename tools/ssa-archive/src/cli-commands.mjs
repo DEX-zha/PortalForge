@@ -2,6 +2,7 @@
 // findings, gates). Kept separate so cli.mjs stays a thin dispatcher.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { rebuildFromWorkspace } from './iga/writer.mjs';
 import { diffArchives } from './iga/diff.mjs';
@@ -406,7 +407,7 @@ export const commands = {
     throw new CliError(`Unknown shot subcommand ${sub} (diff|crop)`, 3);
   },
   async gates() {
-    const docs = path.resolve(process.cwd(), '../../docs');
+    const docs = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../docs');   // repo docs/, not the caller's cwd
     const gates = ['M0', 'M1', 'M2', 'M3', 'M4A', 'M4B', 'M5'].map(name => {
       const f = path.join(docs, `${name.toLowerCase()}-status.json`);
       if (!fs.existsSync(f)) return { name, status: 'UNKNOWN', evidence: [], validated_on: null };

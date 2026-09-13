@@ -7,7 +7,7 @@
         "M1",
         "M2"
     ],
-    "blocking_unknown": "None for the gate. Known limits: the duplicated subject is a texture-reference chain node (globaltextures/checker.png) with no transform, so the duplicate is not visible and the victim node (focus_mapper.png reference) is lost; visible duplication of a positioned prop is the next chantier (scene-graph nodes igNodeList/igTransformSequence referencing section-4/6 geometry; the count-bounded head walk forbids insertion, so a same-size replacement or the head-span record count is needed).",
+    "blocking_unknown": "None for the gate. Visible duplication is now demonstrated too (runs m3-…-1789303984407 / …-1789304493862: a type-111 placement copied over a same-size slot of the same script shows three sunflowers instead of two, 2/2 identical) and generalises beyond the first subject (t104-generic recipe, run m3-…-1789315647217). Known limits: duplication consumes a sacrificable slot; a placement blob can hold a model record shared by other placements, which the copy rewrites (igz.placement.shared-model-record); track-bound gameplay elements such as push blocks froze when relocated (level.pushblock.track-dependency).",
     "registration_paths_tried": [
         "grow the header table (global 32-byte shift): relocation desync, froze at 1 036/21 680 records",
         "redirect an existing table entry to an appended clone: froze",
@@ -28,7 +28,9 @@
         "experiment m3 --probe --dump-section (RAM verification of the clone)",
         "igz clone-entity --replace-node next (zero-shift duplication over a same-size chain node)",
         "igz clone-entity --link-after (chain insertion, diagnostic)",
-        "experiment m3 --read <label>=<offset>[:deref] (targeted RAM reads)"
+        "experiment m3 --read <label>=<offset>[:deref] (targeted RAM reads)",
+        "ssa-archive edit list|show|set|replace (type-104 placement editor: layers, safety flags, in-place transform, same-size duplication)",
+        "ssa-archive shot diff|crop (pixel-diff evidence from boot screenshots)"
     ],
     "evidence": [
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789250807367.json (append + list slot: clone raw, no effect)",
@@ -40,14 +42,16 @@
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789299899074.json (append + link: plays, copy raw — pointing does not construct)",
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789300434156.json (head-span insertion: copy constructed, type-52 walker off by one record, hang)",
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301273731.json (same-size replacement: PLAYS, copy constructed and post-load-processed — mechanism achieved)",
-        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301970935.json (FORMAL: 2 identical runs, PASS)"
+        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301970935.json (FORMAL: 2 identical runs, PASS)",
+        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789304493862.json (FORMAL visible duplication: three sunflowers, 2/2 identical)",
+        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789315647217.json (t104-generic recipe: a flowerB placement copied over a weed slot renders at the new position)"
     ],
     "does_not_validate": [
         "M4A geometry",
         "M4B collisions",
         "M5 playable scenario"
     ],
-    "details": "docs/experiments/README.md, docs/findings/references.md, docs/findings/igz-objects.md",
+    "details": "docs/igz-level-editing.md, docs/experiments/README.md, docs/findings/references.md, docs/findings/world-entities.md",
     "validated_on": "2026-09-13",
     "pass_experiment": "m3-level_027_tutorial-e3-1789301970935",
     "pass_summary": "Entity duplication demonstrated: a byte-identical copy of PlacementReference 0x123138 written over its successor slot 0x1231A8 (6 words changed, zero shift, no table/count/size change) is constructed by the loader (class 0x8049C738, reached through P.next), processed by the post-load phase like an original, and the level loads and plays in 2/2 formal runs (+1 screening). Two live instances of the same record coexist in the chain. Observable: RAM reads (experiment m3 --read) + level playing; judged with experiment m2-judge."
