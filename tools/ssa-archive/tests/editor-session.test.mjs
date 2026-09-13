@@ -72,3 +72,95 @@ test('session: opening refuses when a resolved record does not match the frozen 
   assert.throws(() => openSession(file, opts({ deps: { gates: passing, resolve } })), e =>
     /placement-v1|contract/i.test(e.message) && /0x10/.test(e.message) && e.exitCode === 2);
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// Feature 003 T025: editing in memory. An intent changes the session, never the file; only a save writes.
+
+import { applyEdit, undo, redo, canEdit } from '../src/editor/session.mjs';
+
+const openTest = () => openSession(levelFile(), opts());
+const first = s => s.placements[0];
+
+test('edit: a transform intent updates the record in memory, marks the session dirty and leaves the file alone', () => {
+  const s = openTest();
+  const before = fs.readFileSync(s.file);
+  const r = applyEdit(s, { kind: 'transform', target: first(s).offset, position: [11, 12, 13], heading: 45, scale: 250 });
+  assert.deepEqual(r.placement.position, [11, 12, 13]);
+  assert.equal(r.placement.rotation.heading, 45);
+  assert.equal(r.placement.scale, 250);
+  assert.equal(r.dirty, true);
+  assert.equal(r.undo_depth, 1);
+  assert.equal(s.dirty, true);
+  assert.deepEqual(first(s).position, [11, 12, 13], 'the session record is the edited one');
+  assert.ok(before.equals(fs.readFileSync(s.file)), 'the file on disk is untouched until a save');
+  assert.ok(!before.equals(s.buffer), 'but the working buffer carries the change');
+});
+
+test('edit: a partial intent changes only the attributes it names', () => {
+  const s = openTest();
+  const p0 = { ...first(s), position: [...first(s).position] };
+  applyEdit(s, { kind: 'transform', target: p0.offset, heading: 15 });
+  assert.deepEqual(first(s).position, p0.position, 'position untouched');
+  assert.equal(first(s).scale, p0.scale, 'scale untouched');
+  assert.equal(first(s).rotation.heading, 15);
+});
+
+test('edit: undo and redo walk the history, and a new edit discards the redo stack', () => {
+  const s = openTest();
+  const start = [...first(s).position];
+  applyEdit(s, { kind: 'transform', target: first(s).offset, position: [1, 1, 1] });
+  applyEdit(s, { kind: 'transform', target: first(s).offset, position: [2, 2, 2] });
+  assert.equal(s.edits.length, 2);
+
+  assert.deepEqual(undo(s).placement.position, [1, 1, 1]);
+  assert.deepEqual(undo(s).placement.position, start);
+  assert.equal(s.dirty, false, 'undone back to the opened state is not dirty');
+  assert.equal(undo(s), null, 'nothing left to undo');
+
+  assert.deepEqual(redo(s).placement.position, [1, 1, 1]);
+  assert.equal(s.dirty, true);
+  applyEdit(s, { kind: 'transform', target: first(s).offset, position: [9, 9, 9] });
+  assert.equal(s.undone.length, 0, 'a new edit discards what was undone');
+  assert.equal(redo(s), null);
+});
+
+test('edit: undoing every edit restores the opened bytes exactly', () => {
+  const s = openTest();
+  const original = Buffer.from(s.buffer);
+  applyEdit(s, { kind: 'transform', target: first(s).offset, position: [5, 6, 7], heading: 33, scale: 80 });
+  applyEdit(s, { kind: 'transform', target: s.placements[1].offset, position: [1, 2, 3] });
+  undo(s); undo(s);
+  assert.ok(original.equals(s.buffer), 'byte for byte back to how it opened');
+});
+
+test('edit: an attribute the record has no evidence for is refused, and says which evidence is missing', () => {
+  const s = openTest();
+  assert.deepEqual(canEdit(first(s), 'position').ok, true);
+  const blind = { ...first(s), evidence: { ...first(s).evidence, layout: '' } };
+  const no = canEdit(blind, 'position');
+  assert.equal(no.ok, false);
+  assert.equal(no.error, 'EVIDENCE_MISSING');
+  assert.match(no.reason, /layout/i);
+  const unsupported = canEdit(first(s), 'model');
+  assert.equal(unsupported.error, 'UNSUPPORTED_FIELD');
+  assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset, model: 'x' }), /UNSUPPORTED_FIELD|unsupported/i);
+});
+
+test('edit: an intent naming an offset that is not a placement is refused', () => {
+  const s = openTest();
+  assert.throws(() => applyEdit(s, { kind: 'transform', target: 0x999999, position: [0, 0, 0] }), /NO_SUCH_PLACEMENT|no placement/i);
+  assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset, position: [1, 2] }), /three/i);
+  assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset }), /nothing to change/i);
+});
+
+test('edit: undo restores the exact bytes, not the rounded value the inspector shows', () => {
+  const s = openTest();
+  const p = first(s);
+  // A float with more digits than the record displays: 82.252 is shown, 82.25200653076172 is stored.
+  s.buffer.writeFloatBE(82.25200653076172, p.offset + 0x24);
+  const exact = Buffer.from(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30));
+  applyEdit(s, { kind: 'transform', target: p.offset, position: [1, 2, 3] });
+  undo(s);
+  assert.ok(exact.equals(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30)),
+    'restoring the displayed 82.252 instead of the stored bytes would silently rewrite the field');
+});

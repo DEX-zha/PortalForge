@@ -8,7 +8,8 @@
 // a uniform cube scaled by the record's own scale value is the honest representation (research R6).
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { mapping, scaleToView } from './coords.mjs';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { mapping, scaleToView, scaleToGame, headingToGame } from './coords.mjs';
 
 const PROXY_SIZE = 1.6;          // world units, uniform: the record carries no bounds
 const MARKER_SIZE = 0.7;
@@ -104,6 +105,16 @@ export function createScene(canvas) {
     obj.updateMatrix();
   }
 
+  // Redraw one proxy from the record the session returned, after an edit.
+  function refresh(offset) {
+    const p = state.byOffset.get(offset);
+    const e = state.entries.find(x => x.offset === offset);
+    if (!p || !e) return;
+    setMatrix(dummy, p, true);
+    e.mesh.setMatrixAt(e.index, dummy.matrix);
+    e.mesh.instanceMatrix.needsUpdate = true;
+  }
+
   // Layer visibility: an instance is hidden by collapsing it to zero scale, which keeps the instance indices
   // stable so picking never has to be rebuilt.
   function setVisible(offsets) {
@@ -116,6 +127,49 @@ export function createScene(canvas) {
     state.markers.instanceMatrix.needsUpdate = true;
     if (state.selected !== null && !offsets.has(state.selected)) select(null);
   }
+
+
+  // Gizmos (feature 003 T034, T035). They are attached to the outline mesh, which stands in for the selected
+  // instance: an instanced mesh has no per-instance Object3D to drag.
+  //
+  // The rotate and scale gizmos are deliberately crippled. The frozen record carries ONE rotation angle and ONE
+  // scale number, so three rotation rings or three scale axes would invite an edit the format cannot store, and
+  // the loss would only show up after saving. One ring around the vertical axis, one uniform scale handle.
+  const gizmo = new TransformControls(camera, canvas);
+  gizmo.setSpace('world');
+  scene.add(gizmo.getHelper());
+  gizmo.addEventListener('dragging-changed', e => { controls.enabled = !e.value; });
+
+  let onLive = null, onCommit = null, dragStart = null;
+  gizmo.addEventListener('objectChange', () => {
+    // Only the vertical handle is shown in scale mode, so the drag moves one component; force the other two to
+    // follow, because the record stores a single number and a stretched proxy would promise something else.
+    if (gizmo.mode === 'scale') state.outline.scale.setScalar(state.outline.scale.y);
+    if (onLive) onLive(readGizmo());
+  });
+  gizmo.addEventListener('mouseDown', () => { dragStart = readGizmo(); });
+  gizmo.addEventListener('mouseUp', () => { if (onCommit && dragStart) onCommit(readGizmo(), dragStart); dragStart = null; });
+
+  // What the gizmo currently expresses, in GAME units, so the caller never converts.
+  function readGizmo() {
+    const o = state.outline;
+    return {
+      position: mapping.toGame([o.position.x, o.position.y, o.position.z]).map(v => Math.round(v * 1000) / 1000),
+      heading: Math.round(headingToGame(THREE.MathUtils.radToDeg(o.rotation.y)) * 10) / 10,
+      scale: Math.round(scaleToGame(o.scale.x) * 10) / 10,
+    };
+  }
+
+  function setGizmoMode(mode) {
+    if (!mode || state.selected === null) { gizmo.detach(); return; }
+    gizmo.attach(state.outline);
+    gizmo.setMode(mode === 'rotate' ? 'rotate' : mode === 'scale' ? 'scale' : 'translate');
+    gizmo.showX = mode === 'translate';
+    gizmo.showZ = mode === 'translate';
+    gizmo.showY = true;                    // the only axis rotation and scale may use
+  }
+
+  const onGizmo = ({ live, commit }) => { onLive = live; onCommit = commit; };
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -139,10 +193,11 @@ export function createScene(canvas) {
   function select(offset) {
     state.selected = offset;
     const p = offset === null ? null : state.byOffset.get(offset);
-    if (!p) { state.outline.visible = false; return; }
+    if (!p) { state.outline.visible = false; gizmo.detach(); return; }
     const [x, y, z] = mapping.toView(p.position);
     state.outline.position.set(x, y, z);
     state.outline.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
+    state.outline.scale.setScalar(Math.max(scaleToView(p.scale) || 1, 0.05));
     state.outline.visible = true;
   }
 
@@ -184,5 +239,5 @@ export function createScene(canvas) {
     controls.update();
   }
 
-  return { build, setVisible, hitsAt, select, frameAll, frameSelection, topDown, state };
+  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, state };
 }

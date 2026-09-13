@@ -99,3 +99,124 @@ export const sessionSummary = s => ({
 });
 
 export const findPlacement = (s, offset) => s.placements.find(p => p.offset === offset) ?? null;
+
+// ---------------------------------------------------------------------------------------------------------
+// Editing (feature 003 T028). An intent changes the working buffer and the record held in memory. Nothing here
+// touches the file: `save` in save.mjs is the only place a file is produced, and it checks its own plan against
+// the bytes before writing.
+
+import { FIELDS } from '../igz/model-resolve.mjs';
+
+const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.error = error; e.exitCode = 1; throw e; };
+
+// Which attributes this editor may write, and which evidence has to be there for it to be honest about them.
+// Position, heading and scale are read at fixed offsets of the record, so the evidence that supports editing them
+// is the layout evidence: if the record cannot say where the project's knowledge of that layout comes from, the
+// editor does not write it.
+export const EDITABLE = { position: 'layout', heading: 'layout', scale: 'layout' };
+
+export function canEdit(placement, attribute) {
+  const key = EDITABLE[attribute];
+  if (!key) return { ok: false, error: 'UNSUPPORTED_FIELD', reason: `${attribute} is not an attribute this editor writes; it writes ${Object.keys(EDITABLE).join(', ')}` };
+  const evidence = placement.evidence?.[key];
+  if (!evidence || evidence === 'none') return { ok: false, error: 'EVIDENCE_MISSING', reason: `${attribute} rests on the ${key} evidence of this record, and this record carries none` };
+  return { ok: true, evidence };
+}
+
+const WRITERS = {
+  position: (buf, offset, v) => { buf.writeFloatBE(v[0], offset + FIELDS.position); buf.writeFloatBE(v[1], offset + FIELDS.position + 4); buf.writeFloatBE(v[2], offset + FIELDS.position + 8); },
+  heading: (buf, offset, v) => buf.writeFloatBE(v, offset + FIELDS.heading),
+  scale: (buf, offset, v) => buf.writeFloatBE(v, offset + FIELDS.scale),
+};
+const READERS = {
+  position: (buf, offset) => [0, 4, 8].map(d => round(buf.readFloatBE(offset + FIELDS.position + d))),
+  heading: (buf, offset) => Math.round(buf.readFloatBE(offset + FIELDS.heading) * 10) / 10,
+  scale: (buf, offset) => Math.round(buf.readFloatBE(offset + FIELDS.scale) * 10) / 10,
+};
+const round = v => Math.round(v * 1000) / 1000;
+
+// The exact words an attribute occupies, copied out so undo can put them back unchanged. The displayed numbers
+// are rounded for reading; restoring them instead of the bytes would rewrite the field with a nearby float.
+const rawOf = (buf, offset, attribute) => {
+  const words = wordsOf(offset, attribute);
+  const out = Buffer.alloc(words.length * 4);
+  words.forEach((w, i) => buf.copy(out, i * 4, w, w + 4));
+  return out;
+};
+const putRaw = (buf, offset, attribute, raw) => {
+  wordsOf(offset, attribute).forEach((w, i) => raw.copy(buf, w, i * 4, i * 4 + 4));
+};
+
+// The words an attribute occupies, so a save can tell an authorised change from any other.
+export const wordsOf = (offset, attribute) => attribute === 'position'
+  ? [offset + FIELDS.position, offset + FIELDS.position + 4, offset + FIELDS.position + 8]
+  : [offset + FIELDS[attribute === 'heading' ? 'heading' : 'scale']];
+
+function refreshRecord(session, placement) {
+  placement.position = READERS.position(session.buffer, placement.offset);
+  placement.rotation = { heading: READERS.heading(session.buffer, placement.offset) };
+  placement.scale = READERS.scale(session.buffer, placement.offset);
+  return placement;
+}
+
+export function applyEdit(session, intent) {
+  if (intent.kind !== 'transform') fail('UNSUPPORTED_INTENT', `${intent.kind} is not supported yet; this phase edits transforms`);
+  const placement = findPlacement(session, intent.target);
+  if (!placement) fail('NO_SUCH_PLACEMENT', `no placement at 0x${Number(intent.target).toString(16)} in this level`);
+
+  const asked = Object.keys(EDITABLE).filter(k => intent[k] !== undefined && intent[k] !== null);
+  const unknown = Object.keys(intent).filter(k => !['kind', 'target', 'acknowledged', ...Object.keys(EDITABLE)].includes(k));
+  if (unknown.length) fail('UNSUPPORTED_FIELD', `${unknown.join(', ')} is not an attribute this editor writes`);
+  if (!asked.length) fail('NOTHING_TO_CHANGE', 'nothing to change: give a position, a heading or a scale');
+  if (intent.position && (!Array.isArray(intent.position) || intent.position.length !== 3 || intent.position.some(v => !Number.isFinite(v)))) fail('BAD_VALUE', 'a position needs three finite numbers');
+  for (const k of asked) { const c = canEdit(placement, k); if (!c.ok) fail(c.error, c.reason); }
+
+  const before = Object.fromEntries(asked.map(k => [k, READERS[k](session.buffer, placement.offset)]));
+  const before_raw = Object.fromEntries(asked.map(k => [k, rawOf(session.buffer, placement.offset, k)]));
+  for (const k of asked) WRITERS[k](session.buffer, placement.offset, intent[k]);
+  const after = Object.fromEntries(asked.map(k => [k, READERS[k](session.buffer, placement.offset)]));
+  const after_raw = Object.fromEntries(asked.map(k => [k, rawOf(session.buffer, placement.offset, k)]));
+
+  session.edits.push({ kind: 'transform', target: placement.offset, attributes: asked, before, after, before_raw, after_raw, at: new Date().toISOString() });
+  session.undone.length = 0;
+  refreshRecord(session, placement);
+  session.dirty = true;
+  return editResult(session, placement);
+}
+
+function applyRaw(session, offset, raws) {
+  const placement = findPlacement(session, offset);
+  for (const [k, raw] of Object.entries(raws)) putRaw(session.buffer, offset, k, raw);
+  return refreshRecord(session, placement);
+}
+
+export function undo(session) {
+  const edit = session.edits.pop();
+  if (!edit) return null;
+  const placement = applyRaw(session, edit.target, edit.before_raw);
+  session.undone.push(edit);
+  session.dirty = session.edits.length > 0;
+  return editResult(session, placement);
+}
+
+export function redo(session) {
+  const edit = session.undone.pop();
+  if (!edit) return null;
+  const placement = applyRaw(session, edit.target, edit.after_raw);
+  session.edits.push(edit);
+  session.dirty = true;
+  return editResult(session, placement);
+}
+
+const editResult = (session, placement) => ({
+  applied: true, placement,
+  safety: assessPlacement(placement, { hasRuntimeMap: session.has_runtime_map }),
+  dirty: session.dirty, undo_depth: session.edits.length, redo_depth: session.undone.length,
+});
+
+// Every word the accumulated edits are allowed to have changed. A save that touches anything else is refused.
+export function authorisedWords(session) {
+  const out = new Set();
+  for (const e of session.edits) for (const a of e.attributes) for (const w of wordsOf(e.target, a)) out.add(w);
+  return out;
+}

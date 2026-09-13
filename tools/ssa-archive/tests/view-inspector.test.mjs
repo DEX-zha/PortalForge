@@ -39,7 +39,9 @@ test('inspector: a scripted prop shows its model, its script, its layers and the
   assert.match(html, /moved fine over two boots/, 'the warning states the run that went well');
   assert.match(html, /froze twice/, 'and the one that did not, so the researcher weighs both');
   assert.match(html, /the game rewrote this word at load/, 'a runtime-confirmed attribute is marked as such');
-  assert.match(html, /85\.52/, 'the position is shown');
+  assert.match(html, /data-edit="position"[^>]*value="85\.515"/, 'the position is shown and typeable');
+  assert.match(html, /data-edit="heading"[^>]*value="130"/);
+  assert.match(html, /data-edit="scale"[^>]*value="100"/);
 });
 
 test('inspector: a marker says it is not a visible prop, and shows no model', { skip: !haveSamples && 'local samples absent' }, () => {

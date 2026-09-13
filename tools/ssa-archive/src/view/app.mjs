@@ -8,16 +8,17 @@ import { renderPlacement, renderGrades } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
 
 const $ = id => document.getElementById(id);
-const api = async path => {
-  const r = await fetch(path);
-  const body = await r.json().catch(() => ({ error: 'BAD_RESPONSE', reason: r.statusText }));
-  if (!r.ok) throw new Error(`${body.error}: ${body.reason}`);
-  return body;
+const api = async (path, body) => {
+  const r = body === undefined ? await fetch(path)
+    : await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const payload = await r.json().catch(() => ({ error: 'BAD_RESPONSE', reason: r.statusText }));
+  if (!r.ok) throw new Error(payload.reason ?? payload.error ?? r.statusText);
+  return payload;
 };
 
 const fail = message => { const box = $('error'); box.hidden = false; box.textContent = message; };
 
-const state = { placements: [], layers: [], visible: new Set(), selection: null, scene: null };
+const state = { placements: [], layers: [], visible: new Set(), selection: null, scene: null, mode: null, dirty: false, undoDepth: 0, redoDepth: 0, saved: null, patched: null };
 
 async function main() {
   let session, data;
@@ -58,10 +59,39 @@ async function main() {
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
   $('all-on').addEventListener('click', () => { state.visible = showAll(index); renderLayers(index); apply(); });
   $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(index); apply(); });
+
+  // Gizmos and typed entry produce the SAME intent, so the two ways of editing cannot drift apart (T034 to T036).
+  for (const [id, mode] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
+    $(id).addEventListener('click', () => setMode(mode));
+  }
+  state.scene.onGizmo({
+    live: v => updateFields(v),
+    commit: async v => {
+      if (!state.selection) return;
+      const intent = { kind: 'transform', target: state.selection.offset };
+      if (state.mode === 'translate') intent.position = v.position;
+      if (state.mode === 'rotate') intent.heading = v.heading;
+      if (state.mode === 'scale') intent.scale = v.scale;
+      await sendIntent(intent);
+    },
+  });
+  $('undo').addEventListener('click', () => sendPost('/api/undo'));
+  $('redo').addEventListener('click', () => sendPost('/api/redo'));
+  $('save').addEventListener('click', doSave);
+  $('do-patch').addEventListener('click', doPatch);
+  $('do-launch').addEventListener('click', doLaunch);
+  $('prediction').addEventListener('input', refreshSaveState);
+  $('inspector').addEventListener('change', onTyped);
+  refreshSaveState();
+
   window.addEventListener('keydown', e => {
     if (e.key === 'f') state.scene.frameSelection();
     if (e.key === 'F') state.scene.frameAll();
     if (e.key === 't') state.scene.topDown();          // quickstart scenario 2
+    if (e.key === 'w') setMode('translate');
+    if (e.key === 'e') setMode('rotate');
+    if (e.key === 'r') setMode('scale');
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendPost(e.shiftKey ? '/api/redo' : '/api/undo'); }
   });
 }
 
@@ -97,12 +127,117 @@ async function onPick(ev) {
   const next = pickNext({ hits, pointer: { x: ev.clientX, y: ev.clientY }, previous: state.selection });
   state.selection = next;
   state.scene.select(next ? next.offset : null);
+  if (state.mode) state.scene.setGizmoMode(state.mode);
   if (!next) { $('inspector').innerHTML = renderPlacement(null); return; }
   try {
     const b = await api(`/api/placement/${next.offset}`);
     $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets)
       + (next.total > 1 ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>` : '');
   } catch (e) { $('inspector').innerHTML = `<div class="empty">${e.message}</div>`; }
+}
+
+
+// ---------------------------------------------------------------------------------------------------------
+// Editing (T036 to T038). Every change goes to the editor process as an intent; the view holds no bytes and
+// applies nothing locally, so what is drawn is always what the session actually contains.
+
+function setMode(mode) {
+  state.mode = mode;
+  for (const [id, m] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
+    $(id).classList.toggle('on', state.mode === m);
+  }
+  state.scene.setGizmoMode(mode);
+}
+
+function updateFields(v) {
+  const set = (sel, value) => { const el = document.querySelector(sel); if (el && document.activeElement !== el) el.value = value; };
+  if (v.position) [0, 1, 2].forEach(i => set('[data-edit="position"][data-axis="' + i + '"]', v.position[i]));
+  set('[data-edit="heading"]', v.heading);
+  set('[data-edit="scale"]', v.scale);
+}
+
+async function onTyped(ev) {
+  const el = ev.target.closest('[data-edit]');
+  if (!el || !state.selection) return;
+  const attribute = el.dataset.edit;
+  const intent = { kind: 'transform', target: state.selection.offset };
+  if (attribute === 'position') {
+    intent.position = [0, 1, 2].map(i => Number(document.querySelector('[data-edit="position"][data-axis="' + i + '"]').value));
+    if (intent.position.some(n => !Number.isFinite(n))) return note('a position needs three numbers');
+  } else {
+    const n = Number(el.value);
+    if (!Number.isFinite(n)) return note(attribute + ' needs a number');
+    intent[attribute] = n;
+  }
+  await sendIntent(intent);
+}
+
+async function sendIntent(intent) {
+  if (!intent.target) return;
+  try { afterChange(await api('/api/edit', intent)); }
+  catch (e) { note(e.message); await reselect(); }
+}
+
+async function sendPost(path) {
+  try { afterChange(await api(path, {})); } catch (e) { note(e.message); }
+}
+
+// The session is the truth: redraw the edited proxy from what came back, never from what was dragged.
+function afterChange(b) {
+  const p = b.placement;
+  if (p) {
+    const local = state.placements.find(x => x.offset === p.offset);
+    if (local) { local.position = p.position; local.rotation = p.rotation; local.scale = p.scale; }
+    state.scene.refresh(p.offset);
+    state.scene.select(p.offset);
+    if (state.mode) state.scene.setGizmoMode(state.mode);
+    updateFields({ position: p.position, heading: p.rotation.heading, scale: p.scale });
+  }
+  state.dirty = b.dirty;
+  state.undoDepth = b.undo_depth ?? state.undoDepth;
+  state.redoDepth = b.redo_depth ?? state.redoDepth;
+  refreshSaveState();
+}
+
+async function reselect() {
+  if (!state.selection) return;
+  const b = await api('/api/placement/' + state.selection.offset);
+  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets);
+}
+
+const note = msg => { $('save-note').textContent = msg; };
+
+function refreshSaveState() {
+  $('dirty').textContent = state.dirty ? state.undoDepth + ' unsaved edit' + (state.undoDepth > 1 ? 's' : '') : '';
+  $('dirty').classList.toggle('on', !!state.dirty);
+  $('save').disabled = !state.dirty;
+  $('do-patch').disabled = !state.saved;
+  $('do-launch').disabled = !state.patched || !$('prediction').value.trim();
+  $('save-state').textContent = state.dirty ? 'unsaved changes'
+    : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
+}
+
+async function doSave() {
+  try {
+    const b = await api('/api/save', {});
+    state.saved = b.written; state.patched = null; state.dirty = b.dirty;
+    note('written ' + b.written + '; ' + b.plan.changes.length + ' field(s) changed, nothing outside them');
+  } catch (e) { state.saved = null; note('refused: ' + e.message); }
+  refreshSaveState();
+}
+
+async function doPatch() {
+  try { const b = await api('/api/patch', {}); state.patched = b.patch.dir; note('patch built in ' + b.patch.dir); }
+  catch (e) { note('refused: ' + e.message); }
+  refreshSaveState();
+}
+
+async function doLaunch() {
+  const prediction = $('prediction').value.trim();
+  if (!prediction) return note('state what should be visible before launching: an experiment without a prediction cannot be judged');
+  try { const b = await api('/api/launch', { prediction }); note('launched as ' + b.launch.experiment_id + '; record what you see to release the lock'); }
+  catch (e) { note('refused: ' + e.message); }
+  refreshSaveState();
 }
 
 main();

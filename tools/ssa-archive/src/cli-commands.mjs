@@ -17,6 +17,41 @@ const parseReplace = (list, keyName) => Object.fromEntries((list ?? []).map(s =>
 
 const oneFixup = v => (Array.isArray(v) ? v[0] : v);
 
+
+// Patch and launch for the editor: the existing replacement-only workspace builder and the existing experiment
+// runner, so an editor run is indistinguishable from a command-line one in the evidence trail.
+function editorDeps(session, o) {
+  return {
+    build: ({ experimentId, replacements }) => {
+      const game = o.game ?? gameFromConfigSafe();
+      if (!game) throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), { error: 'NO_GAME' });
+      const outDir = o['patch-out'] ?? path.resolve(root(), '.local/patches', experimentId);
+      const samples = path.resolve(root(), '.local/samples/DATA/files');
+      const withOriginal = replacements.map(r => {
+        const original = path.join(samples, ...String(r.disc_path).split('/'));
+        return { ...r, original: fs.existsSync(original) ? original : undefined };
+      });
+      const ws = buildPatchWorkspace({ experimentId, game, replacements: withOriginal, outDir, force: true });
+      return { dir: ws.dir ?? outDir, replacements: withOriginal, rebuilt_sha256: ws.rebuilt_sha256 ?? null };
+    },
+    run: async ({ prediction, figure, repeat }) => {
+      const { runM3 } = await import('./experiments/m3-duplicate.mjs');
+      const planFile = path.join(path.dirname(session.lastSave.file), 'editor-save-plan.json');
+      fs.writeFileSync(planFile, JSON.stringify({
+        source: { object_offset: session.edits[0]?.target ?? 0, type_name: 'placement', finding_id: 'igz.placement.type104-record' },
+        changes: session.lastSave.plan.changes, insert_at: 0, updates: [], new_id: 0,
+        validation: { status: session.lastSave.plan.status, failures: session.lastSave.plan.failures },
+      }, null, 2));
+      return runM3({
+        archive: session.archive, entry: session.entry, planFile, clonedFile: session.lastSave.file,
+        predict: prediction, repeat: repeat ?? 1, figure: figure ?? o.figure ?? null, skipControl: true,
+      });
+    },
+  };
+}
+const gameFromConfigSafe = () => { try { return JSON.parse(fs.readFileSync(path.resolve(root(), '.local/dolphin-config.json'), 'utf8')).game; } catch { return null; } };
+const root = () => path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
 export const commands = {
   async rebuild(pos, o) {
     const dir = path.resolve(need(pos[0], 'workspace dir'));
@@ -383,7 +418,10 @@ export const commands = {
       const { startServer } = await import('./editor/server.mjs');
       const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(oneFixup(o.fixups)), 'utf8')) : null;
       const session = openSession(file, { archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), fixups });
-      const served = await startServer({ session, port: o.port ? Number(o.port) : 7378 });
+      // The editor process owns the file; the patch builder and the experiment runner are the SAME ones the
+      // command line uses, injected here so the editor adds no second path to the game (feature 003 T031, T032).
+      const deps = editorDeps(session, o);
+      const served = await startServer({ session, port: o.port ? Number(o.port) : 7378, deps });
       const lines = [
         'session ' + session.id + '  ' + session.file,
         'placements ' + session.placements.length + ' in ' + session.layers.length + ' layer(s); class type ' + session.detection.placement_type +

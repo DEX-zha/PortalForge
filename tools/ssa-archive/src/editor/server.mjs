@@ -11,8 +11,9 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sessionSummary, findPlacement } from './session.mjs';
+import { sessionSummary, findPlacement, applyEdit, undo, redo } from './session.mjs';
 import { assessPlacement } from './safety.mjs';
+import { buildSavePlan, save, patch, launch, observe } from './save.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
@@ -37,14 +38,14 @@ function sendFile(res, abs) {
   res.end(body);
 }
 
-export function startServer({ session, port = 7378, host = '127.0.0.1' } = {}) {
+export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {} } = {}) {
   const server = http.createServer((req, res) => {
     let pathname;
     try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
     catch { return notFound(res, 'that path'); }
 
     try {
-      if (pathname.startsWith('/api/')) return api(req, res, pathname, session);
+      if (pathname.startsWith('/api/')) return route(req, res, pathname, session);
       if (pathname === '/' || pathname === '/index.html') {
         const f = safeFile(VIEW_DIR, 'index.html');
         return f ? sendFile(res, f) : notFound(res, 'the view');
@@ -63,7 +64,8 @@ export function startServer({ session, port = 7378, host = '127.0.0.1' } = {}) {
     }
   });
 
-  // The API of this phase is read-only; the editing routes arrive with User Story 2.
+  const route = (req, res, pathname, s) => (req.method === 'GET' ? api(req, res, pathname, s) : post(req, res, pathname, s));
+
   function api(req, res, pathname, s) {
     if (req.method !== 'GET') return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: `${req.method} is not accepted on ${pathname}` });
     if (pathname === '/api/session') return json(res, 200, sessionSummary(s));
@@ -80,6 +82,34 @@ export function startServer({ session, port = 7378, host = '127.0.0.1' } = {}) {
       });
     }
     return notFound(res, pathname);
+  }
+
+
+  // POST routes (feature 003 T029). Every one of them changes the session only; `/api/save` is the single
+  // place a file is produced, and a refusal answers 409 with the rule or reason that caused it.
+  async function readJson(req) {
+    const chunks = []; for await (const c of req) chunks.push(c);
+    if (!chunks.length) return {};
+    try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { const err = new Error('the request body is not JSON'); err.error = 'BAD_BODY'; throw err; }
+  }
+
+  async function post(req, res, pathname, s) {
+    let body;
+    try { body = await readJson(req); } catch (e) { return json(res, 400, { error: e.error ?? 'BAD_BODY', reason: e.message }); }
+    const state = extra => ({ dirty: s.dirty, undo_depth: s.edits.length, redo_depth: s.undone.length, locked: s.locked, ...extra });
+    try {
+      if (pathname === '/api/edit') return json(res, 200, state(applyEdit(s, body)));
+      if (pathname === '/api/undo') { const r = undo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_UNDO', reason: 'no edit left to undo' }); }
+      if (pathname === '/api/redo') { const r = redo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_REDO', reason: 'nothing was undone' }); }
+      if (pathname === '/api/plan') return json(res, 200, { plan: buildSavePlan(s) });
+      if (pathname === '/api/save') { const r = save(s, { out: body.out ?? null }); return json(res, r.written ? 200 : 409, state({ plan: r.plan, written: r.written })); }
+      if (pathname === '/api/patch') return json(res, 200, state(patch(s, { deps })));
+      if (pathname === '/api/launch') return json(res, 200, state(await launch(s, { ...body, deps })));
+      if (pathname === '/api/observe') return json(res, 200, state(observe(s, { ...body, deps })));
+      return notFound(res, pathname);
+    } catch (e) {
+      return json(res, e.error ? 409 : 500, { error: e.error ?? 'INTERNAL', reason: e.message.replace(/^[A-Z_]+: /, ''), rules: e.rules ?? [] });
+    }
   }
 
   return new Promise((resolve, reject) => {

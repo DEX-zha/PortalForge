@@ -38,6 +38,10 @@
   .rule.high { border-left-color: var(--high); }
   .rule.medium { border-left-color: var(--medium); }
   .rule.blocking { border-left-color: var(--critical); background: #2a1f22; }
+  button.on { background: #3c4657; border-color: #4a566b; }
+  #dirty.on { color: var(--high); }
+  .num { width: 72px; background: #23272f; border: 1px solid var(--line); color: var(--text); border-radius: 3px;
+         padding: 2px 4px; font: inherit; text-align: right; }
   .empty { color: var(--dim); padding: 12px; }
   button { background: #2b313c; color: var(--text); border: 1px solid var(--line); border-radius: 4px;
            padding: 4px 9px; cursor: pointer; font: inherit; }
@@ -51,8 +55,11 @@
   <span class="dim" id="file">opening…</span>
   <span class="dim" id="counts"></span>
   <span style="flex:1"></span>
+  <span id="tools"><button id="gizmo-move">Move</button><button id="gizmo-rotate">Rotate</button><button id="gizmo-scale">Scale</button><button id="gizmo-off">Off</button></span>
   <button id="frame-all">Frame level</button>
   <button id="frame-sel">Frame selection</button>
+  <button id="undo">Undo</button><button id="redo">Redo</button>
+  <span id="dirty" class="dim"></span>
   <span class="dim" id="evidence-note"></span>
 </header>
 
@@ -71,6 +78,13 @@
 </div>
 
 <section>
+  <h2>Save, patch, launch</h2>
+  <div id="save-panel" style="padding:0 12px 10px">
+    <div class="row"><span class="k">state</span><span class="v" id="save-state">no edit yet</span></div>
+    <div style="display:flex;gap:6px;margin:6px 0"><button id="save">Save</button><button id="do-patch">Patch</button><button id="do-launch">Launch</button></div>
+    <input id="prediction" placeholder="what should be visible after this change" style="width:100%;background:#23272f;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
+    <div class="ev" id="save-note" style="margin-top:6px"></div>
+  </div>
   <h2>Selection</h2>
   <div id="inspector"><div class="empty">Nothing selected. Click a proxy in the view.</div></div>
 </section>

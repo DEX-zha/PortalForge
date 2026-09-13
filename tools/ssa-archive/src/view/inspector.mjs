@@ -24,7 +24,6 @@ function row(key, value, evidence) {
 
 export function renderPlacement(p, safety = [], targets = []) {
   if (!p) return '<div class="empty">Nothing selected. Click a proxy in the view.</div>';
-  const pos = p.position.map(v => v.toFixed(2)).join(', ');
   const model = p.model.path
     ? `${esc(base(p.model.path))}<div class="ev">${esc(p.model.path)}</div>`
     : `<span class="k">none: this is a marker, not a visible prop</span>`;
@@ -41,9 +40,10 @@ export function renderPlacement(p, safety = [], targets = []) {
   return [
     `<div class="row"><span class="k">name</span><span class="v"><b>${esc(p.name ?? '(unnamed)')}</b></span></div>`,
     row('offset', `${hex(p.offset)}<div class="ev">slot ${hex(p.span)} bytes</div>`),
-    row('position', esc(pos)),
-    row('heading', `${esc(p.rotation.heading)}&deg;`),
-    row('scale', `${esc(p.scale)} <span class="k">(100 = 1.0)</span>`),
+    // Typed entry and the gizmos produce the same intent, so a value can be read off a report and entered exactly.
+    row('position', [0, 1, 2].map(i => `<input class="num" data-edit="position" data-axis="${i}" value="${p.position[i]}">`).join(' ')),
+    row('heading', `<input class="num" data-edit="heading" value="${p.rotation.heading}"> &deg;`),
+    row('scale', `<input class="num" data-edit="scale" value="${p.scale}"> <span class="k">(100 = 1.0)</span>`),
     row('model', model, p.evidence.model),
     row('behaviour', behaviour, p.evidence.behavior),
     row('layers', p.layers.length ? esc(p.layers.join(', ')) : '<span class="k">(unlayered)</span>', p.evidence.layers),

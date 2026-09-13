@@ -154,3 +154,26 @@ node cli.mjs edit replace ../../.local/workspaces/tutorial-bld/entries/3-level.b
   --over 0x34ac60 --fixups <map> --pos 85.5,10,42 --out <tmp>
 cmp <tmp> ../../.local/workspaces/tutorial-bld/sunflower-dup.decoded
 ```
+
+---
+
+## Run notes
+
+**Scenario 5, run 2026-09-13 on the tutorial (T039), passed.** `sunflower_Template(1)` at `0x3495E4` moved from
+(82.252, 9.962, 41.948) heading 285 scale 100 to (88.5, 10.2, 44.5) heading 200 scale 150, saved through the API.
+The plan reported VALID, five changes, file length unchanged, zero bytes changed outside. An independent byte
+comparison of the two files found exactly five differing words, all inside the edited placement, at +0x24, +0x28,
++0x2C, +0x34 and +0xB8. A second save after an undo was refused with "nothing to save" and produced no file.
+
+That run also caught a real defect. Undo was restoring the *displayed* value rather than the stored bytes: the
+inspector shows 82.252 while the file holds 82.25200653076172, so undoing rewrote the field with a nearby float
+and left the buffer one word away from how it opened. Undo now copies the original words back verbatim, and
+`tests/editor-session.test.mjs` has a regression for it.
+
+**Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
+in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
+the same as three.js. No axis is negated.
+
+**Scenario 8 (T040) is still open.** The session lock is covered at the API level in
+`tests/editor-api-edit.test.mjs`, where a launch takes the lock and a rebuild is refused with `SESSION_LOCKED`.
+Doing it as the scenario describes, against a game that is actually running, needs the boot that T041 spends.
