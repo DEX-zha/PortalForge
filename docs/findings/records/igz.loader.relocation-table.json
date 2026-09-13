@@ -1,0 +1,26 @@
+{
+  "id": "igz.loader.relocation-table",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "an explicit list (not yet located/decoded) of section-1 word offsets that the loader rebases into pointers",
+  "structure": "The pointer-relocation table: the structure that actually turns record fields into live pointers",
+  "location": {
+    "offset": "unknown; not stored as raw offsets, cumulative sums, a bitmap, or a byte/u16 delta stream in sections 0,2-8",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "This is the structure that makes an IGZ object \"live\". Constructing a record (writing its class/vtable pointer at word +0) happens for every record in the enumerated span, but a record only functions once its pointer FIELDS are rebased (section-relative offset -> resident address). That rebasing is driven by an explicit relocation table, NOT by the record bytes: (1) a clone whose pointer words were hand-rebased in the file is still not fixed up by the game (owner+0x14 stays the raw offset 0x40c424, owner+0x3c -> physics stays raw), so the game ignores the file bytes and re-derives pointers from its own table; (2) the table is position-sensitive: growing the header table by one entry shifts every object 32 bytes and desynchronises the relocation globally (a registered clone froze the load after only 1 036 of 21 680 records, vs 21 403 when only the tail shifted). Consequences: to duplicate an entity the clone`s new pointer-word offsets must be inserted into this table (and all later entries shifted), and the table must be found first. It is 159 245 entries for the tutorial, dominated by runs of consecutive pointer words (77 971 gaps of 1), but is not present verbatim as offsets/cumsum/bitmap/byte-delta/u16-delta in any other section, so it is compressed or interleaved and remains to be decoded. This is the sole remaining blocker for M3.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
+      "summary": "clone inside span, no table entry: clone owner constructed (vtable) but its field pointers NOT rebased (owner+0x3c stays 0x40c49c), physics child never built -> hang"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789258792820",
+      "summary": "clone inside span WITH a table entry (32-byte global shift): relocation desynced globally, only 1 036 records constructed, header type words wrongly rebased (physics +0 0x7b -> base+0x7b), early hang"
+    }
+  ]
+}

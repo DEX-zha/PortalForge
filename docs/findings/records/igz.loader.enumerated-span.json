@@ -21,6 +21,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
       "summary": "insert-before-tail: clone owner constructed, embedded physics raw, load hung"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
+      "summary": "confirmed: clone owner constructed as a 0x2A8 blob (= owner 0x94 + physics 0x214), the loader walked to the next table-listed record; the type-92 record owns a contiguous blob including its embedded tfbPhysicsModel"
     }
   ]
 }
