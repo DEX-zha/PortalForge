@@ -63,7 +63,8 @@ test('POST /api/edit refuses a bad intent with the named error, not a stack trac
       [{ kind: 'transform', target }, 'NOTHING_TO_CHANGE'],
       [{ kind: 'transform', target, position: [1, 2] }, 'BAD_VALUE'],
       [{ kind: 'transform', target, model: 'x' }, 'UNSUPPORTED_FIELD'],
-      [{ kind: 'replace', target }, 'UNSUPPORTED_INTENT'],
+      [{ kind: 'replace', target }, 'NO_SUCH_PLACEMENT'],            // replace is supported; this one names no source
+      [{ kind: 'nonsense', target }, 'UNSUPPORTED_INTENT'],
     ]) {
       const r = await post(s, '/api/edit', body);
       assert.equal(r.status, 409, JSON.stringify(body));

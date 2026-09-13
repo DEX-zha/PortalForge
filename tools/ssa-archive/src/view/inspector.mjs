@@ -55,9 +55,7 @@ export function renderPlacement(p, safety = [], targets = []) {
     `<h2>Safety</h2>`,
     safety.length ? safety.map(renderRule).join('') : '<div class="empty">no rule triggered</div>',
     `<h2>Duplication</h2>`,
-    targets.length
-      ? `<div class="row"><span class="k">same-size slots</span><span class="v">${targets.length} candidate${targets.length > 1 ? 's' : ''}<div class="ev">a duplicate consumes one of them; editing arrives with User Story 3</div></span></div>`
-      : '<div class="empty">no slot of this size to sacrifice</div>',
+    renderDuplicate(p, targets),
     `<h2>Layout evidence</h2>`,
     `<div class="ev" style="padding:0 12px 12px">${esc(p.evidence.layout)}</div>`,
   ].join('');
@@ -77,4 +75,50 @@ export function renderGrades(grades) {
     const n = grades[k] ?? 0;
     return n ? `<i style="width:${(100 * n / total).toFixed(1)}%;background:var(--${k === 'blocking' ? 'critical' : k === 'info' ? 'static' : k})" title="${k}: ${n}"></i>` : '';
   }).join('')}</div>`;
+}
+
+// A duplication consumes a slot: the object that was there stops existing. So the panel names the candidates and
+// what each one costs, and nothing is confirmable until the plan has been prepared and read.
+export function renderDuplicate(p, targets = []) {
+  if (!targets.length) return '<div class="empty">no slot of this size to sacrifice, so this object cannot be duplicated</div>';
+  const options = targets.slice(0, 200).map(t =>
+    `<option value="${t.offset}">${esc(t.name ?? hex(t.offset))}${t.layers?.length ? ' — ' + esc(t.layers.join(', ')) : ''}</option>`).join('');
+  return `<div class="row"><span class="k">sacrificable slots</span><span class="v">${targets.length} of the same size
+      <div class="ev">a duplicate takes one of them: the object in that slot stops existing</div></span></div>
+    <div style="padding:0 12px"><select id="dup-target" style="width:100%;background:#23272f;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:4px">${options}</select>
+      <div style="display:flex;gap:6px;margin:6px 0"><button id="dup-prepare">Prepare</button><button id="dup-confirm" disabled>Confirm</button></div>
+      <div id="dup-plan"></div></div>`;
+}
+
+// What the prepared plan actually does, in the order that matters: what breaks, then what changes, then the
+// bytes. A blocking rule offers no confirmation at all; a critical one needs its own acknowledgement.
+export function renderDuplicatePlan(prepared) {
+  if (!prepared) return '';
+  if (prepared.error) return `<div class="rule blocking"><span class="id">refused</span> ${esc(prepared.error)}<div class="why">${esc(prepared.reason ?? '')}</div></div>`;
+  const plan = prepared.plan ?? {};
+  const rules = prepared.rules ?? plan.safety ?? [];
+  const shared = (plan.shared_records ?? []).filter(r => r.bytes_changed);
+  const critical = rules.filter(r => r.severity === 'critical');
+  const blocking = rules.filter(r => r.severity === 'blocking');
+  return [
+    `<div class="ev" style="margin-top:6px">recipe ${esc(plan.recipe ?? 'unknown')} · ${(plan.changes ?? []).length} field edit(s) · file length unchanged</div>`,
+    shared.length
+      ? `<h2>What else this rewrites</h2>` + shared.map(r => `<div class="rule ${r.external_users > 0 ? 'critical' : ''}">
+          <span class="id">${r.external_users > 0 ? r.external_users + ' other record(s) point at this' : 'used by nothing outside'}</span>
+          <div class="why">0x${r.offset.toString(16)}${r.name_before ? ' — ' + esc(String(r.name_before).replace(/^.*[\\/]/, '')) : ''}${r.name_before !== r.name_after ? ' becomes ' + esc(String(r.name_after).replace(/^.*[\\/]/, '')) : ''}</div></div>`).join('')
+      : '<div class="ev" style="margin-top:6px">no record outside the slot is rewritten</div>',
+    rules.length ? `<h2>Safety</h2>` + rules.map(renderRule).join('') : '',
+    blocking.length
+      ? '<div class="ev">this cannot be confirmed: a blocking rule means the file would not load</div>'
+      : critical.length
+        ? `<label class="ev" style="display:block;margin:8px 0"><input type="checkbox" id="dup-ack"> I accept that ${critical.map(r => esc(shortConsequence(r))).join('; and that ')}</label>`
+        : '<div class="ev" style="margin-top:6px">no critical consequence; confirm when ready</div>',
+  ].join('');
+}
+
+// The consequence in the acknowledgement is the rule's own words, not a generic "I understand the risk".
+function shortConsequence(rule) {
+  const m = /holds (the [^,]+), used by (\d+) placements/.exec(rule.message ?? '');
+  if (m) return `${m[1]} is rewritten for all ${m[2]} placements that use it`;
+  return (rule.message ?? rule.id).replace(/\s+/g, ' ').slice(0, 160);
 }

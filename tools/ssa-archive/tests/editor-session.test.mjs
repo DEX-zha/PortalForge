@@ -77,6 +77,8 @@ test('session: opening refuses when a resolved record does not match the frozen 
 // Feature 003 T025: editing in memory. An intent changes the session, never the file; only a save writes.
 
 import { applyEdit, undo, redo, canEdit } from '../src/editor/session.mjs';
+import { replaceTargets } from '../src/editor/server.mjs';
+import { interchangeable } from '../src/editor/session.mjs';
 
 const openTest = () => openSession(levelFile(), opts());
 const first = s => s.placements[0];
@@ -163,4 +165,81 @@ test('edit: undo restores the exact bytes, not the rounded value the inspector s
   undo(s);
   assert.ok(exact.equals(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30)),
     'restoring the displayed 82.252 instead of the stored bytes would silently rewrite the field');
+});
+
+// ---------------------------------------------------------------------------------------------------------
+// Feature 003 T042: duplication. A replacement consumes a slot and can silently retexture other objects, so it
+// is the one operation that must never happen because a control was easy to reach.
+
+import { syntheticFixups } from './helpers/synthetic-level.mjs';
+
+function mapped() {
+  const built = syntheticLevel();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-dup-'));
+  const file = path.join(dir, 'level.bld.decoded');
+  fs.writeFileSync(file, built.buf);
+  return openSession(file, { archive: 'level/Test.bld', entry: 3, fixups: syntheticFixups(built), deps: { gates: passing } });
+}
+
+test('duplicate: only same-size slots are offered, and never the source itself', () => {
+  const s = mapped();
+  const src = s.placements[0];
+  const targets = replaceTargets(s, src);
+  assert.ok(targets.length > 0);
+  assert.ok(targets.every(t => t.span === src.span), 'a different size cannot keep the count-bounded walk aligned');
+  assert.ok(targets.every(t => t.offset !== src.offset));
+});
+
+test('duplicate: a slot that copies a different number of bytes is refused outright', () => {
+  const s = mapped();
+  const src = s.placements[0], victim = s.placements[1];
+  // What matters is the block the recipe copies, not the distance between table entries: the pair confirmed in
+  // game differs on the second (0x1498 against 0x834) and matches on the first (0x1C8 each).
+  const copy = s.copy.get(victim.offset);
+  s.copy.set(victim.offset, { ...copy, size: copy.size + 16 });
+  assert.throws(() => applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset }),
+    e => e.error === 'SPAN_MISMATCH' && /block of/.test(e.message));
+});
+
+test('duplicate: a wrapped placement and an unwrapped one are never offered for each other', () => {
+  const s = mapped();
+  const [a, b] = [s.placements[0].offset, s.placements[1].offset];
+  assert.equal(interchangeable(s, a, b), true, 'two unwrapped slots of the same size can stand in for each other');
+  s.copy.set(b, { ...s.copy.get(b), wrapped: true, wrapper: b - 0x48 });
+  assert.equal(interchangeable(s, a, b), false, 'one wrapped and one not is a different recipe, not a smaller one');
+});
+
+test('duplicate: a level with no runtime map is refused, because a write needs pointer evidence', () => {
+  const s = openTest();                                              // opened without fixups
+  assert.equal(s.has_runtime_map, false);
+  assert.throws(() => applyEdit(s, { kind: 'replace', target: s.placements[1].offset, source: s.placements[0].offset }),
+    e => e.error === 'RUNTIME_MAP_REQUIRED' && /pointer/i.test(e.message));
+});
+
+test('duplicate: the copy lands in the slot, keeps the slot name, and the source is untouched', () => {
+  const s = mapped();
+  const src = s.placements[0], victim = s.placements[3];
+  const victimName = victim.name, sourceModel = src.model.path;
+  const sourceBytes = Buffer.from(s.buffer.subarray(src.offset, src.offset + src.span));
+
+  const r = applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset, position: [42, 3, 9] });
+  assert.equal(r.dirty, true);
+  const after = s.placements.find(p => p.offset === victim.offset);
+  assert.equal(after.name, victimName, 'the slot keeps its own name so scripts still find it');
+  assert.equal(after.model.path, sourceModel, 'and shows the source model');
+  assert.deepEqual(after.position, [42, 3, 9]);
+  assert.ok(sourceBytes.equals(s.buffer.subarray(src.offset, src.offset + src.span)), 'the source is not moved or altered');
+  assert.ok(r.plan, 'the plan that authorised it travels with the result');
+  assert.match(r.plan.recipe, /t104-generic|wrapper-proven/);
+});
+
+test('duplicate: undo puts the sacrificed slot back exactly', () => {
+  const s = mapped();
+  const src = s.placements[0], victim = s.placements[3];
+  const original = Buffer.from(s.buffer);
+  applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset });
+  assert.ok(!original.equals(s.buffer), 'something changed');
+  undo(s);
+  assert.ok(original.equals(s.buffer), 'and undo restored every byte of it');
+  assert.equal(s.placements.find(p => p.offset === victim.offset).name, victim.name);
 });

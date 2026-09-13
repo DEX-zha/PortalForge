@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sessionSummary, findPlacement, applyEdit, undo, redo } from './session.mjs';
+import { sessionSummary, findPlacement, applyEdit, undo, redo, planReplace, interchangeable } from './session.mjs';
 import { assessPlacement } from './safety.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState } from './save.mjs';
 
@@ -104,6 +104,9 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
       if (pathname === '/api/undo') { const r = undo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_UNDO', reason: 'no edit left to undo' }); }
       if (pathname === '/api/redo') { const r = redo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_REDO', reason: 'nothing was undone' }); }
       if (pathname === '/api/plan') return json(res, 200, { plan: buildSavePlan(s) });
+      // Prepare a duplication without applying it: the refusal IS the answer, because it carries the rules the
+      // researcher has to read before anything can be confirmed.
+      if (pathname === '/api/duplicate/plan') return json(res, 200, planReplace(s, body));
       if (pathname === '/api/save') { const r = save(s, { out: body.out ?? null }); return json(res, r.written ? 200 : 409, state({ plan: r.plan, written: r.written })); }
       if (pathname === '/api/patch') return json(res, 200, state(patch(s, { deps })));
       if (pathname === '/api/launch') return json(res, 200, state(await launch(s, { ...body, deps })));
@@ -131,6 +134,7 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
 // replacement keeps the count-bounded walk aligned (finding igz.loader.head-span-count-walk).
 export function replaceTargets(session, placement) {
   return session.placements
-    .filter(p => p.offset !== placement.offset && p.span === placement.span)
-    .map(p => ({ offset: p.offset, name: p.name, span: p.span, layers: p.layers, model: p.model.path }));
+    .filter(p => p.offset !== placement.offset && interchangeable(session, placement.offset, p.offset))
+    .map(p => ({ offset: p.offset, name: p.name, span: p.span, copies: session.copy?.get(p.offset)?.size ?? p.span,
+      layers: p.layers, model: p.model.path }));
 }

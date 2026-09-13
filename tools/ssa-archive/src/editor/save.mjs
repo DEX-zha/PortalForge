@@ -29,6 +29,11 @@ export function buildSavePlan(session) {
   const allowed = authorisedWords(session);
   const changes = [];
   for (const e of session.edits) {
+    if (e.kind === 'replace') {
+      for (const w of e.words) changes.push({ target: e.target, attribute: 'replace', field: `+0x${(w.offset - e.target).toString(16)}`,
+        old: null, new: null, old_hex: original ? hexAt(original, w.offset) : null, new_hex: hexAt(session.buffer, w.offset) });
+      continue;
+    }
     for (const a of e.attributes) {
       const values = Array.isArray(e.after[a]) ? e.after[a] : [e.after[a]];
       const olds = Array.isArray(e.before[a]) ? e.before[a] : [e.before[a]];

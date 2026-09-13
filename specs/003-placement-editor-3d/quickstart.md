@@ -206,6 +206,25 @@ closed by accident. Screenshots up to step 25, no record.
 asks for the predicted change observed in two identical runs, so scenario 6 is not met and T041 is not done. Two
 further boots would close it; one would at least produce a judged record for the run that already worked.
 
+
+**Scenario 4 (T049) passed on the tutorial, 2026-09-13, no boot.** Duplicating `sunflower_Template(1)` over
+`weed_2_Template(8)`: the editor offers exactly one slot, which is that weed; preparing the plan reports the
+wrapper-proven recipe and **both** critical rules before any confirmation exists, naming the record at `0x34AC60`
+with its 2 external users and the model record at `0x34ADB0` used by 26 placements, with the model name changing
+from `plants_weed2_whole.mdl` to `plant_sunflower_whole.mdl`; confirming without acknowledging is refused with
+`ACKNOWLEDGEMENT_REQUIRED`; a slot of a different size is refused with `SPAN_MISMATCH` and no acknowledgement
+enables it; and with the acknowledgement the slot takes the sunflower model while keeping its own name, with the
+file on disk still untouched until a save.
+
+**The duplication made through the editor is byte-identical to the file two boots confirmed.** Saving it produces
+exactly `sunflower-dup.decoded`, the file behind `m3-…-1789303984407` and `m3-…-1789304493862`. That is as
+close to in-game proof as a run without a boot can get, and it is why User Story 3 spends none.
+
+That scenario also corrected a real defect. The session refused a duplication when the two placements' **table
+spans** differed, which rejects the one pair proven to work: the confirmed recipe copies a 0x1C8 wrapper over
+another 0x1C8 wrapper, while the table records around them are 0x1498 and 0x834 apart. The editor now compares
+the block the recipe actually copies, and a wrapped placement is never offered as a stand-in for an unwrapped one.
+
 **Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
 in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
 the same as three.js. No axis is negated.

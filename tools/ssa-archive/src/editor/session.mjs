@@ -16,8 +16,29 @@ import { resolveAll } from '../igz/model-resolve.mjs';
 import { schemaValidator, contracts002 } from '../workspace/manifest.mjs';
 import { assessPlacement, worst, SEVERITY } from './safety.mjs';
 import { gateStatus } from '../experiments/run-game.mjs';
+import { scriptTable } from '../igz/script.mjs';
+import { replacePlacement } from './placements.mjs';
 
 const UNLAYERED = '(unlayered)';
+const WRAPPER_EMBED = 0x48;
+
+// For each placement: the block a duplication would copy, and whether that block is a wrapper. A wrapper is
+// simply whatever record sits 0x48 before the placement; its class is read, never assumed.
+function copySizes(graph, rows) {
+  const byOffset = new Map(graph.objects.map(o => [o.offset, o]));
+  const out = new Map();
+  for (const r of rows) {
+    const w = byOffset.get(r.offset - WRAPPER_EMBED);
+    out.set(r.offset, w ? { size: w.size, wrapped: true, wrapper: w.offset, wrapper_type: w.type } : { size: r.span, wrapped: false });
+  }
+  return out;
+}
+
+// Two placements can stand in for each other when the same recipe applies and copies the same number of bytes.
+export const interchangeable = (session, a, b) => {
+  const x = session.copy?.get(a), y = session.copy?.get(b);
+  return !!x && !!y && x.wrapped === y.wrapped && x.size === y.size;
+};
 
 const refuse = (message, exitCode = 2) => { const e = new Error(message); e.exitCode = exitCode; throw e; };
 
@@ -65,7 +86,11 @@ export function openSession(file, { archive, entry, fixups = null, deps = {} } =
   }
 
   const hasRuntimeMap = !!fixups;
+  const sec = graph.sections[graph.object_section];
   return {
+    // Kept so the duplication path can hand the existing planners the shape they expect, on the working buffer.
+    graph, sec, table: scriptTable(buf, graph), ptrSet: new Set(fixups?.pointer_words ?? []),
+    copy: copySizes(graph, res.rows),
     id: 's_' + crypto.randomBytes(4).toString('hex'),
     file: abs,
     archive: archive ?? null,
@@ -160,7 +185,8 @@ function refreshRecord(session, placement) {
 }
 
 export function applyEdit(session, intent) {
-  if (intent.kind !== 'transform') fail('UNSUPPORTED_INTENT', `${intent.kind} is not supported yet; this phase edits transforms`);
+  if (intent.kind === 'replace') return applyReplace(session, intent);
+  if (intent.kind !== 'transform') fail('UNSUPPORTED_INTENT', `${intent.kind} is not a supported intent; this editor applies transform and replace`);
   const placement = findPlacement(session, intent.target);
   if (!placement) fail('NO_SUCH_PLACEMENT', `no placement at 0x${Number(intent.target).toString(16)} in this level`);
 
@@ -190,19 +216,126 @@ function applyRaw(session, offset, raws) {
   return refreshRecord(session, placement);
 }
 
+
+// ---------------------------------------------------------------------------------------------------------
+// Duplication (feature 003 T044). It delegates to the planner that two boots have already confirmed, and adds
+// only the refusals: this is the operation that consumes a slot and can retexture objects nobody asked about.
+
+// The existing planners take a level of this shape. The buffer is the WORKING one, so a duplication sees the
+// edits made before it.
+const asLevel = session => ({ file: session.file, buf: session.buffer, fixups: session.fixups,
+  graph: session.graph, table: session.table, ptrSet: session.ptrSet, sec: session.sec });
+
+// Every word two buffers differ in. Bounded and exact, which is what undo needs: a replacement rewrites a slot
+// and bumps a refcount or two, and nothing else may move.
+function wordDiff(before, after) {
+  const words = [];
+  const n = Math.min(before.length, after.length);
+  for (let p = 0; p + 4 <= n; p += 4) {
+    if (before.readUInt32BE(p) === after.readUInt32BE(p)) continue;
+    words.push({ offset: p, before: before.readUInt32BE(p), after: after.readUInt32BE(p) });
+  }
+  return words;
+}
+
+const writeWords = (buf, words, side) => { for (const w of words) buf.writeUInt32BE(w[side], w.offset); };
+
+// Re-resolving is the honest way to refresh after a replacement: the slot now holds a different object, and
+// guessing which of its attributes changed would be inventing knowledge the resolver already has.
+function reresolve(session) {
+  const res = resolveAll(session.buffer, session.graph, session.fixups);
+  session.placements = res.rows;
+  session.layers = deriveLayers(res.rows, { hasRuntimeMap: session.has_runtime_map });
+  session.models = res.models;
+  session.counts = { direct: res.counts.direct ?? 0, indirect: res.counts.indirect ?? 0, ambiguous: res.counts.ambiguous ?? 0, absent: res.counts.absent ?? 0 };
+}
+
+// Prepare a duplication and report it, applying nothing. The view calls this first so the plan and every rule it
+// triggers can be read before a confirmation exists; `applyReplace` then refuses anything not acknowledged.
+export function planReplace(session, intent) {
+  try {
+    const dry = { ...intent, acknowledged: [] };
+    applyReplace({ ...session, edits: [], undone: [], buffer: Buffer.from(session.buffer), placements: session.placements }, dry);
+    return { plan: null, rules: [], reason: 'nothing to acknowledge: this duplication triggers no critical rule' };
+  } catch (e) {
+    if (e.plan) return { plan: e.plan, rules: e.rules ?? e.plan.safety ?? [], error: e.error === 'ACKNOWLEDGEMENT_REQUIRED' ? null : e.error, reason: e.message };
+    return { plan: null, rules: e.rules ?? [], error: e.error ?? 'REFUSED', reason: e.message };
+  }
+}
+
+export function applyReplace(session, intent) {
+  const victim = findPlacement(session, intent.target);
+  if (!victim) fail('NO_SUCH_PLACEMENT', `no placement at 0x${Number(intent.target).toString(16)} to replace`);
+  const source = findPlacement(session, intent.source);
+  if (!source) fail('NO_SUCH_PLACEMENT', `no placement at 0x${Number(intent.source).toString(16)} to copy from`);
+  if (source.offset === victim.offset) fail('BAD_VALUE', 'a placement cannot be copied over itself');
+
+  // A duplication WRITES pointer fields, so it needs to know which words are pointers. Structural resolution is
+  // good enough to read a level; it is not evidence enough to rewrite one. Without a runtime fixup map the
+  // editor refuses rather than guessing.
+  if (!session.has_runtime_map) fail('RUNTIME_MAP_REQUIRED',
+    'this level has no runtime fixup map, so which words are pointers is structural only. Reading a level that way is fine; rewriting one is not. Produce a map with experiment ptr-scan before duplicating here');
+  // The block the recipe copies, not the distance between table entries: the confirmed pair differs on the second
+  // and matches on the first.
+  if (!interchangeable(session, source.offset, victim.offset)) {
+    const a = session.copy?.get(source.offset), b = session.copy?.get(victim.offset);
+    fail('SPAN_MISMATCH', `the source copies a block of 0x${(a?.size ?? source.span).toString(16)} bytes${a?.wrapped ? ' (a wrapper)' : ''} and the target slot holds 0x${(b?.size ?? victim.span).toString(16)}${b?.wrapped ? ' (a wrapper)' : ''}; only a same-size replacement keeps the count-bounded walk aligned`);
+  }
+
+  let r;
+  try {
+    r = replacePlacement(asLevel(session), source.offset, victim.offset, {
+      position: intent.position ?? null, heading: intent.heading ?? null, scale: intent.scale ?? null,
+      allowScripted: !!intent.allow_scripted,
+    });
+  } catch (e) { fail(e.error ?? 'PLAN_FAILED', e.message); }
+
+  const plan = r.plan;
+  if (plan.validation.status !== 'VALID') {
+    const e = new Error('PLAN_INVALID: ' + plan.validation.failures.map(f => f.reason).join('; '));
+    e.error = 'PLAN_INVALID'; e.rules = plan.safety ?? []; e.plan = plan; e.exitCode = 1; throw e;
+  }
+  const acknowledged = new Set(intent.acknowledged ?? []);
+  const unacknowledged = (plan.safety ?? []).filter(x => x.severity === 'critical' && !acknowledged.has(x.id));
+  if (unacknowledged.length) {
+    const e = new Error('ACKNOWLEDGEMENT_REQUIRED: ' + unacknowledged.map(x => x.message).join(' '));
+    e.error = 'ACKNOWLEDGEMENT_REQUIRED'; e.rules = unacknowledged; e.plan = plan; e.exitCode = 1; throw e;
+  }
+
+  const words = wordDiff(session.buffer, r.buffer);
+  writeWords(session.buffer, words, 'after');
+  session.edits.push({ kind: 'replace', target: victim.offset, source: source.offset, words, plan,
+    summary: `${source.name} copied over ${victim.name}`, at: new Date().toISOString() });
+  session.undone.length = 0;
+  reresolve(session);
+  session.dirty = true;
+  const placement = findPlacement(session, victim.offset);
+  return { ...editResult(session, placement), plan };
+}
+
 export function undo(session) {
   const edit = session.edits.pop();
   if (!edit) return null;
-  const placement = applyRaw(session, edit.target, edit.before_raw);
+  const placement = restore(session, edit, 'before');
   session.undone.push(edit);
   session.dirty = session.edits.length > 0;
   return editResult(session, placement);
 }
 
+// A transform is restored field by field; a replacement is restored word by word, because the whole slot moved.
+function restore(session, edit, side) {
+  if (edit.kind === 'replace') {
+    writeWords(session.buffer, edit.words, side);
+    reresolve(session);
+    return findPlacement(session, edit.target);
+  }
+  return applyRaw(session, edit.target, side === 'before' ? edit.before_raw : edit.after_raw);
+}
+
 export function redo(session) {
   const edit = session.undone.pop();
   if (!edit) return null;
-  const placement = applyRaw(session, edit.target, edit.after_raw);
+  const placement = restore(session, edit, 'after');
   session.edits.push(edit);
   session.dirty = true;
   return editResult(session, placement);
@@ -217,6 +350,9 @@ const editResult = (session, placement) => ({
 // Every word the accumulated edits are allowed to have changed. A save that touches anything else is refused.
 export function authorisedWords(session) {
   const out = new Set();
-  for (const e of session.edits) for (const a of e.attributes) for (const w of wordsOf(e.target, a)) out.add(w);
+  for (const e of session.edits) {
+    if (e.kind === 'replace') { for (const w of e.words) out.add(w.offset); continue; }
+    for (const a of e.attributes) for (const w of wordsOf(e.target, a)) out.add(w);
+  }
   return out;
 }

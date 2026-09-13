@@ -21,7 +21,9 @@ function level() {
       { type: 64, size: 0x20, fields: [{ at: 0x08, u32: 0x0100000f }] },                                                                // model
       { type: 92, size: 0x20, fields: [{ at: 0x08, u32: 0x01000037 }] },                                                                // script
       { type: 66, size: 0x20 }, { type: 66, size: 0x20 },                                                                               // companions
-    ], headTable: [0, 1, 2, 3, 4] });
+      // a third placement: the class detector wants three before it will believe a class holds placements
+      { type: 104, size: 0x100, fields: [{ at: 0x08, u32: 0x01000000 }, { at: 0x24, f32: 5 }, { at: 0x28, f32: 1 }, { at: 0x2c, f32: 9 }, { at: 0x34, f32: 0 }, { at: 0xb8, f32: 100 }, { at: 0xdc, obj: 3 }] },
+    ], headTable: [0, 1, 2, 3, 4, 7] });
   const [C, B, L, M, S, N1, N2] = built.objectOffsets;
   const buf = built.buf; const graph = buildGraph(buf, { fields: false });
   const fixups = { section_offset: built.sections.s1, pointer_words: [L + 0x20, L + 0x24, C + 0xdc, C + 0xe0, B + 0xa8, B + 0xdc, B + 0xe0] };

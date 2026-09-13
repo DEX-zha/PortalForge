@@ -60,7 +60,9 @@ test('inspector: a shared model record is spelled out with its user count before
   const html = renderPlacement(weed, assessPlacement(weed, { hasRuntimeMap: true }), [{ offset: 0x3495e4, name: 'sunflower_Template(1)', span: weed.span }]);
   assert.match(html, /26 placements use this model record/);
   assert.match(html, /retextures all of them/, 'and what replacing that blob would do');
-  assert.match(html, /1 candidate/, 'the same-size slots are counted');
+  assert.match(html, /1 of the same size/, 'the sacrificable slots are counted');
+  assert.match(html, /the object in that slot stops existing/, 'and what taking one costs is said plainly');
+  assert.match(html, /id="dup-confirm"[^>]*disabled/, 'nothing is confirmable before a plan has been prepared');
 });
 
 test('inspector: an attribute with no runtime evidence is not dressed up as one that has it', { skip: !haveSamples && 'local samples absent' }, () => {

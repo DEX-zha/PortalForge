@@ -135,17 +135,17 @@ record and its user count are shown before confirmation, save, launch and see th
 
 ### Tests for User Story 3
 
-- [ ] T042 [P] [US3] Write the failing duplication tests in `tools/ssa-archive/tests/editor-session.test.mjs`: `replace_targets` contains only placements whose span equals the source span, a replace intent triggering a critical rule is refused with `ACKNOWLEDGEMENT_REQUIRED` until that rule id appears in `acknowledged`, a replace triggering a blocking rule is refused with `PLAN_INVALID` and cannot be acknowledged at all, and a mismatched span is refused with `SPAN_MISMATCH` (data-model EditIntent and SafetyRuleView, FR-017, FR-018, FR-020)
-- [ ] T043 [P] [US3] Write the failing duplication save test in `tools/ssa-archive/tests/editor-save.test.mjs`: after a replace, the written file differs from the original only inside the sacrificed slot and at the reference counts the plan declares (US3 acceptance scenario 5)
+- [X] T042 [P] [US3] Write the failing duplication tests in `tools/ssa-archive/tests/editor-session.test.mjs`: `replace_targets` contains only placements whose span equals the source span, a replace intent triggering a critical rule is refused with `ACKNOWLEDGEMENT_REQUIRED` until that rule id appears in `acknowledged`, a replace triggering a blocking rule is refused with `PLAN_INVALID` and cannot be acknowledged at all, and a mismatched span is refused with `SPAN_MISMATCH` (data-model EditIntent and SafetyRuleView, FR-017, FR-018, FR-020)
+- [X] T043 [P] [US3] Write the failing duplication save test in `tools/ssa-archive/tests/editor-save.test.mjs`: after a replace, the written file differs from the original only inside the sacrificed slot and at the reference counts the plan declares (US3 acceptance scenario 5)
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Implement replace intents in `tools/ssa-archive/src/editor/session.mjs`, delegating to `replacePlacement` in `src/editor/placements.mjs`, refusing an invalid plan, a span mismatch and an unacknowledged critical rule (FR-017, FR-018, FR-020)
-- [ ] T045 [US3] Expose the same-span targets in `GET /api/placement/:offset` in `tools/ssa-archive/src/editor/server.mjs`, each with offset, name and span, and state how many exist (FR-020)
-- [ ] T046 [US3] Implement the duplication flow in `tools/ssa-archive/src/view/inspector.mjs`: pick a source, pick a target from the offered list, and display the prepared plan with every triggered rule, its severity and its finding, before any confirmation is possible (FR-016)
-- [ ] T047 [US3] Implement the acknowledgement step in `tools/ssa-archive/src/view/inspector.mjs`: a critical rule requires an explicit second confirmation that names the consequence, and a blocking rule offers no confirmation at all (FR-017, FR-018)
-- [ ] T048 [US3] Display the shared-record consequences in `tools/ssa-archive/src/view/inspector.mjs` before confirmation: which records the copy rewrites, how many placements use each one, and the model name before and after (FR-009, finding `igz.placement.shared-model-record`)
-- [ ] T049 [US3] Run quickstart scenario 4 and record the outcome in `specs/003-placement-editor-3d/quickstart.md` notes: the critical rule about the shared weed model is shown before confirmation is possible, and a mismatched-size target is refused outright (SC-005)
+- [X] T044 [US3] Implement replace intents in `tools/ssa-archive/src/editor/session.mjs`, delegating to `replacePlacement` in `src/editor/placements.mjs`, refusing an invalid plan, a span mismatch and an unacknowledged critical rule (FR-017, FR-018, FR-020)
+- [X] T045 [US3] Expose the same-span targets in `GET /api/placement/:offset` in `tools/ssa-archive/src/editor/server.mjs`, each with offset, name and span, and state how many exist (FR-020)
+- [X] T046 [US3] Implement the duplication flow in `tools/ssa-archive/src/view/inspector.mjs`: pick a source, pick a target from the offered list, and display the prepared plan with every triggered rule, its severity and its finding, before any confirmation is possible (FR-016)
+- [X] T047 [US3] Implement the acknowledgement step in `tools/ssa-archive/src/view/inspector.mjs`: a critical rule requires an explicit second confirmation that names the consequence, and a blocking rule offers no confirmation at all (FR-017, FR-018)
+- [X] T048 [US3] Display the shared-record consequences in `tools/ssa-archive/src/view/inspector.mjs` before confirmation: which records the copy rewrites, how many placements use each one, and the model name before and after (FR-009, finding `igz.placement.shared-model-record`)
+- [X] T049 [US3] Run quickstart scenario 4 and record the outcome in `specs/003-placement-editor-3d/quickstart.md` notes: the critical rule about the shared weed model is shown before confirmation is possible, and a mismatched-size target is refused outright (SC-005)
 
 **Checkpoint**: duplication is available and cannot happen by accident.
 

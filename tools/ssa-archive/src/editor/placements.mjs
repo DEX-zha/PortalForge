@@ -18,12 +18,24 @@ import path from 'node:path';
 import { buildGraph } from '../igz/graph.mjs';
 import { scriptTable } from '../igz/script.mjs';
 import { listPlacements } from '../igz/placements.mjs';
+import { levelContext, detectClasses } from '../igz/model-resolve.mjs';
 import { planReplaceRecord } from '../igz/relocate.mjs';
 import { assessReplacement, worst, blocked } from './safety.mjs';
 
 export const FIELDS = { position: 0x24, heading: 0x34, scale: 0xb8, behavior: 0xa8, model: 0xdc, name: 0x08, companions: [0xc4, 0xe0] };
 export const COMPANION_TYPES = new Set([65, 66, 67, 147]);
-const WRAPPER_TYPE = 111, WRAPPER_EMBED = 0x48;
+const WRAPPER_EMBED = 0x48;
+
+// The placement class is per file, so it is detected once per level rather than assumed (igz.types.per-file-indices).
+// The wrapper class is whatever sits 0x48 before a placement when one does; it is read, never assumed either.
+const typeCache = new WeakMap();
+function placementTypeOf(level) {
+  if (typeCache.has(level)) return typeCache.get(level);
+  const ctx = levelContext(level.buf, level.graph, level.fixups);
+  detectClasses(ctx);
+  typeCache.set(level, ctx.placementType);
+  return ctx.placementType;
+}
 
 export function openLevel(file, fixupsFile) {
   const buf = fs.readFileSync(file);
@@ -64,11 +76,12 @@ export function listByLayer(level, opts = {}) {
 
 export function getPlacement(level, offset) {
   const rec = tableRecord(level, offset);
-  if (!rec || rec.type !== 104) throw Object.assign(new Error(`0x${offset.toString(16)} is not a type-104 header-table record`), { exitCode: 1 });
+  const placementType = placementTypeOf(level);
+  if (!rec || placementType === null || rec.type !== placementType) throw Object.assign(new Error(`0x${offset.toString(16)} is not a placement record of this level (its placements are class ${placementType ?? 'undetected'})`), { exitCode: 1 });
   const res = listPlacements(level.buf, level.graph, level.fixups, { all: true });
   const row = res.rows.find(r => r.offset === offset);
   row.safety = classify(row); row.span = rec.size;
-  const w = level.graph.objects.find(o => o.offset === offset - WRAPPER_EMBED && o.type === WRAPPER_TYPE);
+  const w = level.graph.objects.find(o => o.offset === offset - WRAPPER_EMBED);
   row.wrapper = w ? { offset: w.offset, type: w.type, size: w.size } : null;
   return row;
 }

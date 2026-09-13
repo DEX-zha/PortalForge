@@ -4,7 +4,7 @@
 import { createScene } from './scene.mjs';
 import { layerIndex, showAll, hideAll, toggle, visibleSet } from './layers.mjs';
 import { orderHits, pickNext } from './select.mjs';
-import { renderPlacement, renderGrades } from './inspector.mjs';
+import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
 
 const $ = id => document.getElementById(id);
@@ -82,6 +82,7 @@ async function main() {
   $('do-launch').addEventListener('click', doLaunch);
   $('prediction').addEventListener('input', refreshSaveState);
   $('inspector').addEventListener('change', onTyped);
+  $('inspector').addEventListener('click', onDuplicateClick);
   refreshSaveState();
 
   window.addEventListener('keydown', e => {
@@ -261,3 +262,48 @@ async function pollLaunch() {
 }
 
 main();
+
+// ---------------------------------------------------------------------------------------------------------
+// Duplication (T046 to T048). Two steps on purpose: prepare shows what the operation would do, confirm applies
+// it. The confirm button stays disabled until a plan has been prepared and, when a critical rule is triggered,
+// until it has been acknowledged by name.
+
+let prepared = null;
+
+async function onDuplicateClick(ev) {
+  const id = ev.target?.id;
+  if (id === 'dup-prepare') return prepareDuplicate();
+  if (id === 'dup-confirm') return confirmDuplicate();
+  if (id === 'dup-ack') { $('dup-confirm').disabled = !ev.target.checked; }
+}
+
+// Prepare asks the editor for the plan WITHOUT acknowledging anything, so the refusal comes back carrying the
+// rules that caused it. That refusal is the panel's content: it is what the researcher has to read.
+async function prepareDuplicate() {
+  const target = Number($('dup-target').value);
+  if (!state.selection || !target) return;
+  const intent = { kind: 'replace', target, source: state.selection.offset, dry_run: true };
+  try {
+    const b = await api('/api/duplicate/plan', intent);
+    prepared = b;
+  } catch (e) {
+    prepared = { error: e.error ?? 'REFUSED', reason: e.message, rules: e.rules ?? [] };
+  }
+  $('dup-plan').innerHTML = renderDuplicatePlan(prepared);
+  const blocking = (prepared.rules ?? prepared.plan?.safety ?? []).some(r => r.severity === 'blocking');
+  const critical = (prepared.rules ?? prepared.plan?.safety ?? []).some(r => r.severity === 'critical');
+  $('dup-confirm').disabled = blocking || critical || !!prepared.error;
+}
+
+async function confirmDuplicate() {
+  const target = Number($('dup-target').value);
+  const rules = prepared?.rules ?? prepared?.plan?.safety ?? [];
+  const acknowledged = rules.filter(r => r.severity === 'critical').map(r => r.id);
+  try {
+    const b = await api('/api/edit', { kind: 'replace', target, source: state.selection.offset, acknowledged });
+    prepared = null;
+    afterChange(b);
+    await reselect();
+    note('duplicated into 0x' + target.toString(16) + '; save to write it');
+  } catch (e) { note('refused: ' + e.message); }
+}
