@@ -127,7 +127,8 @@ export class GameSession {
   async loadState(slot) { return this.json('dolphin_load_state', { slot }); }
 
   // Replay an input script: [{press, frames?} | {nunchuk:{StickX,StickY}, frames?} | {wait: seconds}
-  //   | {wait_monitor: discPath, timeout?} | {shot: label} | {figure: file, slot?} | {save_state: slot}]
+  //   | {wait_monitor: discPath, timeout?} | {shot: label} | {figure: file, slot?} | {save_state: slot}
+  //   | {load_state: slot}]  restoring a state is the only way to reach a level the menus cannot walk to
   async runScript(steps, { labelPrefix = 'step', onShot = null, figure = null, onStep = null } = {}) {
     const trace = [];
     const push = t => { trace.push(t); if (onStep) onStep(t); };
@@ -141,6 +142,7 @@ export class GameSession {
       else if (s.shot) { note = await this.screenshot(`${labelPrefix}-${String(i).padStart(2, '0')}-${s.shot}`); if (onShot && note) onShot(note); if (!note) note = 'screenshot skipped (stall)'; }
       else if (s.figure) note = JSON.stringify(await this.loadFigure(s.figure, s.slot ?? 1));
       else if (s.save_state) note = JSON.stringify(await this.saveState(s.save_state));
+      else if (s.load_state !== undefined) note = JSON.stringify(await this.loadState(s.load_state));
       push({ step: i, ...s, seconds: Math.round((Date.now() - t0) / 100) / 10, note });
       this.log(`  [${i}] ${JSON.stringify(s)} -> ${note ?? 'ok'} (${trace[trace.length - 1].seconds}s)`);
     }

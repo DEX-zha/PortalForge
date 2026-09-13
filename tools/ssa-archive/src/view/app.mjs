@@ -27,6 +27,7 @@ async function main() {
     data = await api('/api/placements');
   } catch (e) { return fail(`The editor could not open this level. ${e.message}`); }
 
+  state.hasRuntimeMap = session.has_runtime_map;
   state.placements = data.placements;
   state.layers = data.layers;
 
@@ -132,7 +133,7 @@ async function onPick(ev) {
   if (!next) { $('inspector').innerHTML = renderPlacement(null); return; }
   try {
     const b = await api(`/api/placement/${next.offset}`);
-    $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets)
+    $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap })
       + (next.total > 1 ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>` : '');
   } catch (e) { $('inspector').innerHTML = `<div class="empty">${e.message}</div>`; }
 }
@@ -203,7 +204,7 @@ function afterChange(b) {
 async function reselect() {
   if (!state.selection) return;
   const b = await api('/api/placement/' + state.selection.offset);
-  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets);
+  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap });
 }
 
 const note = msg => { $('save-note').textContent = msg; };

@@ -90,3 +90,13 @@ test('inspector: the layer grade bar is proportional and names each severity', {
   assert.ok(Math.abs(widths.reduce((a, b) => a + b, 0) - 100) < 0.5, 'the bar accounts for every placement of the layer');
   assert.match(bar, /title="(info|medium|high|critical|blocking): \d+"/);
 });
+
+test('inspector: on a level with no runtime map, duplication says why it is unavailable', { skip: !haveSamples && 'local samples absent' }, () => {
+  const { at } = tutorial();
+  const p = at(0x3495e4);
+  const html = renderPlacement(p, [], [{ offset: 1, name: 'x', span: p.span }], { hasRuntimeMap: false });
+  assert.match(html, /duplication is unavailable on this level/);
+  assert.match(html, /Moving, turning and scaling stay available/);
+  assert.match(html, /experiment ptr-scan/);
+  assert.doesNotMatch(html, /dup-confirm/, 'no control is offered that cannot work');
+});

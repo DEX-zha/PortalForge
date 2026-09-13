@@ -225,6 +225,28 @@ spans** differed, which rejects the one pair proven to work: the confirmed recip
 another 0x1C8 wrapper, while the table records around them are 0x1498 and 0x834 apart. The editor now compares
 the block the recipe actually copies, and a wrapped placement is never offered as a stand-in for an unwrapped one.
 
+
+**Scenario 7 (T053) is blocked, and no boot was spent finding that out.** Replacing `Level_000_Mining.bld` and
+booting would load the tutorial: the only automated path into the game is `input-scripts/level-027-entry.json`,
+which walks the menus of a fresh save and waits for `level/Level_027_Tutorial.arc`. Mining is never read, so the
+edited archive would never be touched and two boots would show nothing. The save states that exist are slot 6,
+the tutorial start, and a few scratch slots; none is in Mining.
+
+What the editor already proves about Mining without a boot, in `tests/editor-multilevel.test.mjs`: it opens with
+no per-level configuration, detects class 98 rather than the tutorial's 104, finds 617 placements and 374 models
+matching the corpus report, marks every pointer-derived value structural, refuses duplication for want of a
+runtime map while still allowing transforms, and a save changes exactly the three position words and nothing else.
+
+Three ways forward, none of them free:
+
+1. **A save state inside Mining.** Play there once and save a state; the runner now understands a `load_state`
+   step, so the scenario then costs its two boots and nothing more. This is the cheapest and the most honest.
+2. **Prove the structural path in game on the tutorial instead**, by opening the tutorial with no fixup map so
+   every value is structural, editing, and booting. It does not prove a second level, but it does prove the
+   editor does not depend on runtime evidence, which is the real risk behind User Story 4.
+3. **Write an input script that plays from the tutorial to Mining.** Long, fragile, and likely to waste several
+   boots before it works.
+
 **Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
 in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
 the same as three.js. No axis is negated.

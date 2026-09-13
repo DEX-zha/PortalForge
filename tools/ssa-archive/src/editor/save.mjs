@@ -90,7 +90,14 @@ export function save(session, { out = null } = {}) {
   const target = path.resolve(out ?? session.file.replace(/(\.decoded)?$/, '.edited$1'));
   if (plan.status !== 'VALID') return { plan, written: null };
 
-  fs.writeFileSync(target, session.buffer);
+  // An output path that cannot be written is a refusal with a reason, not an internal error: the researcher
+  // typed it, and a 500 tells them nothing about what to type instead.
+  try { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, session.buffer); }
+  catch (e) {
+    plan.status = 'INVALID';
+    plan.failures.push({ stage: 'write', reason: `${target} could not be written: ${e.code === 'ENOENT' ? 'the directory does not exist' : e.message}` });
+    return { plan, written: null };
+  }
 
   // The plan was made before the write; check the file that now exists against it rather than trusting the write.
   const written = fs.readFileSync(target);

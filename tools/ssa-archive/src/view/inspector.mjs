@@ -22,7 +22,7 @@ function row(key, value, evidence) {
   return `<div class="row"><span class="k">${esc(key)}</span><span class="v">${value}${ev}</span></div>`;
 }
 
-export function renderPlacement(p, safety = [], targets = []) {
+export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = true } = {}) {
   if (!p) return '<div class="empty">Nothing selected. Click a proxy in the view.</div>';
   const model = p.model.path
     ? `${esc(base(p.model.path))}<div class="ev">${esc(p.model.path)}</div>`
@@ -55,7 +55,7 @@ export function renderPlacement(p, safety = [], targets = []) {
     `<h2>Safety</h2>`,
     safety.length ? safety.map(renderRule).join('') : '<div class="empty">no rule triggered</div>',
     `<h2>Duplication</h2>`,
-    renderDuplicate(p, targets),
+    renderDuplicate(p, targets, hasRuntimeMap),
     `<h2>Layout evidence</h2>`,
     `<div class="ev" style="padding:0 12px 12px">${esc(p.evidence.layout)}</div>`,
   ].join('');
@@ -79,7 +79,10 @@ export function renderGrades(grades) {
 
 // A duplication consumes a slot: the object that was there stops existing. So the panel names the candidates and
 // what each one costs, and nothing is confirmable until the plan has been prepared and read.
-export function renderDuplicate(p, targets = []) {
+export function renderDuplicate(p, targets = [], hasRuntimeMap = true) {
+  // Reading a level structurally is enough to move an object; rewriting its pointer fields is not. Saying so here
+  // is the difference between a disabled control and an unexplained one.
+  if (!hasRuntimeMap) return '<div class="empty">duplication is unavailable on this level: it has no runtime fixup map, so which words are pointers is structural only. Moving, turning and scaling stay available. Produce a map with <code>experiment ptr-scan</code> to duplicate here.</div>';
   if (!targets.length) return '<div class="empty">no slot of this size to sacrifice, so this object cannot be duplicated</div>';
   const options = targets.slice(0, 200).map(t =>
     `<option value="${t.offset}">${esc(t.name ?? hex(t.offset))}${t.layers?.length ? ' — ' + esc(t.layers.join(', ')) : ''}</option>`).join('');

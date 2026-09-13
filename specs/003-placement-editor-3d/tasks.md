@@ -160,13 +160,13 @@ result against the prediction stated before the boot.
 
 ### Tests for User Story 4
 
-- [ ] T050 [P] [US4] Write the failing multi-level tests in `tools/ssa-archive/tests/editor-session.test.mjs`: a session opened without a fixup map reports `has_runtime_map` false and every pointer-derived attribute carries `structural` evidence rather than `runtime-pointer`, and the placement class is detected with no per-level configuration (FR-013, research R1 of feature 002)
+- [X] T050 [P] [US4] Write the failing multi-level tests in `tools/ssa-archive/tests/editor-session.test.mjs`: a session opened without a fixup map reports `has_runtime_map` false and every pointer-derived attribute carries `structural` evidence rather than `runtime-pointer`, and the placement class is detected with no per-level configuration (FR-013, research R1 of feature 002)
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Confirm the editor opens `.local/workspaces/mining-bld/entries/3-level.bld.decoded` with `--archive level/Level_000_Mining.bld --entry 3` and no fixup map, and fix whatever assumes the tutorial in `tools/ssa-archive/src/editor/session.mjs` (US4 acceptance scenario 1)
-- [ ] T052 [US4] Make the absence of a runtime map visible in `tools/ssa-archive/src/view/inspector.mjs`, so that a structural value is never displayed the way a runtime-confirmed one is (Principle I, FR-008)
-- [ ] T053 [US4] **Costs 2 boots.** Run quickstart scenario 7 on `Level_000_Mining`: state the prediction, launch twice on the identical rebuilt archive, judge, and index both experiment records in `docs/experiments/README.md` (SC-007)
+- [X] T051 [US4] Confirm the editor opens `.local/workspaces/mining-bld/entries/3-level.bld.decoded` with `--archive level/Level_000_Mining.bld --entry 3` and no fixup map, and fix whatever assumes the tutorial in `tools/ssa-archive/src/editor/session.mjs` (US4 acceptance scenario 1)
+- [X] T052 [US4] Make the absence of a runtime map visible in `tools/ssa-archive/src/view/inspector.mjs`, so that a structural value is never displayed the way a runtime-confirmed one is (Principle I, FR-008)
+- [ ] T053 [US4] **Costs 2 boots, and is BLOCKED until a save state exists inside Mining: the only automated path into the game reaches the tutorial, so the edited archive would never be read. See the quickstart run notes.** Run quickstart scenario 7 on `Level_000_Mining`: state the prediction, launch twice on the identical rebuilt archive, judge, and index both experiment records in `docs/experiments/README.md` (SC-007)
 - [ ] T054 [US4] Record the result as evidence in `docs/findings/records/igz.placement.type104-record.json`: a second level edited and booted promotes the placement layout from validated-on-paper to demonstrated on two levels, or, if it fails, the failure and what was seen instead are recorded and the editor is described as tutorial-specific
 
 **Checkpoint**: the editor is no longer a tutorial-specific tool, or the record says plainly that it still is.
