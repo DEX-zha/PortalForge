@@ -242,3 +242,33 @@ test('planReplaceRecord copies a same-size record over a victim inside a script:
   const bad = planReplaceRecord(built.buf, fixups, { source: S, victim: Sh, findingId: 'test.spawn', findingsOpts: { dir } });
   assert.equal(bad.plan.validation.status, 'INVALID');                           // type/size mismatch refused
 });
+
+test('planReplaceRecord reports shared records inside the victim blob and refuses a header-table record the source does not match', async () => {
+  const { planReplaceRecord } = await import('../src/igz/relocate.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-shared-')); save(finding('test.spawn', 'CONFIRMED'), { dir });
+  const build = xType => buildIgz({ objects: [
+    { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xaaaa0001 }] },        // S (source head)
+    { type: xType, size: 0x60, fields: [{ at: 0x20, u32: 0x11110000 }] },    // X: record inside the source blob
+    { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xbbbb0002 }] },        // V (victim head)
+    { type: 4, size: 0x60, fields: [{ at: 0x20, u32: 0x22220000 }] },        // Y: shared record inside the victim blob
+    { type: 5, size: 0x40, fields: [{ at: 0x14, obj: 3 }] },                 // OUT: outside record pointing at Y
+  ], headTable: [1, 3, 4] });
+  const run = xType => {
+    const built = build(xType); const [S, X, V, Y, OUT] = built.objectOffsets;
+    const fixups = { section_offset: built.sections.s1, pointer_words: [OUT + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+    const resolve = (b, off) => ({ offset: off, type: b.readUInt32BE(off), size: 0xc0, type_name: null, id: b.readUInt32BE(off + 8) });   // blob = head + the record after it
+    return { built, S, X, V, Y, OUT, r: planReplaceRecord(built.buf, fixups, { source: S, victim: V, findingId: 'test.spawn', findingsOpts: { dir }, resolve, refcount: 'victim' }) };
+  };
+  const ok = run(4);                                    // X and Y are both type 4 -> the table entry keeps its meaning
+  assert.equal(ok.r.plan.validation.status, 'VALID', JSON.stringify(ok.r.plan.validation.failures));
+  assert.equal(ok.r.plan.inbound_midblob.length, 1);
+  assert.equal(ok.r.plan.inbound_midblob[0].delta, 0x60);
+  assert.equal(ok.r.plan.inbound_midblob[0].victim_table_entry, true);
+  const shared = ok.r.plan.shared_records.find(x => x.delta === 0x60);
+  assert.equal(shared.external_users, 1); assert.equal(shared.bytes_changed, true);
+  assert.ok(ok.r.plan.validation.warnings.some(w => /referenced by 1 record\(s\) outside the victim/.test(w)));
+  assert.equal(ok.r.buffer.readUInt32BE(ok.V + 0x60 + 0x20), 0x11110000);    // the shared record now carries the source's bytes
+  const bad = run(6);                                   // the source has type 6 where the victim's table entry is type 4
+  assert.equal(bad.r.plan.validation.status, 'INVALID');
+  assert.ok(bad.r.plan.validation.failures.some(f => /is type 4 but the source has type 6 there/.test(f.reason)), JSON.stringify(bad.r.plan.validation.failures));
+});
