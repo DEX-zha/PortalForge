@@ -188,10 +188,32 @@ export const commands = {
       const R = await import('./igz/relocate.mjs');
       const edits = (o.set ?? []).map(s => { const m = /^(?:\+?0x)?([0-9a-f]+)(?::(f32be|u32be|u16be|u8))?=(.+)$/i.exec(s); if (!m) throw new CliError(`--set expects <hex offset>[:type]=<value>: ${s}`); return { offset: parseInt(m[1], 16), type: m[2] ?? 'f32be', value: Number(m[3]) }; });
       const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
-      const r = R.planReachableClone(buf, fixups, { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, register: !o['no-register'], replaceEntry: o['replace-entry'] !== undefined ? Number(o['replace-entry']) : null, insertBefore: o['insert-before'] !== undefined ? Number(o['insert-before']) : null, bumpRefcounts: !o['no-refcounts'], freshIds: !!o['fresh-ids'], extraFindings: o['also-finding'] ?? [] });
+      const common = { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, bumpRefcounts: !o['no-refcounts'], extraFindings: o['also-finding'] ?? [] };
+      let r, p;
+      if (o.overwrite !== undefined) {
+        r = R.planOverwriteClone(buf, fixups, { ...common, target: Number(o.overwrite) });
+        p = r.plan;
+        const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
+        return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status} [in-place overwrite]: ${p.source.type_name}@0x${p.source.object_offset.toString(16)} block ${p.source.block_bytes} B -> onto ${p.target.type_name}@0x${p.target.offset.toString(16)} (blob 0x${p.target.blob_bytes.toString(16)}, zeroed 0x${p.target.leftover_zeroed.toString(16)}); file length unchanged, no table growth; pointers internal ${p.pointers.internal} external ${p.pointers.external}, refcounts ${p.refcounts.length}, edits ${p.changes.length}\n${p.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n')}${written.planFile ? '\nplan ' + written.planFile : ''}\nfile ${written.outFile}` };
+      }
+      r = R.planReachableClone(buf, fixups, { ...common, register: !o['no-register'], replaceEntry: o['replace-entry'] !== undefined ? Number(o['replace-entry']) : null, insertBefore: o['insert-before'] !== undefined ? Number(o['insert-before']) : null, freshIds: !!o['fresh-ids'] });
       const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
-      const p = r.plan;
+      p = r.plan;
       return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status}: ${p.source.type_name}@0x${p.source.object_offset.toString(16)} block ${p.source.block_bytes} B -> clone @0x${p.insert_at.toString(16)} (+${p.inserted_bytes} B${p.insert_before !== null ? `, inserted before 0x${p.insert_before.toString(16)}, end pad ${p.end_pad}` : ''}), refcounts bumped ${p.refcounts.length}, table entry ${p.table_entry ? `#${p.table_entry.index}` : 'none'}, pointers internal ${p.pointers.internal} external ${p.pointers.external}, rebased after shift ${p.pointers.rebased_after_shift}, new ids ${p.new_ids.length}, edits ${p.changes.length}\n${p.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n')}${written.planFile ? '\nplan ' + written.planFile : ''}\nfile ${written.outFile}` };
+    }
+    if (sub === 'pick-overwrite-target') {
+      const { buildGraph } = await import('./igz/graph.mjs');
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const gg = buildGraph(buf, { fields: false }); const s1 = gg.sections[gg.object_section];
+      const type = Number(need(o.type, 'type')); const block = Number(need(o.end, 'end')) - Number(need(pos[2], 'owner offset'));
+      const tableEnd = s1.offset + (buf.readUInt32BE(s1.offset + 0x14) & 0x7fffffff);
+      const entries = new Set(); for (let q = s1.offset + 0x20; q < tableEnd; q += 4) entries.add(s1.offset + buf.readUInt32BE(q));
+      const sorted = [...entries].sort((a, b) => a - b);
+      const words = fixups.pointer_words.concat(fixups.head_pointer_words ?? [], fixups.cross_pointer_words ?? []);
+      const cands = [];
+      for (const T of sorted) { const ob = gg.objects.find(x => x.offset === T); if (!ob || ob.type !== type) continue; let be = s1.offset + s1.size; for (const e of entries) if (e > T && e < be) be = e; if (be - T < block) continue; let ext = 0; for (const w of words) { if (w >= T && w < be) continue; const t = s1.offset + (buf.readUInt32BE(w) & 0xffffff); if (t > T && t < be) ext++; } cands.push({ offset: T, blob: be - T, leftover: be - T - block, ext }); }
+      cands.sort((a, b) => a.ext - b.ext || a.leftover - b.leftover);
+      return { result: cands.slice(0, 20), text: `${cands.length} type-${type} table entries with blob >= 0x${block.toString(16)}:\n` + cands.slice(0, 12).map(c => `  0x${c.offset.toString(16)} blob 0x${c.blob.toString(16)} leftover 0x${c.leftover.toString(16)} externalRefsIntoBlob ${c.ext}`).join('\n') };
     }
     if (sub === 'relocation-probe') {
       const R = await import('./igz/relocation.mjs');

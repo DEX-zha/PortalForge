@@ -41,6 +41,12 @@ Diffs the file against the resident copy of its object section (from `experiment
 ### `igz clone-entity <decoded file> <owner offset> --end <block end> --fixups <map.json> --finding <id> [--set <hex offset in block>[:type]=<value>]... --out <decoded file> [--plan <plan.json>] [--no-register] [--also-finding <id>]...`
 Reachable duplication: copies the byte block `[owner, end)` (owner plus the children stored after it) to the end of the object section, rebases the pointers that stay inside the block, gives fresh ids to every id word of the copy, applies edits, then registers the copy as one more section-1 header-table entry, shifting the whole object area by 4 bytes and rebasing every pointer word of the fixup map (and the table itself). Refuses non-CONFIRMED findings; VALID only when the re-parsed graph has the expected object count, every original object is found at its shifted offset, the copy's pointers resolve like the source's and the header counts agree. `--also-finding` lists the findings the experiment record must reference for promotion.
 
+### `igz pick-overwrite-target <decoded file> --end <block end> --type <n> --fixups <map.json>`
+Ranks header-table records of type `<n>` whose blob (distance to the next table entry) can hold the clone block, by (external references into the blob, leftover), for in-place registration.
+
+### `igz clone-entity ... --overwrite <hex target offset>`
+In-place registration: overwrites an existing same-type header-table record with the clone block (rebasing block-internal pointers, zeroing the blob leftover, incrementing shared-target refcounts). The header table is not grown and no bytes move: the file length is unchanged and only the target blob and a few refcount words differ, so the game's per-type relocation walk processes the clone exactly as the sacrificed record. This is the registration path that avoids the global shift which desynchronised the load when the table was grown.
+
 ### `experiment ptr-scan --file <decoded file> --address <file offset|0x8... address>[,...] [--pattern <hex>]... [--save-slot 6] [--figure <.sky>] [--dimensions] [--no-dimensions] [--label]`
 One boot from a native state: snapshots MEM1 (+MEM2 unless `--no-dimensions`), diffs the resident bytes of each target against the file, lists runtime referrers (in-section ones mapped to object/field, heap ones with 64 bytes of context), searches patterns; `--dimensions` dumps the resident object section for `igz fixups`. Report in `.local/dolphin-evidence/<label>.json`.
 

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildIgz } from './helpers/synthetic-igz.mjs';
 import { buildGraph } from '../src/igz/graph.mjs';
-import { insertBytes, planReachableClone } from '../src/igz/relocate.mjs';
+import { insertBytes, planReachableClone, planOverwriteClone } from '../src/igz/relocate.mjs';
 import { save } from '../src/research/findings.mjs';
 
 // The graph detector recognises headers with refcount 1 only; bumped refcounts are restored for re-parsing.
@@ -47,6 +47,44 @@ test('insertBytes at the table end shifts every object by the inserted length an
   assert.equal(r.buffer.readUInt32BE(f.physics + 4 + 0x30), f.buf.readUInt32BE(f.physics + 0x30));         // string refs untouched
   assert.equal(after.sections[2].offset, g.sections[2].offset + 4);
   assert.deepEqual(r.pointerWords.slice(0, 3), f.fixups.pointer_words.map(w => w + 4));
+});
+
+test('planOverwriteClone registers the clone in place: same file length, only the target blob and refcount words change, no table growth', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-ovw-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  // owner(type3)+physics(type4) block; a shared type1; a same-type victim registered in the table whose
+  // blob (to the next table entry) is large enough to hold the block.
+  const built = buildIgz({
+    objects: [
+      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }, { at: 0x18, obj: 2 }] },   // owner
+      { type: 4, size: 0x40, fields: [{ at: 0x2c, obj: 0 }, { at: 0x30, str: 2 }] },    // physics
+      { type: 1, size: 0x20, fields: [{ at: 0x10, str: 1 }] },                          // shared
+      { type: 3, size: 0x90, fields: [] },                                              // victim (table entry)
+      { type: 1, size: 0x20, fields: [] },                                             // next table entry
+    ], headTable: [3, 4],
+  });
+  const [owner, physics, shared, victim] = built.objectOffsets;
+  const fixups = { section_offset: built.sections.s1, pointer_words: [owner + 0x14, owner + 0x18, physics + 0x2c], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+  const before = buildGraph(built.buf);
+  const r = planOverwriteClone(built.buf, fixups, { start: owner, end: physics + 0x40, findingId: 'test.spawn', target: victim, edits: [{ offset: 0x1c, type: 'u32be', value: 0x1234 }], findingsOpts: { dir } });
+  assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
+  assert.equal(r.buffer.length, built.buf.length);                                     // no shift, same length
+  const sec = before.sections[1];
+  const blobEnd = victim + 0x90;                                                        // next table entry is 0x90 after
+  // every changed word lies inside the victim blob, except refcount words (+4 of a shared target)
+  const rc = new Set(r.plan.refcounts.map(u => u.location));
+  for (let p = sec.offset; p + 4 <= built.buf.length; p += 4) {
+    if (p >= victim && p < blobEnd) continue;
+    if (rc.has(p)) continue;
+    assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), `unexpected change at 0x${p.toString(16)}`);
+  }
+  const after = buildGraph(r.buffer);
+  assert.equal(after.objects.length, before.objects.length);                           // count unchanged (in-place)
+  const clone = after.objects.find(o => o.offset === victim);
+  assert.equal(clone.type, 3);                                                          // clone owner at the target
+  assert.equal(after.sections[1].offset, before.sections[1].offset);                    // table/sections not moved
+  assert.equal(r.buffer.readUInt32BE(shared + 4), built.buf.readUInt32BE(shared + 4) + 1); // shared external +1
+  assert.equal(sec.offset + r.buffer.readUInt32BE(victim + 0x14), victim + 0x30);        // clone owner -> its physics (rebased in place)
 });
 
 test('planReachableClone can insert the block before an object: later objects move by the block length, pointers follow, refcounts grow', () => {

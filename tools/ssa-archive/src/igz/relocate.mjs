@@ -253,6 +253,96 @@ function ownerOf(objects, fileOffset) {
   if (best < 0) return null; const o = objects[best]; return fileOffset < o.offset + o.size ? o : null;
 }
 
+// In-place registration (no table growth, no shift): overwrite an existing header-table record with the
+// clone block. The target must be a table entry of the same type as the clone owner, with a blob (to the
+// next table entry) at least as large as the block and, ideally, no external references into its interior
+// (pick with the target ranker). The file length is unchanged and only bytes inside [target, blobEnd)
+// plus a few refcount words elsewhere are touched, so the game's per-type relocation walk processes the
+// clone exactly as it did the sacrificed record (finding igz.loader.relocation-table: relocation is
+// reflection-driven, so a same-type record in a registered slot needs no new relocation data).
+export function planOverwriteClone(buf, fixups, { start, end, target, findingId, edits = [], bumpRefcounts = true, findingsOpts = {}, extraFindings = [] }) {
+  const finding = Findings.load(findingId, findingsOpts);
+  if (finding.confidence !== 'CONFIRMED') { const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`); e.exitCode = 1; throw e; }
+  const graph = buildGraph(buf, { fields: false });
+  const sec = graph.sections[graph.object_section];
+  if (fixups.section_offset !== sec.offset) throw new Error(`fixup map is for section start 0x${fixups.section_offset.toString(16)}, this file 0x${sec.offset.toString(16)}`);
+  const source = graph.objects.find(o => o.offset === start);
+  const tgtObj = graph.objects.find(o => o.offset === target);
+  if (!source) throw Object.assign(new Error(`no object at 0x${start.toString(16)}`), { exitCode: 1 });
+  if (!tgtObj) throw Object.assign(new Error(`no object at target 0x${target.toString(16)}`), { exitCode: 1 });
+  const blockLen = end - start;
+  const failures = [], changes = [];
+  // header table entries (file offsets), and the target's blob boundary = next entry after it in file order
+  const tableEnd = sec.offset + (buf.readUInt32BE(sec.offset + 0x14) & 0x7fffffff);
+  const entries = new Set(); for (let p = sec.offset + 0x20; p < tableEnd; p += 4) entries.add(sec.offset + buf.readUInt32BE(p));
+  if (!entries.has(target)) failures.push({ stage: 'validation', reason: 'target is not a header-table entry' });
+  if (tgtObj.type !== source.type) failures.push({ stage: 'validation', reason: `target type ${tgtObj.type} != clone owner type ${source.type}` });
+  let blobEnd = sec.offset + sec.size; for (const e of entries) if (e > target && e < blobEnd) blobEnd = e;
+  if (blobEnd - target < blockLen) throw Object.assign(new Error(`target blob 0x${(blobEnd - target).toString(16)} < block 0x${blockLen.toString(16)}`), { exitCode: 1 });
+  const out = Buffer.from(buf);
+  // write the clone block over the target, rebasing block-internal pointers by delta = target - start
+  const delta = target - start;
+  buf.copy(out, target, start, end);
+  const inBlock = w => w >= start && w < end;
+  let internal = 0, external = 0; const cloneExternals = new Map();
+  for (const w of fixups.pointer_words.filter(inBlock)) {
+    const off = w - start + target, v = out.readUInt32BE(off), rel = v & 0x7fffffff, tgt = sec.offset + rel;
+    if (tgt >= start && tgt < end) { out.writeUInt32BE(((v & 0x80000000) | (rel + delta)) >>> 0, off); internal++; }
+    else { external++; cloneExternals.set(tgt, (cloneExternals.get(tgt) ?? 0) + 1); }
+  }
+  // zero the leftover of the target blob so no dangling sub-structure remains
+  const leftover = blobEnd - (target + blockLen);
+  out.fill(0, target + blockLen, blobEnd);
+  // edits on the clone (offsets relative to the block start)
+  for (const ed of edits) {
+    const [width, write] = TYPES[ed.type] ?? [];
+    if (!write) throw new Error(`unsupported edit type ${ed.type}`);
+    if (ed.offset + width > blockLen) throw new Error(`edit +0x${ed.offset.toString(16)} outside the block`);
+    const old_hex = out.subarray(target + ed.offset, target + ed.offset + width).toString('hex');
+    write(out, target + ed.offset, ed.value);
+    changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: out.subarray(target + ed.offset, target + ed.offset + width).toString('hex') });
+  }
+  // refcounts: only INCREMENT the shared externals the clone points at (one owning reference added). The
+  // sacrificed record's outgoing references are left counted: an over-count merely delays a free, whereas
+  // decrementing risks dropping a still-live object to 0 (dangling). Targets inside the zeroed leftover
+  // are skipped (they are being removed with the blob).
+  const refcountUpdates = [];
+  if (bumpRefcounts) for (const [t, n] of cloneExternals) {
+    if (t >= target && t < blobEnd) continue;                              // inside the overwritten blob
+    const rc = out.readUInt32BE(t + 4);
+    if (rc >= 1 && rc <= 200000) { out.writeUInt32BE(rc + n, t + 4); refcountUpdates.push({ location: t + 4, field: 'refcount', old: rc, new: rc + n }); }
+    else failures.push({ stage: 'reference', reason: `shared target 0x${t.toString(16)} refcount ${rc} implausible`, offset: t });
+  }
+  // validation: same length, only [target,blobEnd) and refcount words changed, clone owner recognised
+  if (out.length !== buf.length) failures.push({ stage: 'validation', reason: 'file length changed' });
+  const rcLocs = new Set(refcountUpdates.map(u => u.location));
+  for (let p = 0; p + 4 <= buf.length; p += 4) { if (p >= target && p < blobEnd) continue; if (rcLocs.has(p)) continue; if (buf.readUInt32BE(p) !== out.readUInt32BE(p)) { failures.push({ stage: 'validation', reason: `byte change outside the target blob at 0x${p.toString(16)}` }); break; } }
+  let after = null;
+  try {
+    after = buildGraph(out, { fields: false });
+    const clone = after.objects.find(o => o.offset === target);
+    if (!clone || clone.type !== source.type) failures.push({ stage: 'validation', reason: 'clone owner not recognised at the target', offset: target });
+    // the block's embedded children (every original object after `source` within [start,end)) must
+    // reappear at the same relative offsets inside the overwritten target
+    const childRels = graph.objects.filter(o => o.offset > start && o.offset < end).map(o => o.offset - start);
+    for (const rel of childRels) { const child = after.objects.find(o => o.offset === target + rel); if (!child) failures.push({ stage: 'validation', reason: `clone child at +0x${rel.toString(16)} not recognised`, offset: target + rel }); }
+    if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset })));
+    if (after.sections.at(-1).offset + after.sections.at(-1).size !== out.length) failures.push({ stage: 'validation', reason: 'sections do not end at EOF' });
+  } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  const plan = {
+    source: { object_offset: start, type_name: source.type_name, finding_id: findingId, block_end: end, block_bytes: blockLen },
+    changes, insert_at: target, updates: refcountUpdates, new_id: source.id,
+    validation: { status: failures.length ? 'INVALID' : 'VALID', failures },
+    mode: 'overwrite', target: { offset: target, type_name: tgtObj.type_name, blob_bytes: blobEnd - target, leftover_zeroed: leftover },
+    pointers: { internal, external }, refcounts: refcountUpdates, findings: [findingId, ...extraFindings],
+    method: 'in-place registration (overwrite a same-type table record; no table growth, no shift, file length unchanged)',
+  };
+  const v = schemaValidator('duplication-plan.schema.json', contracts002);
+  const { source: { block_end, block_bytes, ...src }, mode, target: _t, pointers, refcounts, findings, method, ...rest } = plan;
+  plan.schema_valid = v({ ...rest, source: src }); plan.schema_errors = v.errors ?? null;
+  return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
+}
+
 export function writeReachablePlan(result, { outFile, planFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, result.buffer);

@@ -1,0 +1,26 @@
+{
+  "id": "igz.clone.in-place-registration",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "method: overwrite an existing same-type header-table record with the clone block",
+  "structure": "Registering a clone without growing the header table or shifting the file",
+  "location": {
+    "offset": "a chosen type-92 header-table entry whose blob >= the clone block",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Because relocation is reflection-driven (igz.loader.relocation-table), a same-type record in an already-registered slot needs no new relocation data. Growing the header table to register a clone shifts every object 32 bytes and desynchronises the load (froze at 1 036/21 680 records), so registration must not move anything. `igz clone-entity --overwrite <T>` writes the clone block over an existing type-92 table record T (rebasing block-internal pointers to T, zeroing the blob leftover, incrementing the refcounts of the shared objects the clone points at), leaving T`s table entry and every other byte untouched. On the tutorial, target 0x3EDEFC (chosen with igz pick-overwrite-target: blob 0x500, 0 external references into its interior) yields a VALID plan whose diff against the original is exactly the 0x2A8 clone block plus five 4-byte refcount words at the shared externals (0x187BF0, 0x187E74, 0x188CC0, 0x188CDC, 0x1893EC); the file length is identical. This is the registration path to test next; it sacrifices one benign type-92 record to host a duplicate of the spawn entity.",
+  "evidence": [
+    {
+      "probe": "ssa-archive igz clone-entity --overwrite (static, entity-overwrite-plan.json) + byte diff",
+      "summary": "VALID plan; only [0x3EDEFC,0x3EE3FC) and 5 refcount words differ; file length unchanged; clone owner and physics recognised at the target"
+    },
+    {
+      "probe": "ssa-archive igz pick-overwrite-target",
+      "summary": "129 type-92 table entries with blob >= 0x2A8; 0x3EDEFC has 0 external references into its blob"
+    }
+  ]
+}
