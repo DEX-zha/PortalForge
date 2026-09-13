@@ -20,7 +20,7 @@ const oneFixup = v => (Array.isArray(v) ? v[0] : v);
 
 // Patch and launch for the editor: the existing replacement-only workspace builder and the existing experiment
 // runner, so an editor run is indistinguishable from a command-line one in the evidence trail.
-function editorDeps(session, o) {
+export function editorDeps(session, o) {
   return {
     build: ({ experimentId, replacements }) => {
       const game = o.game ?? gameFromConfigSafe();

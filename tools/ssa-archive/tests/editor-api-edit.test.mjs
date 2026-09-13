@@ -118,10 +118,16 @@ test('POST /api/launch refuses without a prediction and takes the lock, /api/obs
     assert.equal((await (await fetch(`${s.url}/api/session`)).json()).locked, false);
 
     const l = await (await post(s, '/api/launch', { prediction: 'the crate turns 77 degrees' })).json();
-    assert.equal(l.launch.experiment_id, 'exp_x');
+    assert.equal(l.launch.running, true, 'the request returns while the game starts, it does not hold the response');
+    assert.equal(l.launch.experiment_id, null);
     assert.equal(l.locked, true);
     const blocked = await post(s, '/api/patch');
     assert.equal((await blocked.json()).error, 'SESSION_LOCKED');
+
+    await s.session.lastLaunch.promise;
+    const polled = await (await fetch(`${s.url}/api/launch`)).json();
+    assert.equal(polled.launch.running, false, 'the run is polled, not awaited over HTTP');
+    assert.equal(polled.launch.experiment_id, 'exp_x');
 
     const o = await (await post(s, '/api/observe', { experiment_id: 'exp_x', observed: 'it turned', matched: true })).json();
     assert.equal(o.launch.observed, 'it turned');

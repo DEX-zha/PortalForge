@@ -116,18 +116,30 @@ the previous patch, and with 409 `NOTHING_SAVED` when no valid save exists.
 
 ### `POST /api/launch`
 
-Starts the game on the produced patch and opens an experiment record.
+Starts the game on the produced patch and opens an experiment record. **It returns as soon as the run is under
+way and does not wait for it**: two boots take about ten minutes, far longer than any HTTP client will hold a
+response open. The first run of this feature lost its second boot and its experiment record exactly that way, so
+the shape is not a convenience, it is the fix.
 
 Request: `{ "prediction": "<what should be visible>", "figure": "<path>", "repeat": 1 }`.
 
-Response: `{ "launch": LaunchRecord }`. Refuses with 400 `PREDICTION_REQUIRED` when the prediction is missing or
-empty. Takes the session lock for the duration.
+Response: `{ "launch": LaunchRecord }` with `running: true` and `experiment_id: null`, because the runner only
+produces the id when it has a record. Refuses with 409 `PREDICTION_REQUIRED` when the prediction is missing or
+empty, and with 409 `ALREADY_RUNNING` when one is already under way. Takes the session lock immediately, because
+the game starts reading the patch at once.
 
 **Contract rule**: the editor never calls this endpoint on its own; it is always a researcher action.
 
+### `GET /api/launch`
+
+The state of the current or last run: `{ "launch": LaunchRecord | null, "locked": boolean }`. While `running` is
+true the `experiment_id` is null; when the run ends it carries the id, or `error` if the runner failed. The
+promise driving the run never appears in the response.
+
 ### `POST /api/observe`
 
-Records what was seen and releases the lock.
+Records what was seen and releases the lock. Refuses with 409 `STILL_RUNNING` while the run is under way: there
+is nothing to have observed yet.
 
 Request: `{ "experiment_id": "...", "observed": "<what was seen>", "matched": true }`.
 

@@ -235,9 +235,29 @@ async function doPatch() {
 async function doLaunch() {
   const prediction = $('prediction').value.trim();
   if (!prediction) return note('state what should be visible before launching: an experiment without a prediction cannot be judged');
-  try { const b = await api('/api/launch', { prediction }); note('launched as ' + b.launch.experiment_id + '; record what you see to release the lock'); }
-  catch (e) { note('refused: ' + e.message); }
+  try {
+    await api('/api/launch', { prediction });
+    note('the game is starting; this window does not wait for it');
+    pollLaunch();
+  } catch (e) { note('refused: ' + e.message); }
   refreshSaveState();
+}
+
+// The run is polled, never awaited: a boot outlasts any request. The lock stays held until an observation.
+async function pollLaunch() {
+  const started = Date.now();
+  const tick = async () => {
+    let b;
+    try { b = await api('/api/launch'); } catch { return; }
+    if (b.launch?.running) {
+      note('running for ' + Math.round((Date.now() - started) / 1000) + 's; the patch is locked while it reads');
+      return setTimeout(tick, 5000);
+    }
+    note(b.launch?.error ? 'the run failed: ' + b.launch.error
+      : 'run ' + b.launch?.experiment_id + ' finished; record what you saw to release the lock');
+    refreshSaveState();
+  };
+  tick();
 }
 
 main();

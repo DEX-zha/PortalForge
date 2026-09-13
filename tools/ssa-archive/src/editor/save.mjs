@@ -125,20 +125,43 @@ function defaultBuild() {
   fail('NOT_WIRED', 'the patch builder is supplied by the CLI layer; call patch() with deps.build');
 }
 
-export async function launch(session, { prediction = '', figure = null, repeat = 1, deps = {} } = {}) {
+// A launch is started, not awaited. Two boots take about ten minutes, far longer than any HTTP client will hold a
+// response open, so the request returns as soon as the run is under way and the caller polls `launchState`.
+// The lock is taken at the start, because the game begins reading the patch immediately.
+export async function launch(session, { prediction = '', figure = null, repeat = 1, deps = {}, wait = false } = {}) {
   if (!String(prediction).trim()) fail('PREDICTION_REQUIRED', 'state what should be visible before the game starts: an experiment without a prediction cannot be judged');
   if (!session.lastPatch) fail('NOTHING_PATCHED', 'build a patch before launching');
+  if (session.lastLaunch?.running) fail('ALREADY_RUNNING', 'a run is already under way; wait for it to finish');
   const run = deps.run ?? (() => fail('NOT_WIRED', 'the experiment runner is supplied by the CLI layer; call launch() with deps.run'));
-  const record = await run({ session, prediction, figure, repeat, patch: session.lastPatch });
-  session.lastLaunch = { experiment_id: record.id, prediction: String(prediction).trim(), figure, repeat,
-    patch_dir: session.lastPatch.dir, observed: null, matched: null, at: new Date().toISOString() };
+
+  session.lastLaunch = { experiment_id: null, prediction: String(prediction).trim(), figure, repeat,
+    patch_dir: session.lastPatch.dir, observed: null, matched: null, running: true, error: null,
+    started: new Date().toISOString(), at: new Date().toISOString() };
   session.lock = { patch_dir: session.lastPatch.dir, since: new Date().toISOString() };
   session.locked = true;
-  return { launch: session.lastLaunch };
+
+  const started = Promise.resolve()
+    .then(() => run({ session, prediction, figure, repeat, patch: session.lastPatch }))
+    .then(record => { session.lastLaunch.experiment_id = record?.id ?? null; session.lastLaunch.status = record?.status ?? null; return record; })
+    .catch(e => { session.lastLaunch.error = e.message; return null; })
+    .finally(() => { session.lastLaunch.running = false; session.lastLaunch.finished = new Date().toISOString(); });
+  session.lastLaunch.promise = started;
+
+  if (wait) await started;
+  return { launch: launchState(session).launch };
+}
+
+// The launch as the caller may see it: never the promise, and never a half-filled record dressed up as complete.
+export function launchState(session) {
+  const l = session.lastLaunch;
+  if (!l) return { launch: null, locked: session.locked };
+  const { promise, ...rest } = l;
+  return { launch: rest, locked: session.locked };
 }
 
 export function observe(session, { experiment_id, observed, matched, deps = {} } = {}) {
   if (!session.lastLaunch) fail('NOTHING_LAUNCHED', 'no run to record an observation against');
+  if (session.lastLaunch.running) fail('STILL_RUNNING', 'the run has not finished; there is nothing to have observed yet');
   if (experiment_id && experiment_id !== session.lastLaunch.experiment_id) fail('WRONG_EXPERIMENT', `this session launched ${session.lastLaunch.experiment_id}, not ${experiment_id}`);
   if (!String(observed ?? '').trim()) fail('OBSERVATION_REQUIRED', 'say what was actually seen, even when it is nothing');
   session.lastLaunch.observed = String(observed).trim();
@@ -146,5 +169,5 @@ export function observe(session, { experiment_id, observed, matched, deps = {} }
   if (deps.judge) session.lastLaunch.judged = deps.judge({ id: session.lastLaunch.experiment_id, observed: session.lastLaunch.observed, matched: !!matched });
   session.lock = null;
   session.locked = false;
-  return { launch: session.lastLaunch, locked: false };
+  return { ...launchState(session), locked: false };
 }

@@ -119,7 +119,7 @@ screenshot with an unmodified run at the same point.
 - [X] T038 [US2] Implement the save, patch, launch and observe flow in `tools/ssa-archive/src/view/app.mjs`, refusing to offer the launch control until a prediction has been typed and displaying the plan failures when a save is refused (FR-022, FR-024)
 - [X] T039 [US2] Run quickstart scenario 5 and record the byte comparison in `specs/003-placement-editor-3d/quickstart.md` notes: the only differing words are the transform fields of the edited placement (SC-004)
 - [ ] T040 [US2] (open: needs a running game, so it waits for the boot T041 spends) Run quickstart scenario 8 and confirm the session lock refuses a rebuild while a run is open, recording the outcome in `specs/003-placement-editor-3d/quickstart.md` notes (FR-026)
-- [ ] T041 [US2] **Costs 2 boots.** Run quickstart scenario 6 on the tutorial: state the prediction, launch twice on the identical rebuilt archive, judge both runs, and index the two experiment records in `docs/experiments/README.md` (SC-007, SC-008)
+- [ ] T041 [US2] **Costs 2 boots; 2 were spent on 2026-09-13 and produced no judged record, see the quickstart run notes.** Run quickstart scenario 6 on the tutorial: state the prediction, launch twice on the identical rebuilt archive, judge both runs, and index the two experiment records in `docs/experiments/README.md` (SC-007, SC-008)
 
 **Checkpoint**: the full loop works on the tutorial and is demonstrated in game.
 

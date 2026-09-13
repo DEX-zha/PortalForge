@@ -170,6 +170,29 @@ inspector shows 82.252 while the file holds 82.25200653076172, so undoing rewrot
 and left the buffer one word away from how it opened. Undo now copies the original words back verbatim, and
 `tests/editor-session.test.mjs` has a regression for it.
 
+
+**Scenario 6 (T041): two boots spent, no judged record. The task stays open.**
+
+Boot 1, `m3-level_027_tutorial-e3-1789322456771`. The editor's own chain ran: `sunflower_Template(1)` at
+`0x3495E4` moved straight up, y 9.962 to 16, one variable and nothing else touched; the save reported VALID with
+five changed words and none outside; the patch built; the game launched. **The effect is unmistakable in the
+screenshots**: one sunflower hangs high above the windmill roof line while its twin stays at its normal height,
+and a pixel diff against the baseline puts the two largest changed clusters exactly where the plant arrived and
+where it left. What is missing is the experiment record. The launch endpoint held the HTTP response open for the
+whole run, the client's header timeout fired at five minutes, the script died and took the in-flight run with it
+before the runner reached the `finally` that writes the record.
+
+That is a real defect and it is fixed: `POST /api/launch` now returns as soon as the run is under way, `GET
+/api/launch` reports its state, and the view polls instead of waiting. The contract says so, and the tests assert
+that the id is null while the run is running rather than being invented.
+
+Boot 2, `m3-level_027_tutorial-e3-1789323012435`. Interrupted at the intro cinematic when the emulator window was
+closed by accident. Screenshots up to step 25, no record.
+
+**So the evidence stands at: one complete run whose effect is visible, zero runs judged into a record.** SC-007
+asks for the predicted change observed in two identical runs, so scenario 6 is not met and T041 is not done. Two
+further boots would close it; one would at least produce a judged record for the run that already worked.
+
 **Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
 in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
 the same as three.js. No axis is negated.

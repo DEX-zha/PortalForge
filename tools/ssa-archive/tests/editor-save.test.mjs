@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { syntheticLevel } from './helpers/synthetic-level.mjs';
 import { openSession, applyEdit } from '../src/editor/session.mjs';
-import { buildSavePlan, save, patch, launch, observe } from '../src/editor/save.mjs';
+import { buildSavePlan, save, patch, launch, observe, launchState } from '../src/editor/save.mjs';
 
 // Feature 003 T026 and T027. The save is the only place a file is produced, and it produces one only when the
 // plan it made beforehand matches the bytes it is about to write. Patch and launch sit behind that, and behind
@@ -104,11 +104,19 @@ test('launch: refuses without a prediction, takes the lock, and an observation r
   await assert.rejects(launch(s, { deps }), e => e.error === 'PREDICTION_REQUIRED');
   assert.equal(s.locked, false, 'a refused launch takes no lock');
 
+  // The launch RETURNS as soon as the run is under way: two boots take about ten minutes, far longer than any
+  // client will hold a response open. The id only exists once the runner has produced its record.
   const r = await launch(s, { prediction: 'the crate stands eight units further along x', deps });
-  assert.equal(r.launch.experiment_id, 'exp_1');
+  assert.equal(r.launch.running, true, 'the call returns while the game is still starting');
+  assert.equal(r.launch.experiment_id, null, 'the id is not known yet, and is not invented');
   assert.equal(r.launch.prediction, 'the crate stands eight units further along x');
-  assert.equal(r.launch.observed, null);
-  assert.equal(s.locked, true, 'the run may still be reading the patch');
+  assert.equal(s.locked, true, 'the lock is taken at once: the game reads the patch immediately');
+  assert.throws(() => observe(s, { observed: 'too early' }), e => e.error === 'STILL_RUNNING');
+
+  await s.lastLaunch.promise;
+  assert.equal(launchState(s).launch.running, false);
+  assert.equal(launchState(s).launch.experiment_id, 'exp_1');
+  assert.equal(launchState(s).launch.promise, undefined, 'the promise never leaves the module');
 
   const o = observe(s, { experiment_id: 'exp_1', observed: 'it did', matched: true, deps: { judge: () => ({ status: 'UNKNOWN' }) } });
   assert.equal(o.launch.observed, 'it did');
