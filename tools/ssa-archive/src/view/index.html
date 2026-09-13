@@ -20,6 +20,9 @@
           --serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
           --sans: ui-sans-serif, system-ui, 'Segoe UI', sans-serif; }
   * { box-sizing: border-box; }
+  /* The hidden attribute is a UA rule of the lowest specificity, so any display declaration below beats it. #error
+     carries display:grid, which is how an empty full-screen overlay came to cover the whole page. */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body { margin: 0; height: 100vh; display: grid; grid-template-columns: 260px 1fr 380px; grid-template-rows: 44px 1fr;
          background: var(--bg); color: var(--text); overflow: hidden;
