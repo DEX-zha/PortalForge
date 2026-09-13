@@ -1,0 +1,26 @@
+{
+  "id": "level.placement.linked-chain",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "PlacementReference records (698 constructed) linked by confirmed pointer fields +0x64 and +0x74 to other PlacementReference records",
+  "structure": "Placed world props form a pointer-linked structure (chain/tree), the natural insertion point for duplication without relocation",
+  "location": {
+    "offset": "PlacementReference +0x64 (116 links), +0x74 (42 links); also referenced from ScriptSetReference +0xD8/+0x10C/+0x110",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "PlacementReference is a real, multi-instance world entity (698 of 704 headers constructed at load). Its instances point at one another through runtime-confirmed pointer fields (+0x64: 116 targets, +0x74: 42 targets) and are also referenced from ScriptSetReference fields, i.e. placements are organised as a linked chain/tree rather than in count+array lists. A linked structure allows inserting a copy with no shift and no table growth: copy the node to the end of the section, point the predecessor`s link at the copy and the copy`s link at the old successor; the copy is then reached by the predecessor`s reflection walk and constructed. Field semantics (next vs child) and the fixed struct size (mode 0x70) are being verified before any run.",
+  "evidence": [
+    {
+      "probe": "scratch entities-owners.mjs / chain.mjs over ptr-scan3 fixups + dump",
+      "summary": "698/704 PlacementReference visited; inbound owners: PlacementReference+0x64 x116, +0x74 x42, ScriptSetReference fields x66"
+    },
+    {
+      "probe": "igz fixups (ptr-scan3)",
+      "summary": "the +0x64/+0x74 words are runtime-confirmed pointers (rebased to MEM1 addresses)"
+    }
+  ]
+}

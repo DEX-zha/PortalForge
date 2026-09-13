@@ -33,13 +33,31 @@ async function probeMemory(session, probes, log, dump = null) {
   catch (e) { return [{ error: 'scan failed: ' + e.message }]; }
   if (dump) {
     const i = probes.findIndex(p => p.label === dump.probe_label);
-    const hit = i >= 0 ? scan[i].matches[0] : null;
+    // several hits may exist (heap copies of the same bytes): keep the one whose implied section base is
+    // closest to the expected base (0x80DBC020 in every run so far)
+    const expected = dump.expected_base ?? 0x80DBC020;
+    const hit = i >= 0 ? (scan[i].matches.slice().sort((a, b) => Math.abs(parseInt(a, 16) - (probes[i].header_delta ?? 0) - dump.object_file_offset - expected) - Math.abs(parseInt(b, 16) - (probes[i].header_delta ?? 0) - dump.object_file_offset - expected))[0] ?? null) : null;
     if (hit) {
       const header = parseInt(hit, 16) - (probes[i].header_delta ?? 0);
       const base = header - dump.object_file_offset;
+      if (Math.abs(base - expected) > 0x400000) log(`warning: implied base 0x${base.toString(16)} far from expected 0x${expected.toString(16)}`);
       const start = base + dump.section_offset;
       try { const bytes = await snapshot(start, start + dump.section_size, log); fs.writeFileSync(dump.out, bytes); reads.push({ address: start, bytes_hex: '', label: 'section-dump', hits: 1, base: '0x' + base.toString(16), file: dump.out }); log(`section dump: base 0x${base.toString(16)} -> ${dump.out}`); }
       catch (e) { reads.push({ address: start, bytes_hex: '', label: 'section-dump', hits: 0, error: e.message }); }
+      // targeted reads relative to the located base: 16 bytes at base+file_offset; with deref, the first
+      // word is taken as a pointer and 16 bytes are read there too (e.g. predecessor.next -> clone header)
+      for (const rd of dump.reads ?? []) {
+        const addr = base + rd.file_offset;
+        try {
+          const hex = await bridgeCall('memory.read_bytes', [addr, 16], 30000);
+          const entry = { address: addr, bytes_hex: hex, label: rd.label, hits: 1 };
+          const w0 = parseInt(hex.slice(0, 8), 16);
+          entry.visited = w0 >= 0x80400000 && w0 < 0x80600000;
+          if (rd.deref && w0 >= 0x80000000 && w0 < 0x94000000) { const hex2 = await bridgeCall('memory.read_bytes', [w0, 16], 30000); const v0 = parseInt(hex2.slice(0, 8), 16); entry.deref = { address: w0, bytes_hex: hex2, visited: v0 >= 0x80400000 && v0 < 0x80600000, file_offset: w0 - base }; }
+          reads.push(entry);
+          log(`read ${rd.label} @0x${addr.toString(16)}: ${hex.slice(0, 8)}${entry.deref ? ' -> deref @0x' + w0.toString(16) + ': ' + entry.deref.bytes_hex.slice(0, 8) + (entry.deref.visited ? ' visited' : ' raw') : ''}`);
+        } catch (e) { reads.push({ address: addr, bytes_hex: '', label: rd.label, hits: 0, error: e.message }); }
+      }
     } else reads.push({ address: 0, bytes_hex: '', label: 'section-dump', hits: 0, error: 'anchor probe not found' });
   }
   for (let i = 0; i < probes.length; i++) {
@@ -73,7 +91,7 @@ async function observe(session, label, target, { script, figure, archive, probes
   return run;
 }
 
-export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], dumpSection = false, dumpAnchor = null, log = console.log }) {
+export async function runM3({ archive, entry, planFile, clonedFile, predict, repeat = 2, figure = null, script = defaultScript, game = gameFromConfig(), skipControl = false, probes = [], dumpSection = false, dumpAnchor = null, reads = [], log = console.log }) {
   for (const g of ['m0', 'm1', 'm2']) if (gateStatus(g).status !== 'PASS') { const e = new Error(`${g.toUpperCase()} is not PASS`); e.exitCode = 2; throw e; }
   const plan = JSON.parse(fs.readFileSync(planFile, 'utf8'));
   if (plan.validation?.status !== 'VALID') { const e = new Error('Duplication plan is not VALID'); e.exitCode = 1; throw e; }
@@ -107,7 +125,7 @@ export async function runM3({ archive, entry, planFile, clonedFile, predict, rep
       const cloned = fs.readFileSync(path.resolve(clonedFile ?? plan.output));
       const gc = buildGraph(cloned, { fields: false }); const sc = gc.sections[gc.object_section];
       const anchor = probes.find(p => p.label === 'clone-physics') ?? probes[0];
-      dump = { probe_label: anchor.label, object_file_offset: dumpAnchor, section_offset: sc.offset, section_size: sc.size, out: path.join(evidenceDir, `%label%-section${gc.object_section}.bin`) };
+      dump = { probe_label: anchor.label, object_file_offset: dumpAnchor, section_offset: sc.offset, section_size: sc.size, reads, out: path.join(evidenceDir, `%label%-section${gc.object_section}.bin`) };
       record.inputs.section_dump = { anchor_probe: anchor.label, anchor_object_file_offset: dumpAnchor, section_offset: sc.offset, section_size: sc.size };
     }
     record.control = skipControl ? { label: 'skipped', pid: 0, started: '', finished: '', monitor_lines: [], screenshots: [], crash_or_load_error: false, note: 'control skipped by flag' } : await observe(session, `${id}-control`, game, { script, figure, archive, probes, log });

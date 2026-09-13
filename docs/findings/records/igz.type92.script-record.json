@@ -1,0 +1,26 @@
+{
+  "id": "igz.type92.script-record",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type index 92 (named tfbProceduralUVAnimTrack in the section-0 type table): compiled script/behaviour record; header-table entry; blob = [entry, next entry)",
+  "structure": "Type-92 records are scripts, not entity wrappers; the spawn \"owner\" is the level-init script",
+  "location": {
+    "offset": "all 157 header-table entries of type 92 in the tutorial",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Every one of the 157 type-92 table records references a compiled script (.ai path such as Activate_Jumpad.ai, Chompy_Sprite_, WaterVFX_Remover.ai, LootSystem_Init, InitializeLevel.ai) and script opcodes (\"set value||=\", \"check value\", \"create variable||with|members\", \"clone||at|facing||cloned\", PRESCRIPT/STARTUP/MACROS/INTERFACE sections). Their blob children (sprites, lists, placements, the spawn tfbPhysicsModel) are the script`s referenced resources and variables. 114/157 have more than five external pointers into their blob: scripts form a web, not self-contained entities. Consequences: (1) the M3 subject cloned so far — the type-92 \"spawn owner\" — is the level-initialisation script, effectively a singleton; duplicating it re-runs level init and freezes regardless of file layout, which explains why all four registration paths froze; the overwritten target 0x3EDEFC was the LootSystem_Init (STARTUP) script. (2) Entity duplication must target world entities reached through pointers, not table records. The section-0 type name for index 92 is therefore wrong or generic for this game.",
+  "evidence": [
+    {
+      "probe": "scratch generic-diag.mjs (header table + runtime pointer words + section-2 strings)",
+      "summary": "157/157 type-92 records reference .ai script paths and opcodes; extIn>5 for 114"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789261575772",
+      "summary": "overwriting the LootSystem_Init script slot with a copy of the level-init script froze the load"
+    }
+  ]
+}

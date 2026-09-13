@@ -154,3 +154,35 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   assert.equal(clonePhysics.id, before.objects[1].id);
   assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
 });
+
+test('planLinkClone duplicates a chain node: copy inserted before the tail, predecessor link redirected, copy links to the old next, no table change', async () => {
+  const { planLinkClone } = await import('../src/igz/relocate.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-link-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  // chain A -> B -> C via +0x14; a tail record T after them (the insert point); table lists T only
+  const built = buildIgz({
+    objects: [
+      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }] },   // A
+      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 2 }] },   // B  (source P)
+      { type: 3, size: 0x30, fields: [] },                       // C  (old next)
+      { type: 1, size: 0x20, fields: [] },                       // T  (tail, table entry)
+    ], headTable: [3],
+  });
+  const [A, B, C, T] = built.objectOffsets;
+  const fixups = { section_offset: built.sections.s1, pointer_words: [A + 0x14, B + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+  const before = buildGraph(built.buf); const sec = before.sections[1];
+  const r = planLinkClone(built.buf, fixups, { source: B, linkField: 0x14, findingId: 'test.spawn', insertBefore: T, findingsOpts: { dir } });
+  assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
+  assert.equal(r.plan.insert_at, T);
+  const after = buildGraph(r.buffer); const secA = after.sections[1];
+  assert.equal(after.objects.length, before.objects.length + 1);
+  assert.equal(secA.offset + r.buffer.readUInt32BE(B + 0x14), T);                 // P.next -> clone
+  assert.equal(secA.offset + r.buffer.readUInt32BE(T + 0x14), C);                 // clone.next -> old next
+  assert.equal(r.buffer.readUInt32BE(T + 4), 1);                                  // clone refcount 1
+  assert.equal(secA.offset + r.buffer.readUInt32BE(A + 0x14), B);                 // A.next untouched
+  const movedT = after.objects.find(o => o.offset === T + 0x30); assert.equal(movedT.type, 1);           // tail moved by the copy length
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), T + 0x30);                     // table entry follows the moved tail
+  assert.equal(r.buffer.readUInt32BE(secA.offset + 0x0c), built.buf.readUInt32BE(sec.offset + 0x0c));   // table count unchanged
+  assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
+  assert.equal(r.plan.moved_records, 1);
+});

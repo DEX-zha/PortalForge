@@ -47,6 +47,12 @@ Ranks header-table records of type `<n>` whose blob (distance to the next table 
 ### `igz clone-entity ... --overwrite <hex target offset>`
 In-place registration: overwrites an existing same-type header-table record with the clone block (rebasing block-internal pointers, zeroing the blob leftover, incrementing shared-target refcounts). The header table is not grown and no bytes move: the file length is unchanged and only the target blob and a few refcount words differ, so the game's per-type relocation walk processes the clone exactly as the sacrificed record. This is the registration path that avoids the global shift which desynchronised the load when the table was grown.
 
+### `igz clone-entity ... --link-after <hex P> [--link-field 0x64] --insert-before <hex tail>`
+Linked-chain duplication of a generic world entity. `P` must be a record whose only section-1 pointer is its "next" link (PlacementReference +0x64, finding `level.placement.linked-chain`). The copy is inserted before the tail records (the only bytes that move), `P.next` is redirected to the copy, the copy's next takes `P`'s old next, and the copy gets refcount 1. No header-table change, no global shift. Verified in RAM with `experiment m3 --read`.
+
+### `experiment m3 ... --read <label>=<hex file offset>[:deref]` (multiple)
+Targeted reads after the run, relative to the located section base (the dump anchor picks, among the anchor pattern's hits, the one whose implied base is closest to 0x80DBC020): 16 bytes at base+offset; with `:deref` the first word is followed as a pointer and 16 bytes are read there too (e.g. `P.next:deref` reads the clone header through the predecessor link).
+
 ### `experiment ptr-scan --file <decoded file> --address <file offset|0x8... address>[,...] [--pattern <hex>]... [--save-slot 6] [--figure <.sky>] [--dimensions] [--no-dimensions] [--label]`
 One boot from a native state: snapshots MEM1 (+MEM2 unless `--no-dimensions`), diffs the resident bytes of each target against the file, lists runtime referrers (in-section ones mapped to object/field, heap ones with 64 bytes of context), searches patterns; `--dimensions` dumps the resident object section for `igz fixups`. Report in `.local/dolphin-evidence/<label>.json`.
 

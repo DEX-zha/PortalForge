@@ -104,7 +104,7 @@ export const commands = {
     if (kind === 'm3') {
       const { runM3 } = await import('./experiments/m3-duplicate.mjs');
       const probes = (o.probe ?? []).map(s => { const m = /^([0-9a-f]+)(?::(\d+))?(?::(.+))?$/i.exec(s); if (!m) throw new CliError(`--probe expects <hex pattern>[:<header delta>[:<label>]]: ${s}`); return { pattern: m[1].toLowerCase(), header_delta: Number(m[2] ?? 0), label: m[3] ?? `probe${m[1].slice(0, 8)}` }; });
-      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'], probes, dumpSection: !!o['dump-section'], dumpAnchor: o['dump-anchor'] !== undefined ? Number(o['dump-anchor']) : null });
+      const r = await runM3({ archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), planFile: path.resolve(need(o.plan, 'plan')), clonedFile: o.file ? path.resolve(o.file) : null, predict: need(o.predict, 'predict'), repeat: o.repeat ? Number(o.repeat) : 2, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'], probes, dumpSection: !!o['dump-section'], dumpAnchor: o['dump-anchor'] !== undefined ? Number(o['dump-anchor']) : null, reads: (o.read ?? []).map(sp => { const m = /^([^=]+)=(0x[0-9a-f]+|\d+)(:deref)?$/i.exec(sp); if (!m) throw new CliError(`--read expects <label>=<file offset>[:deref]: ${sp}`); return { label: m[1], file_offset: Number(m[2]), deref: !!m[3] }; }) });
       return { result: r, exitCode: r.exitCode ?? (r.status === 'PASS' ? 0 : 1), text: `${r.status} (${r.failing_stage ?? 'ok'}): ${r.notes ?? ''}\n${r.output}` };
     }
     if (kind === 'm2-judge') {
@@ -190,6 +190,12 @@ export const commands = {
       const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
       const common = { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, bumpRefcounts: !o['no-refcounts'], extraFindings: o['also-finding'] ?? [] };
       let r, p;
+      if (o['link-after'] !== undefined) {
+        r = R.planLinkClone(buf, fixups, { source: Number(o['link-after']), linkField: o['link-field'] !== undefined ? Number(o['link-field']) : 0x64, findingId: common.findingId, insertBefore: o['insert-before'] !== undefined ? Number(o['insert-before']) : null, edits, extraFindings: common.extraFindings });
+        p = r.plan;
+        const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
+        return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: p.validation.status + ' [link-after]: ' + p.source.type_name + '@0x' + p.source.object_offset.toString(16) + ' (' + p.source.block_bytes + ' B) -> clone @0x' + p.insert_at.toString(16) + '; link +0x' + p.link_field.toString(16) + ': source -> clone, clone -> 0x' + p.old_next.toString(16) + '; moved records ' + p.moved_records + '; +' + p.inserted_bytes + ' B; no table change\n' + p.validation.failures.map(f => '  ' + f.stage + ': ' + f.reason).join('\n') + (written.planFile ? '\nplan ' + written.planFile : '') + '\nfile ' + written.outFile };
+      }
       if (o.overwrite !== undefined) {
         r = R.planOverwriteClone(buf, fixups, { ...common, target: Number(o.overwrite) });
         p = r.plan;

@@ -1,0 +1,26 @@
+{
+  "id": "igz.detection.heuristic-limits",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "audit of the object-graph heuristics against runtime truth (ptr-scan3 dump + fixup map)",
+  "structure": "Which parts of the static object graph are trustworthy",
+  "location": {
+    "offset": "n/a",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Checked against the resident image: (a) header detection {type<224, refcount==1, 0x01xxxxxx} yields 272 records the loader never touches; all heuristic tfbActorInfo (15), CameraInfo (15), AbstractPlacement (6) and ActorWaypoint (7) headers are among them, with zero inbound confirmed pointers — they are FALSE headers (bytes inside other records), not objects; (b) the container decoder (igz containers/members, T032) is almost entirely noise: of 8 549 \"pointer lists with free capacity\", 8 346 have element words that are not confirmed pointers and 8 345 a \"pointer field\" that is not a pointer; (c) runtime-derived lists (runs of >=3 confirmed pointer words designated by a confirmed pointer with a count before it) number 609, hold embedded sub-records rather than top-level entities, and none has spare capacity; (d) trustworthy: PlacementReference (698/704 constructed) and tfbSpriteInfo (4 301/4 302) are real multi-instance objects; the header table, the fixup map (pointer/id/class words) and the visited flags are runtime ground truth. Rule: any structural edit must be justified by runtime-confirmed data (table entries, confirmed pointer words, visited flags), never by header/container heuristics alone.",
+  "evidence": [
+    {
+      "probe": "scratch lists-free.mjs / lists-runtime.mjs / entities-owners.mjs over ptr-scan3-fixups.json + ptr-scan3-section1.bin",
+      "summary": "heuristic lists: 0/8549 pass runtime checks; false-header types have 0 visited / 0 inbound; PlacementReference 698/704 visited"
+    },
+    {
+      "probe": "igz fixups (ptr-scan2/3)",
+      "summary": "272 unvisited detected \"objects\" scattered among 21 408 visited ones"
+    }
+  ]
+}

@@ -343,6 +343,61 @@ export function planOverwriteClone(buf, fixups, { start, end, target, findingId,
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
 }
 
+// Linked-chain duplication (generic world entity, no table change, no global shift). The source P is a
+// record whose only section-1 pointer is its "next" link (PlacementReference +0x64, finding
+// level.placement.linked-chain). The copy P' is inserted before insertBefore (the tail records are the
+// only bytes that move); P.next is redirected to P', P'.next takes P's old next, P' gets refcount 1.
+// Inside the enumerated span AND referenced by a constructed record, P' is expected to be constructed; a
+// RAM probe on a byte pattern shared by P and P' verifies it.
+export function planLinkClone(buf, fixups, { source, linkField, findingId, insertBefore, edits = [], findingsOpts = {}, extraFindings = [] }) {
+  const finding = Findings.load(findingId, findingsOpts);
+  if (finding.confidence !== 'CONFIRMED') { const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED'); e.exitCode = 1; throw e; }
+  const graph = buildGraph(buf, { fields: false });
+  const sec = graph.sections[graph.object_section];
+  const P = graph.objects.find(o => o.offset === source);
+  if (!P) throw Object.assign(new Error('no object at 0x' + source.toString(16)), { exitCode: 1 });
+  const failures = [], changes = [];
+  const align = Math.max(4, sec.align || 4);
+  const ptrSet = new Set(fixups.pointer_words);
+  for (let q = 12; q < P.size; q += 4) if (q !== linkField && ptrSet.has(P.offset + q)) failures.push({ stage: 'reference', reason: 'source has another section-1 pointer at +0x' + q.toString(16) + '; not a pure chain node', offset: P.offset + q });
+  const oldNextRel = buf.readUInt32BE(P.offset + linkField);
+  const insertAt = insertBefore ?? sec.offset + sec.size;
+  if (insertAt !== sec.offset + sec.size && !graph.objects.some(o => o.offset === insertAt)) throw new Error('insertBefore 0x' + insertAt.toString(16) + ' is not an object header');
+  const copy = Buffer.alloc(P.size); buf.copy(copy, 0, P.offset, P.offset + P.size);
+  copy.writeUInt32BE(1, 4);
+  copy.writeUInt32BE(oldNextRel, linkField);
+  for (const ed of edits) { const [width, write] = TYPES[ed.type] ?? []; if (!write) throw new Error('unsupported edit type ' + ed.type); if (ed.offset + width > P.size) throw new Error('edit outside the record'); const old_hex = copy.subarray(ed.offset, ed.offset + width).toString('hex'); write(copy, ed.offset, ed.value); changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: copy.subarray(ed.offset, ed.offset + width).toString('hex') }); }
+  const words = { pointerWords: fixups.pointer_words.concat(fixups.head_pointer_words, fixups.cross_pointer_words ?? []), idWords: fixups.id_words };
+  let step = insertBytes(buf, graph, words, insertAt, copy);
+  let out = step.buffer; let updates = [...step.updates]; let pointerWordsNow = step.pointerWords;
+  const cloneOffset = insertAt;
+  const pad = (align - (copy.length % align)) % align;
+  if (pad) { const g1 = buildGraph(out, { fields: false }); const s1 = g1.sections[g1.object_section]; step = insertBytes(out, g1, { pointerWords: pointerWordsNow, idWords: step.idWords }, s1.offset + s1.size, Buffer.alloc(pad)); out = step.buffer; updates = updates.concat(step.updates); pointerWordsNow = step.pointerWords; }
+  const pLink = P.offset + linkField; const oldLink = out.readUInt32BE(pLink);
+  out.writeUInt32BE((cloneOffset - sec.offset) >>> 0, pLink);
+  updates.push({ location: pLink, field: 'source.next -> clone', old: oldLink, new: cloneOffset - sec.offset });
+  let after = null;
+  try {
+    after = buildGraph(out, { fields: false });
+    const c = after.objects.find(o => o.offset === cloneOffset);
+    if (!c || c.type !== P.type) failures.push({ stage: 'validation', reason: 'clone not recognised at the insert point', offset: cloneOffset });
+    if (after.objects.length !== graph.objects.length + 1) failures.push({ stage: 'count', reason: 'object count ' + after.objects.length + ', expected ' + (graph.objects.length + 1) });
+    if (after.sections.at(-1).offset + after.sections.at(-1).size !== out.length) failures.push({ stage: 'validation', reason: 'sections do not end at EOF' });
+    const secA = after.sections[after.object_section];
+    if (secA.offset + out.readUInt32BE(pLink) !== cloneOffset) failures.push({ stage: 'reference', reason: 'source.next does not point at the clone' });
+    if (out.readUInt32BE(cloneOffset + linkField) !== oldNextRel) failures.push({ stage: 'reference', reason: 'clone.next differs from the source old next' });
+    for (const o of graph.objects.filter(o => o.offset >= insertAt)) { const m = after.objects.find(x => x.offset === o.offset + copy.length); if (!m || m.type !== o.type) { failures.push({ stage: 'validation', reason: 'moved record 0x' + o.offset.toString(16) + ' not found at its new offset' }); break; } }
+    if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset })));
+  } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  const plan = { source: { object_offset: P.offset, type_name: P.type_name, finding_id: findingId, block_end: P.offset + P.size, block_bytes: P.size }, changes, insert_at: cloneOffset, updates: updates.slice(0, 200), new_id: P.id,
+    validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'link-after', link_field: linkField, old_next: oldNextRel, moved_records: graph.objects.filter(o => o.offset >= insertAt).length, inserted_bytes: copy.length + pad,
+    refcounts: [], findings: [findingId, ...extraFindings], method: 'linked-chain duplication (copy inserted before the tail, predecessor link redirected; no table change)' };
+  const v = schemaValidator('duplication-plan.schema.json', contracts002);
+  const { source: { block_end, block_bytes, ...src }, mode, link_field, old_next, moved_records, inserted_bytes, refcounts, findings, method, ...rest } = plan;
+  plan.schema_valid = v({ ...rest, source: src }); plan.schema_errors = v.errors ?? null;
+  return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
+}
+
 export function writeReachablePlan(result, { outFile, planFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, result.buffer);
