@@ -3,7 +3,7 @@
   "updated": "2026-09-13",
   "editable": false,
   "category": "world-entities",
-  "confidence": "LIKELY",
+  "confidence": "CONFIRMED",
   "endian": "be",
   "type": "a second, byte-identical instance of a PlacementReference chain node (0x70; texture reference \"globaltextures/checker.png\") constructed and post-load-processed by the engine",
   "structure": "First duplicated IGZ record instantiated as a live object (M3 mechanism)",
@@ -21,6 +21,10 @@
     {
       "probe": "static plan verification (scratch swapN.mjs / igz clone-entity --replace-node)",
       "summary": "6 words changed, all inside the victim block; file length unchanged; graph 21 680 objects before and after"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789301970935",
+      "summary": "formal M3 PASS: 2/2 identical runs (screening run 1789301273731 concordant): slot 0x1231A8 class 0x8049C738 via P.next, chain pred -> P -> copy -> 0x123218 constructed, tail roots constructed, level playing (132 heap copies of the spawn position); judged with experiment m2-judge"
     }
   ]
 }

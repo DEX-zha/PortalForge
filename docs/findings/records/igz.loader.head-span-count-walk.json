@@ -25,6 +25,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789301273731",
       "summary": "same-size replacement in the head span (no insertion) keeps the walk aligned: the type-52 array constructed normally and the level played — consistent with a count-bounded head walk"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789301970935",
+      "summary": "same-size replacement (no insertion) passed twice: consistent with the count-bounded head walk"
     }
   ]
 }

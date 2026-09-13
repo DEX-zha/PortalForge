@@ -1,13 +1,13 @@
 {
     "gate": "M3 — Entity duplication",
-    "status": "MECHANISM ACHIEVED (screening); formal PASS pending 2 repeats",
+    "status": "PASS",
     "decided_on": "2026-09-13",
     "prerequisites": [
         "M0",
         "M1",
         "M2"
     ],
-    "blocking_unknown": "None for the mechanism. Open for a VISIBLE duplication: the demonstrated subject is a texture-reference node (checker.png) with no transform; a positioned entity type with a free or sacrificable slot is needed, or the head-span record count must be located to allow insertion. Formal M3 PASS requires 2 identical repeats judged on the RAM observable (slot class pointer 0x8049C738, level playing).",
+    "blocking_unknown": "None for the gate. Known limits: the duplicated subject is a texture-reference chain node (globaltextures/checker.png) with no transform, so the duplicate is not visible and the victim node (focus_mapper.png reference) is lost; visible duplication of a positioned prop is the next chantier (scene-graph nodes igNodeList/igTransformSequence referencing section-4/6 geometry; the count-bounded head walk forbids insertion, so a same-size replacement or the head-span record count is needed).",
     "registration_paths_tried": [
         "grow the header table (global 32-byte shift): relocation desync, froze at 1 036/21 680 records",
         "redirect an existing table entry to an appended clone: froze",
@@ -39,12 +39,16 @@
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789299359139.json (chain copy inside a type-52 blob: constructed then stomped, hang)",
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789299899074.json (append + link: plays, copy raw — pointing does not construct)",
         ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789300434156.json (head-span insertion: copy constructed, type-52 walker off by one record, hang)",
-        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301273731.json (same-size replacement: PLAYS, copy constructed and post-load-processed — mechanism achieved)"
+        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301273731.json (same-size replacement: PLAYS, copy constructed and post-load-processed — mechanism achieved)",
+        ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789301970935.json (FORMAL: 2 identical runs, PASS)"
     ],
     "does_not_validate": [
         "M4A geometry",
         "M4B collisions",
         "M5 playable scenario"
     ],
-    "details": "docs/experiments/README.md, docs/findings/references.md, docs/findings/igz-objects.md"
+    "details": "docs/experiments/README.md, docs/findings/references.md, docs/findings/igz-objects.md",
+    "validated_on": "2026-09-13",
+    "pass_experiment": "m3-level_027_tutorial-e3-1789301970935",
+    "pass_summary": "Entity duplication demonstrated: a byte-identical copy of PlacementReference 0x123138 written over its successor slot 0x1231A8 (6 words changed, zero shift, no table/count/size change) is constructed by the loader (class 0x8049C738, reached through P.next), processed by the post-load phase like an original, and the level loads and plays in 2/2 formal runs (+1 screening). Two live instances of the same record coexist in the chain. Observable: RAM reads (experiment m3 --read) + level playing; judged with experiment m2-judge."
 }
