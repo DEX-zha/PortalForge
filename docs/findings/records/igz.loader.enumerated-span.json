@@ -25,6 +25,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
       "summary": "confirmed: clone owner constructed as a 0x2A8 blob (= owner 0x94 + physics 0x214), the loader walked to the next table-listed record; the type-92 record owns a contiguous blob including its embedded tfbPhysicsModel"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789299899074",
+      "summary": "append-after-last WITH a rebased pointer to the copy: still raw. The span is defined by the table-record blobs, not by reachability; bytes past the last blob are never constructed even when pointed at."
     }
   ]
 }

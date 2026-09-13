@@ -363,9 +363,12 @@ export function planLinkClone(buf, fixups, { source, linkField, findingId, inser
   const oldNextRel = buf.readUInt32BE(P.offset + linkField);
   const insertAt = insertBefore ?? sec.offset + sec.size;
   if (insertAt !== sec.offset + sec.size && !graph.objects.some(o => o.offset === insertAt)) throw new Error('insertBefore 0x' + insertAt.toString(16) + ' is not an object header');
+  // the copy keeps P's old successor as its own next; if that successor lies at/after the insert point it
+  // moves by the copy length, so the new link must be rebased too (it is not in the fixup map: it is new)
+  const newNextRel = (oldNextRel !== 0 && sec.offset + (oldNextRel & 0xffffff) >= insertAt) ? oldNextRel + P.size : oldNextRel;
   const copy = Buffer.alloc(P.size); buf.copy(copy, 0, P.offset, P.offset + P.size);
   copy.writeUInt32BE(1, 4);
-  copy.writeUInt32BE(oldNextRel, linkField);
+  copy.writeUInt32BE(newNextRel >>> 0, linkField);
   for (const ed of edits) { const [width, write] = TYPES[ed.type] ?? []; if (!write) throw new Error('unsupported edit type ' + ed.type); if (ed.offset + width > P.size) throw new Error('edit outside the record'); const old_hex = copy.subarray(ed.offset, ed.offset + width).toString('hex'); write(copy, ed.offset, ed.value); changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: copy.subarray(ed.offset, ed.offset + width).toString('hex') }); }
   const words = { pointerWords: fixups.pointer_words.concat(fixups.head_pointer_words, fixups.cross_pointer_words ?? []), idWords: fixups.id_words };
   let step = insertBytes(buf, graph, words, insertAt, copy);
@@ -385,12 +388,13 @@ export function planLinkClone(buf, fixups, { source, linkField, findingId, inser
     if (after.sections.at(-1).offset + after.sections.at(-1).size !== out.length) failures.push({ stage: 'validation', reason: 'sections do not end at EOF' });
     const secA = after.sections[after.object_section];
     if (secA.offset + out.readUInt32BE(pLink) !== cloneOffset) failures.push({ stage: 'reference', reason: 'source.next does not point at the clone' });
-    if (out.readUInt32BE(cloneOffset + linkField) !== oldNextRel) failures.push({ stage: 'reference', reason: 'clone.next differs from the source old next' });
+    if (out.readUInt32BE(cloneOffset + linkField) !== (newNextRel >>> 0)) failures.push({ stage: 'reference', reason: 'clone.next differs from the (rebased) old next' });
+    if (newNextRel !== 0 && after.sections[after.object_section].offset + (newNextRel & 0xffffff) === cloneOffset) failures.push({ stage: 'reference', reason: 'clone.next points at the clone itself (self-loop)' });
     for (const o of graph.objects.filter(o => o.offset >= insertAt)) { const m = after.objects.find(x => x.offset === o.offset + copy.length); if (!m || m.type !== o.type) { failures.push({ stage: 'validation', reason: 'moved record 0x' + o.offset.toString(16) + ' not found at its new offset' }); break; } }
     if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset })));
   } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
   const plan = { source: { object_offset: P.offset, type_name: P.type_name, finding_id: findingId, block_end: P.offset + P.size, block_bytes: P.size }, changes, insert_at: cloneOffset, updates: updates.slice(0, 200), new_id: P.id,
-    validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'link-after', link_field: linkField, old_next: oldNextRel, moved_records: graph.objects.filter(o => o.offset >= insertAt).length, inserted_bytes: copy.length + pad,
+    validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'link-after', link_field: linkField, old_next: oldNextRel, new_next: newNextRel, moved_records: graph.objects.filter(o => o.offset >= insertAt).length, inserted_bytes: copy.length + pad,
     refcounts: [], findings: [findingId, ...extraFindings], method: 'linked-chain duplication (copy inserted before the tail, predecessor link redirected; no table change)' };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
   const { source: { block_end, block_bytes, ...src }, mode, link_field, old_next, moved_records, inserted_bytes, refcounts, findings, method, ...rest } = plan;

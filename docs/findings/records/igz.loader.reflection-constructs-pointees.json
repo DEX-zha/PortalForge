@@ -6,13 +6,13 @@
   "confidence": "LIKELY",
   "endian": "be",
   "type": "a record pointed at by a constructed record`s pointer field is constructed (class pointer assigned, fields rebased) even when it is not a header-table entry",
-  "structure": "Reachability through a rebased pointer field is what instantiates a non-table record",
+  "structure": "Pointer fields are rebased by reflection, but a pointee is constructed only by the positional walk of the table-record blob that contains it",
   "location": {
     "offset": "PlacementReference +0x64 (next link) as the test case",
     "file_pattern": "level/*.bld:level.bld (decoded)",
     "length": 4
   },
-  "meaning": "In run m3-…-1789299359139 the copied PlacementReference at 0x457588 had no header-table entry; it was reached only through the predecessor`s rebased +0x64 link (live 0x812135A8 = base + 0x457588) and received the PlacementReference class pointer 0x8049C738 — the same as the original P and its old successor N, both also constructed. This is the missing link of M3: a duplicate of a generic entity becomes a live object when (1) a constructed record points at it and (2) no table-record constructor walks over it. The remaining condition to satisfy is (2), by placing the copy at the section end instead of inside a blob.",
+  "meaning": "Two boots with the same PlacementReference copy linked through P.next: inside a type-52 blob it was constructed (by that blob`s stride walk reading the copy`s type word) and stomped; appended outside every blob it stayed raw while P.next pointed at it and the level played normally. Therefore: (1) construction = each header-table record walks its blob [entry, next entry) and constructs every sub-record it lands on by its type word; (2) reflection only rebases pointer fields; pointing at a record never constructs it; (3) a raw pointee does not crash the game (inert). To duplicate a placement, the copy must sit INSIDE the blob of the table record that already owns P and N, at a position that blob`s walker reaches with the correct stride — i.e. inserted at N`s position, shifting N and the rest of the section by the record size, with every pointer word rebased from the fixup map.",
   "evidence": [
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789299359139",
@@ -21,6 +21,10 @@
     {
       "probe": "ptr-scan1/2/3 fixup maps",
       "summary": "PlacementReference class pointer is 0x8049C738 for every constructed instance; +0x64 words are runtime-confirmed pointers"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789299899074",
+      "summary": "CONTRADICTION: CONTRADICTION: the same PlacementReference copy appended at the section end (outside every table-record blob) and linked through P.next was NOT constructed: P.next was rebased to the copy (0x812139E0 = base + 0x4579C0) but the copy header stayed raw (0x0000000C). The level loaded and played normally (no freeze, tail roots constructed), so a raw pointee is tolerated but inert. Reflection rebases pointer fields; it does not construct what they point at. In run 1789299359139 the copy was constructed by the type-52 blob walk that read its type word, not by reflection."
     }
   ]
 }
