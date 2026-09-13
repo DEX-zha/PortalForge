@@ -105,15 +105,28 @@ export async function runM2({ archive, entry, offset, type, value, predict, find
 
 function saveRecord(record) {
   const v = schemaValidator('experiment-record.schema.json');
-  const { output, rebuild, expected_monitor, schema_valid, schema_errors, exitCode, ...strict } = record;
+  const { output, rebuild, expected_monitor, schema_valid, schema_errors, exitCode, replicates, ...strict } = record;
   record.schema_valid = v(strict); record.schema_errors = v.errors ?? null;
   fs.writeFileSync(record.output ?? path.join(experimentsDir, `${record.id}.json`), JSON.stringify(record, null, 2));
 }
 
 // Human judgement: records observed_effect for one run and re-evaluates the M2 rule.
-export function judge({ id, run, observed, match, dir = experimentsDir }) {
+// SC-004 counts repetitions of the SAME INPUT: a run recorded in another experiment whose rebuilt archive has the
+// identical sha256 (and disc path) is the same input booted again, so `replicates` lets it count toward the
+// repetition requirement. Only fully judged, all-matching, crash-free replicas are accepted.
+export function judge({ id, run, observed, match, replicates = [], dir = experimentsDir }) {
   const file = path.join(dir, `${id}.json`);
   const record = JSON.parse(fs.readFileSync(file, 'utf8'));
+  let replicaRuns = 0; const accepted = [];
+  for (const rid of replicates) {
+    const other = JSON.parse(fs.readFileSync(path.join(dir, `${rid}.json`), 'utf8'));
+    if (rid === id) throw new Error('an experiment cannot replicate itself');
+    if (!record.inputs?.rebuilt_sha256 || other.inputs?.rebuilt_sha256 !== record.inputs.rebuilt_sha256 || other.inputs?.archive_disc_path !== record.inputs?.archive_disc_path) throw new Error(`${rid} is not the same input (rebuilt archive sha256 / disc path differ)`);
+    const ok = other.runs.length && other.runs.every(x => x.observed_effect && x.matches_prediction && !x.crash_or_load_error);
+    if (!ok) throw new Error(`${rid} is not a fully judged, all-matching, crash-free record`);
+    replicaRuns += other.runs.length; accepted.push({ experiment_id: rid, runs: other.runs.length, rebuilt_sha256: other.inputs.rebuilt_sha256 });
+  }
+  if (accepted.length) record.replicates = accepted;
   const r = record.runs[run - 1];
   if (!r) throw new Error(`run ${run} does not exist (${record.runs.length} run(s))`);
   r.observed_effect = observed; r.matches_prediction = match;
@@ -121,8 +134,8 @@ export function judge({ id, run, observed, match, dir = experimentsDir }) {
   if (judged.length === record.runs.length) {
     const allMatch = record.runs.every(x => x.matches_prediction && !x.crash_or_load_error);
     if (!allMatch) { record.status = 'FAIL'; record.failing_stage = 'observation'; record.notes = 'observation did not match the prediction in every run; finding stays unconfirmed (FR-012)'; }
-    else if (record.runs.length < 2) { record.status = 'UNKNOWN'; record.failing_stage = null; record.notes = 'predicted effect observed once; SC-004 requires the same input to be repeated at least twice before PASS (screening result)'; }
-    else { record.status = 'PASS'; record.failing_stage = null; record.notes = `predicted effect observed in ${record.runs.length}/${record.runs.length} runs`; }
+    else if (record.runs.length + replicaRuns < 2) { record.status = 'UNKNOWN'; record.failing_stage = null; record.notes = 'predicted effect observed once; SC-004 requires the same input to be repeated at least twice before PASS (screening result)'; }
+    else { record.status = 'PASS'; record.failing_stage = null; record.notes = `predicted effect observed in ${record.runs.length + replicaRuns}/${record.runs.length + replicaRuns} runs of the same input` + (replicaRuns ? ` (${record.runs.length} here + ${replicaRuns} in identical-input experiment(s) ${accepted.map(a => a.experiment_id).join(', ')})` : ''); }
   } else record.notes = `${judged.length}/${record.runs.length} run(s) judged`;
   record.output = file; saveRecord(record);
   return record;

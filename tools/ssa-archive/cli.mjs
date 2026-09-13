@@ -44,7 +44,7 @@ const options = {
   layout: { type: 'string' }, pad: { type: 'string' }, 'reencode-all': { type: 'boolean', default: false }, force: { type: 'boolean', default: false },
   script: { type: 'string' }, label: { type: 'string' }, variant: { type: 'string' }, 'skip-control': { type: 'boolean', default: false },
   category: { type: 'string' }, to: { type: 'string' }, probe: { type: 'string' }, summary: { type: 'string' }, limit: { type: 'string' },
-  watch: { type: 'string', multiple: true }, finding: { type: 'string' }, run: { type: 'string' }, observed: { type: 'string' }, match: { type: 'string' },
+  watch: { type: 'string', multiple: true }, finding: { type: 'string' }, run: { type: 'string' }, observed: { type: 'string' }, match: { type: 'string' }, replicates: { type: 'string', multiple: true },
   pattern: { type: 'string', multiple: true }, poke: { type: 'string', multiple: true }, 'save-slot': { type: 'string' },
   histogram: { type: 'boolean', default: false }, tol: { type: 'string' }, 'no-dimensions': { type: 'boolean', default: false }, dimensions: { type: 'boolean', default: false }, base: { type: 'string' }, address: { type: 'string' },
   set: { type: 'string', multiple: true }, plan: { type: 'string' }, 'append-to-list': { type: 'boolean', default: false }, file: { type: 'string' }, depth: { type: 'string' },

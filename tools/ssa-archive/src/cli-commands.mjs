@@ -109,7 +109,7 @@ export const commands = {
     }
     if (kind === 'm2-judge') {
       const { judge } = await import('./experiments/m2-mutation.mjs');
-      const r = judge({ id: need(o.id, 'id'), run: Number(need(o.run, 'run')), observed: need(o.observed, 'observed'), match: String(o.match ?? '').toLowerCase() === 'yes' });
+      const r = judge({ id: need(o.id, 'id'), run: Number(need(o.run, 'run')), observed: need(o.observed, 'observed'), match: String(o.match ?? '').toLowerCase() === 'yes', replicates: o.replicates ?? [] });
       return { result: r, exitCode: r.status === 'FAIL' ? 1 : 0, text: `${r.status}: ${r.notes}` };
     }
     throw new CliError(`Unknown experiment kind ${kind}`, 3);

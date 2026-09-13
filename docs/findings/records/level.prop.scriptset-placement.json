@@ -3,7 +3,7 @@
   "updated": "2026-09-13",
   "editable": false,
   "category": "world-entities",
-  "confidence": "LIKELY",
+  "confidence": "CONFIRMED",
   "endian": "be",
   "type": "type-111 ScriptSet record (opcode \"set [set]||to\", size 0x1C8/0x1E4) inside the 027_OpeningCS_Controller.ai script blob: template name (section-2 string) at +0x50, world position f32be triple at +0x6C, heading f32be at +0x7C, scale f32be at +0x100, model path (section-2 string) at +0x1A0; companions ScriptSetReference (+0x1AC, type 65), igNodeList x2 (+0x128, +0x1B0, type 66), type 67 at +0x1B8; shared type-112 record at +0x1C (refcount 10)",
   "structure": "Placed visible props (sunflowers, weeds) of the tutorial island are instructions of the opening-cutscene controller script with inline position/heading/scale and the model path",
@@ -21,6 +21,18 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789303984407",
       "summary": "screening (1 boot, control skipped): sunflower_Template(1) copied over weed_2_Template(8) with +0x6C = (85.5, 10, 42) via igz clone-entity --replace-record (keep +0x50,+0x128,+0x1AC,+0x1B0,+0x1B8). Level loads and plays; THREE sunflowers stand by the windmill instead of two, the new one at the left of the pair as predicted. First VISIBLE duplication. Formal 2-run confirmation pending."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304493862",
+      "summary": "formal confirmation: second identical boot of the same file (sunflower(1) copied over weed(8) at (85.5, 10, 42) via --replace-record) reproduces the result exactly: level plays, three sunflowers by the windmill. 2/2 identical (SC-004). The type-111 placement record (+0x6C position) is a visible, editable and duplicatable handle."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304493862",
+      "summary": "formal confirmation: second boot of the byte-identical rebuilt archive (sha256 8bd2ef6b…, same as 1789303984407) reproduces the result exactly: level plays, three sunflowers by the windmill. Same input matched 2/2 (SC-004). The type-111 placement record (+0x6C position, +0x1A0 model) is a visible, editable and duplicatable handle via igz clone-entity --replace-record."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304493862",
+      "summary": "formal confirmation: second boot of the byte-identical rebuilt archive (sha256 8bd2ef6b…, same as 1789303984407) reproduces the result exactly: level plays, three sunflowers by the windmill. Same input matched 2/2 (SC-004, judged with --replicates). The type-111 placement record (+0x6C position, +0x1A0 model) is a visible, editable and duplicatable handle via igz clone-entity --replace-record."
     }
   ]
 }
