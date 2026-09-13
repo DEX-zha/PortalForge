@@ -25,6 +25,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789304824550",
       "summary": "the in-place move of sunflower_Template(2) edited exactly this record`s +0x24..+0x2C (wrapper +0x6C) and the plant moved on screen"
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o3296360-1789305999607",
+      "summary": "screening (1 boot): Windmill_Blades2 (layer Jump pads_PushBLock_Gates, not a type-111 wrapper) x moved 85.52 -> 79.5 at the record`s +0x24: the blades render detached from the hub, displaced as predicted, level plays. The handle holds for a non-plant, non-script-wrapper placement. A second identical boot would make it CONFIRMED."
     }
   ]
 }

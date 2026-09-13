@@ -58,7 +58,9 @@ Each row: offset, name, position, heading, scale, model, script, layers. This is
 
 ## 2. Move a prop (M2-style, in place)
 
-Edit the three floats at `+0x24` of the type-104 record (= `+0x6C` of a type-111 wrapper).
+Edit the three floats at `+0x24` of the type-104 record (= `+0x6C` of a type-111 wrapper). Demonstrated on a
+non-plant placement too: `Windmill_Blades2` (layer Jump pads_PushBLock_Gates) moved 6 units renders detached from the
+mill hub (run `m2-level_027_tutorial-e3-o3296360-1789305999607`).
 Nothing else changes; file length unchanged. Demonstrated on `sunflower_Template(2)` (0x1E4 variant)
 in run `m3-level_027_tutorial-e3-1789304824550`: the plant stood where the new triple said.
 
