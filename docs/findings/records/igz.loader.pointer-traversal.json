@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-12",
+  "updated": "2026-09-13",
   "editable": false,
   "id": "igz.loader.pointer-traversal",
   "category": "references",
@@ -25,6 +25,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789256232052",
       "summary": "CONTRADICTION of the root hypothesis: with table entry #1074 redirected from the spawn owner to an appended clone (no relocation), the original owner and its physics model were fully constructed (class pointers, position copied) while the clone stayed raw and the load froze. Table entries do not drive construction; whatever enumerates objects reached the owner without any file pointer to its header other than its child back-pointer."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
+      "summary": "Clone block inserted INSIDE the enumerated range (before the tail objects), no table entry, refcounts bumped: the clone OWNER was fully constructed in RAM (class pointer 0x80485F48, id remapped, +0x18 rebased) — so being inside the range is what makes a record enumerated — but its embedded tfbPhysicsModel child (owner+0x94) stayed RAW and the load hung. The loader reaches records by position in the enumerated span, and an owner constructs its embedded children itself; the hang is inside constructing the cloned child."
     }
   ]
 }

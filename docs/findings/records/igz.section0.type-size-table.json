@@ -1,26 +1,30 @@
 {
-    "updated":  "2026-09-12",
-    "editable":  false,
-    "id":  "igz.section0.type-size-table",
-    "type":  "u32[type count]",
-    "evidence":  [
-                     {
-                         "probe":  "research-probes/probe-igz-objects.mjs",
-                         "summary":  "202 names counted between 0x834 and 0x14E0; a u32 array starts immediately after"
-                     },
-                     {
-                         "probe":  "src/igz/types.mjs + igz types --histogram on the tutorial",
-                         "summary":  "Block record found at 0xA64; 21 687 objects enumerate with the NUL-split numbering and the M2-confirmed record is type 123 tfbPhysicsModel"
-                     }
-                 ],
-    "category":  "igz-objects",
-    "meaning":  "Names are NUL-terminated strings from section0+0x34; after 36 names a 12-byte record {0xA4, next_block_offset 0xA7C, 0x18} precedes the next block (0x834 + 0x248 = 0xA7C, and 0x248 is word 11 of the second header). Splitting the range on NUL yields ~226 entries including empty/garbage ones from the records; object type indexes follow that numbering (tfbActorInfo 13, tfbPhysicsModel 123, tfbSpriteInfo 113, igIntKey 100). The u32 table after the names (0xC, 0, 0, 0xA4, 0x2A8, ...) does not match measured object strides (tfbSpriteInfo hint 304 vs median 0x4C): meaning UNKNOWN.",
-    "structure":  "Type-name table in blocks with 12-byte block records, then a u32 table",
-    "endian":  "be",
-    "location":  {
-                     "offset":  "0x14E0 in the tutorial file (4-aligned end of the name list)",
-                     "file_pattern":  "level/*.bld:level.bld (decoded)",
-                     "length":  4
-                 },
-    "confidence":  "UNKNOWN"
+  "updated": "2026-09-13",
+  "editable": false,
+  "id": "igz.section0.type-size-table",
+  "type": "u32[type count]",
+  "evidence": [
+    {
+      "probe": "research-probes/probe-igz-objects.mjs",
+      "summary": "202 names counted between 0x834 and 0x14E0; a u32 array starts immediately after"
+    },
+    {
+      "probe": "src/igz/types.mjs + igz types --histogram on the tutorial",
+      "summary": "Block record found at 0xA64; 21 687 objects enumerate with the NUL-split numbering and the M2-confirmed record is type 123 tfbPhysicsModel"
+    },
+    {
+      "probe": "scratch sizestream.mjs / sec0.mjs over the tutorial + ptr-scan3 MEM1 dump",
+      "summary": "cumsum of the 176 small words lands on 0-3/170 headers for every start; section 0 runtime diff: 76 382/76 384 words identical"
+    }
+  ],
+  "category": "igz-objects",
+  "meaning": "Section 0 holds the 224 type names then, at 0x14E0, a 176-word table of small values (0x0c, 0, 0, 0xA4, 0x2A8, 0x18, per-type instance sizes/vtable hints, high 90% agreement is not reached so sizes stay a hint, not authoritative) followed by ~75 000 words of 32-bit hashes (name/resource ids, not sizes). It is NOT a sequential record-size stream: cumulative sums from any start index land on almost no record headers, and its sum (12 146) is nothing like the object area (4 234 076). Section 0 is copied to MEM1 (0x814DA800) essentially unchanged at load (2 words of 76 384 differ): it is a lookup table read in place, not walked to build objects. Object sizes are therefore bounded only by the next header (igz.section1.object-list), which is why the loader must already know where records are before constructing them.",
+  "structure": "Type-name table in blocks with 12-byte block records, then a u32 table",
+  "endian": "be",
+  "location": {
+    "offset": "0x14E0 in the tutorial file (4-aligned end of the name list)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "confidence": "LIKELY"
 }

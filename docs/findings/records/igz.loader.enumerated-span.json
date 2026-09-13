@@ -1,0 +1,26 @@
+{
+  "id": "igz.loader.enumerated-span",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "the contiguous object span [first object, last constructed object] that the loader instantiates",
+  "structure": "Objects live only inside the enumerated span; embedded children are built by their owner",
+  "location": {
+    "offset": "section 1, first object (block end +0x1C) to the last record before the header table area",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Three boots pin the enumeration: (1) a clone appended AFTER the last object stays raw and the level is fine; (2) a clone inserted BEFORE the tail objects is constructed; (3) redirecting a table entry to an unconstructed record hangs the post-construction table pass. So construction walks a contiguous span of records (not the header table, not a size stream, not ownership pointers from roots), each top-level record building the children embedded after it. To duplicate an entity the copy must land inside the span (igz clone-entity --insert-before) AND its embedded child must construct without error; the current clone hangs while building the child, which is the remaining M3 blocking unknown (candidate causes: a resource handle/flagged 0x8xxxxxxx field the child constructor dereferences, or a count/pointer inside the physics record that must be re-pointed, not just rebased).",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789256664691",
+      "summary": "append-after-last: clone raw, level alive (132 heap copies of the spawn position)"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
+      "summary": "insert-before-tail: clone owner constructed, embedded physics raw, load hung"
+    }
+  ]
+}

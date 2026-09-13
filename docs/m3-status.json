@@ -1,26 +1,37 @@
 {
-    "does_not_validate":  [
-                              "M4A geometry",
-                              "M4B collisions",
-                              "M5 playable scenario"
-                          ],
     "gate":  "M3 — Entity duplication",
-    "blocking_unknown":  "The structure the engine walks to instantiate level records: neither appending an object nor referencing it from the section-1 header list creates a second instance. Candidates: parent/child object references (flagged 0x8xxxxxxx pointers), the type-52 chain nodes at S1+0x20, script sets. Appending an object and growing the LZMA chunk table are tolerated by the game (positive side result).",
-    "evidence":  [
-                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789250807367.json (clone of the CONFIRMED spawn record appended to section 1 and listed in a null slot; level loads, no effect in 2/2 runs)"
-                 ],
-    "validated_on":  null,
+    "status":  "FAIL",
+    "decided_on":  "2026-09-13",
     "prerequisites":  [
                           "M0",
                           "M1",
                           "M2"
                       ],
-    "decided_on":  "2026-09-13",
-    "details":  "docs/experiments/README.md, docs/findings/references.md",
-    "status":  "FAIL",
+    "blocking_unknown":  "The loader constructs the contiguous span of records in section 1 (first object to the last record before the header table); each top-level record builds the sub-objects embedded after it. A clone placed inside that span with all section-1/section-5 pointers rebased, refcounts bumped and a header-table entry is enumerated and its owner record is constructed in RAM, but constructing its embedded tfbPhysicsModel child hangs the load. What in the child constructor fails is the remaining unknown: a candidate is a flagged 0x8xxxxxxx global-handle field or an internal count/pointer that must be re-pointed rather than only rebased.",
+    "mechanism_found":  "Why a valid appended IGZ object is not instantiated: (1) the loader does not walk section 1 sequentially, does not use the header table as a construction root and does not use the section-0 table as a size stream; it constructs a contiguous span of records and each record builds its embedded children (findings igz.loader.enumerated-span, igz.loader.pointer-traversal). (2) An object appended after the last record is outside the span and stays raw bytes (never constructed) — the cause of the first M3 failure. (3) Loading applies a fixup pass: section-indexed pointers (igz.pointer.section-indexed), class pointers, id remap, reference counts (igz.object.refcount); section 5 is a second object section with 2 320 pointers into section 1 (igz.section5.object-section).",
+    "positive_results":  [
+                             "The game tolerates an appended object, a grown LZMA chunk table and a modified section-1 header table (loads, plays)",
+                             "A clone inserted inside the enumerated span is enumerated and its owner record is constructed (class pointer, id remap, rebased pointers observed in RAM)",
+                             "The full load-time fixup map is reproducible offline (igz fixups)"
+                         ],
     "tooling_ready":  [
-                          "igz clone (DuplicationPlan, VALID re-parse)",
-                          "experiment m3",
-                          "chunk-count growth in the IGA writer"
-                      ]
+                          "igz refs / igz containers / igz members (reference graph)",
+                          "experiment ptr-scan --dimensions (resident MEM1/MEM2 dumps)",
+                          "igz fixups --regions (fixup map incl. cross-section pointers)",
+                          "igz clone-entity --insert-before --fixups (reachable, alignment- and refcount-aware clone)",
+                          "experiment m3 --probe --dump-section (RAM verification of the clone)"
+                      ],
+    "evidence":  [
+                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789250807367.json (append + list slot: clone raw, no effect)",
+                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789256232052.json (table entry redirected: originals constructed, load hung — table is not a construction root)",
+                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789256664691.json (append after last: clone raw, level alive)",
+                     ".local/dolphin-evidence/experiments/m3-level_027_tutorial-e3-1789257261106.json (insert inside span: owner constructed, child raw, load hung)",
+                     ".local/dolphin-evidence/ptr-scan1.json, ptr-scan2.json, ptr-scan3.json (resident dumps and fixup maps)"
+                 ],
+    "does_not_validate":  [
+                              "M4A geometry",
+                              "M4B collisions",
+                              "M5 playable scenario"
+                          ],
+    "details":  "docs/experiments/README.md, docs/findings/references.md, docs/findings/igz-objects.md"
 }
