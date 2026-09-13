@@ -26,6 +26,7 @@ type-111 "ScriptSet" wrapper (opcode text at +8: "set [set]||to")      sizes see
   0x1E4 variant (model by reference): +0x124 -> type-64 record (refcount 3), +0x128 internal
   0x198 variant (CS_ camera markers, push blocks): no companions; push blocks add +0xF0 -> type-92 behaviour script
   0x140 variant (PushBlock_Mabu): +0xF0 script, +0x10C t67, +0x124 t64, +0x128 t66, +0x12C t147
+  0x140 variant (Push_Block_Template(2)): +0xF0 script, +0x10C t67 only  -> the layout is NOT fixed by the size: read both records` pointer words from the fixup map
 ```
 
 Pointer fields above are the words the game rewrote in RAM (fixup map `ptr-scan3-fixups.json`), not
@@ -73,7 +74,7 @@ Recipes used so far:
 | --- | --- | --- | --- |
 | `sunflower_Template(1)` 0x34959C | `weed_2_Template(8)` 0x34AC18 | `50,128,1ac,1b0,1b8` | three sunflowers (2 identical boots, CONFIRMED) |
 | `weed_2_Template(8)` 0x34AC18 | `sunflower_Template(1)` 0x34959C | `50,128,1ac,1b0,1b8` | a weed where the sunflower stood (1 boot) |
-| `Push_Block_Template(1)` 0x232258 (script Remove_Stuf_at_start.ai) | `CS_Closing01a` 0x2D2844 (script 027_Level_End_Temp.ai) | `50` | G2, see experiments index |
+| `Push_Block_Template(1)` 0x232258 (script Remove_Stuf_at_start.ai) | `CS_Closing01a` 0x2D2844 (script 027_Level_End_Temp.ai) | `50` | **FROZE in-game** during the opening cutscene (G2): other script + other template class at once. Not a valid recipe. |
 
 Then rebuild and boot: `experiment m3 --archive level/Level_027_Tutorial.bld --entry 3 --plan <plan.json>
 --file <out.decoded> --predict "…" --repeat 1 --skip-control --figure <.sky>`; judge with
@@ -81,6 +82,9 @@ Then rebuild and boot: `experiment m3 --archive level/Level_027_Tutorial.bld --e
 rebuilt archive can be counted with `--replicates <first id>` (SC-004: same input, twice).
 
 ## 4. Limits (honest)
+
+- **Stay within one script and one template class** (same `+0x1C` target): the only cross-script, cross-class
+  replacement tried (G2) froze the game in-game. Isolating which of the two variables matters is in progress.
 
 - Duplication **consumes a slot**: the victim disappears. Candidates for sacrifice in the tutorial: the 18
   `CS_*` camera markers of cutscenes you do not need, the level-end markers. Growing the number of records
