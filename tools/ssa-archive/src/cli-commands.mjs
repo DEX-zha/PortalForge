@@ -379,6 +379,32 @@ export const commands = {
     }
     throw new CliError(`Unknown edit subcommand ${sub} (list|show|set|replace)`, 3);
   },
+  // shot: compare two boot screenshots (pixel diff + zoomed crop) so a visible effect is evidence, not eyeballing.
+  async shot(pos, o) {
+    const P = await import('./evidence/png.mjs');
+    const sub = pos[0];
+    if (sub === 'diff') {
+      const a = P.decode(path.resolve(need(pos[1], 'baseline png'))), b = P.decode(path.resolve(need(pos[2], 'png to compare')));
+      const boxes = P.diffBoxes(a, b, o.threshold ? Number(o.threshold) : 45, o.min ? Number(o.min) : 60);
+      const files = [];
+      if (o.out && boxes.length) {
+        const pad = 40, k = o.box ? Number(o.box) : 0, bx = boxes[k];
+        if (!bx) throw new CliError(`no diff cluster #${k} (found ${boxes.length})`);
+        const z = o.zoom ? Number(o.zoom) : 3, base = path.resolve(o.out).replace(/\.png$/i, '');
+        files.push(P.encode(P.crop(b, bx.x - pad, bx.y - pad, bx.w + 2 * pad, bx.h + 2 * pad, z), base + '-new.png'));
+        files.push(P.encode(P.crop(a, bx.x - pad, bx.y - pad, bx.w + 2 * pad, bx.h + 2 * pad, z), base + '-base.png'));
+      }
+      const lines = [a.w + 'x' + a.h + '; ' + boxes.length + ' diff cluster(s)', ...boxes.slice(0, 10).map((x, i) => '  [' + i + '] x' + x.x + ' y' + x.y + ' ' + x.w + 'x' + x.h + ' ' + x.pixels + ' px'), ...files];
+      return { result: { size: [a.w, a.h], boxes, files }, text: lines.join('\n') };
+    }
+    if (sub === 'crop') {
+      const img = P.decode(path.resolve(need(pos[1], 'png')));
+      const [x, y, w, h] = need(o.region, 'region').split(',').map(Number);
+      const f = P.encode(P.crop(img, x, y, w, h, o.zoom ? Number(o.zoom) : 3), path.resolve(need(o.out, 'out')));
+      return { result: { file: f }, text: f };
+    }
+    throw new CliError(`Unknown shot subcommand ${sub} (diff|crop)`, 3);
+  },
   async gates() {
     const docs = path.resolve(process.cwd(), '../../docs');
     const gates = ['M0', 'M1', 'M2', 'M3', 'M4A', 'M4B', 'M5'].map(name => {

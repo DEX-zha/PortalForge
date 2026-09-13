@@ -98,6 +98,7 @@ Recipes used so far:
 | --- | --- | --- | --- |
 | `sunflower_Template(1)` 0x34959C | `weed_2_Template(8)` 0x34AC18 | `50,128,1ac,1b0,1b8` | three sunflowers (2 identical boots, CONFIRMED) |
 | `weed_2_Template(8)` 0x34AC18 | `sunflower_Template(1)` 0x34959C | `50,128,1ac,1b0,1b8` | a weed where the sunflower stood (1 boot) |
+| `weed_flowerBTemplate(5)` 0x3D64E4 (standalone type-104) | `weed_2_Template(16)` 0x3D3E44 (standalone, same span 0x19C) | `auto` (name only) | t104-generic: a large flowerB plant renders at the new position; no shared record touched (1 boot) |
 | `Push_Block_Template(1)` 0x232258 (script Remove_Stuf_at_start.ai) | `CS_Closing01a` 0x2D2844 (script 027_Level_End_Temp.ai) | `50` | **FROZE in-game** during the opening cutscene (G2): other script + other template class at once. Not a valid recipe. |
 
 Then rebuild and boot: `experiment m3 --archive level/Level_027_Tutorial.bld --entry 3 --plan <plan.json>
@@ -168,8 +169,9 @@ node cli.mjs edit replace <level.bld.decoded> <source offset> --over <victim off
   unless `--allow-scripted` (the windmill blades carry `027_WindmillProp.ai` and moved fine, but a push block did not).
 - `replace` duplicates: it picks the **wrapper-proven** recipe when both placements sit at +0x48 of equal-size type-111
   wrappers (`edit replace 0x3495E4 --over 0x34AC60 --pos 85.5,10,42` reproduces the boot-confirmed three-sunflower file
-  byte for byte), otherwise the **t104-generic** recipe (same span, slot name/refcount/companions kept) which the plan
-  flags as *not yet confirmed by a boot*. A scripted source is refused unless `--allow-scripted`.
+  byte for byte), otherwise the **t104-generic** recipe (same span, slot name/refcount/companions kept), screening-confirmed by run
+  `m3-level_027_tutorial-e3-1789315647217`: a flowerB placement copied over a weed slot rendered as a flowerB at the
+  new position, with an empty `shared_records` list. It is the cleaner path whenever both placements are standalone. A scripted source is refused unless `--allow-scripted`.
 - Output is a decoded `level.bld`; rebuild and boot with `experiment m3 --file <out> --plan <plan>` (or `experiment m2`
   for a single float) and judge as usual. Fixup map required (tutorial: `ptr-scan3-fixups.json`).
 

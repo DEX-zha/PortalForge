@@ -7,8 +7,9 @@
 //   - "wrapper-proven": both placements are embedded at +0x48 of type-111 wrappers of equal size -> the recipe
 //     confirmed by m3-level_027_tutorial-e3-1789303984407 / 1789304493862 (copy the wrapper, keep its name and
 //     companion pointers);
-//   - "t104-generic": same-span type-104 records without matching wrappers -> same logic on the record itself,
-//     NOT yet confirmed by a boot (the plan says so).
+//   - "t104-generic": same-span type-104 records without matching wrappers -> same logic on the record itself.
+//     Screening-confirmed by m3-level_027_tutorial-e3-1789315647217 (a flowerB placement copied over a weed slot
+//     rendered at the new position); it touches no shared record, which makes it the cleaner path when available.
 // Safety: a placement whose +0xA8 is a confirmed pointer (behaviour script) is marked "scripted / potentially unsafe"
 // (level.pushblock.track-dependency: relocating a track-bound push block froze the game). Cutscene markers
 // ("CS_*", layers OpeningCS/ClosingCS/...) are marked too: moving them changes cutscenes, not visible props.
@@ -104,7 +105,7 @@ export function replacePlacement(level, source, victim, { position = null, headi
     recipe = 'wrapper-proven'; src = S.wrapper.offset; vic = V.wrapper.offset; refcount = 'one'; base = WRAPPER_EMBED;
     keepList = keep === 'auto' ? autoKeep(level, { offset: V.wrapper.offset, size: V.wrapper.size }, WRAPPER_EMBED + FIELDS.name) : keep;
   } else {
-    recipe = 't104-generic (not yet confirmed by a boot)'; src = source; vic = victim; refcount = 'victim'; base = 0;
+    recipe = 't104-generic'; src = source; vic = victim; refcount = 'victim'; base = 0;
     resolve = (buf, off) => tableRecord(level, off, buf);
     keepList = keep === 'auto' ? autoKeep(level, tableRecord(level, victim), FIELDS.name) : keep;
   }
@@ -115,7 +116,7 @@ export function replacePlacement(level, source, victim, { position = null, headi
   r.plan.recipe = recipe;
   r.plan.placement_source = describe(S);
   r.plan.placement_victim = describe(V);
-  if (recipe.startsWith('t104')) r.plan.validation.warnings = ['recipe t104-generic has not been confirmed by a Dolphin boot; treat the result as an experiment'];
+  if (recipe.startsWith('t104')) r.plan.validation.warnings = [...(r.plan.validation.warnings ?? []), 'recipe t104-generic is screening-confirmed (one boot, m3-level_027_tutorial-e3-1789315647217); SC-004 needs a second identical boot before it counts as PASS'];
   return r;
 }
 

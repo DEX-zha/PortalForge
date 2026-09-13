@@ -33,6 +33,10 @@
     {
       "experiment_id": "m2-level_027_tutorial-e3-o3296360-1789307182968",
       "summary": "formal confirmation: two boots of the byte-identical rebuilt archive (sha256 a1870f3e) with Windmill_Blades2 +0x24 x 85.52 -> 79.5 both show the blades detached from the hub at the predicted offset, level playing. The type-104 record is the editable placement: position +0x24, heading +0x34, scale +0xB8, behaviour +0xA8, model +0xDC, layer via type-52 references."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789315647217",
+      "summary": "screening (1 boot): a standalone type-104 placement (weed_flowerBTemplate(5), no type-111 wrapper) copied over another of the same span (weed_2_Template(16)) with the slot name and refcount kept renders the SOURCE model at the new position (85.5, 10, 42) at scale 250 — a large flowerB plant where the baseline shows bare ground (pixel diff vs run 1789301970935). Duplication of a placement therefore needs neither a script wrapper nor a shared-record rewrite; 8 words changed in the whole file."
     }
   ]
 }
