@@ -34,9 +34,31 @@ heuristic guesses. All 30 positioned type-111 records of the file are listed by 
 (`igz script <record> --fixups …` shows them per script); 3 are plants, 18 are cutscene camera holds
 (`CS_*`), 3 are push blocks, the rest are level-end / gate markers.
 
+## 1b. The general placement record (LIKELY: `igz.placement.type104-record`)
+
+The type-111 wrapper above is one embedding of the real object: a **type-104 placement record**, listed in the
+header table (673 in the tutorial, 618 positioned), grouped by named **layer** records (type 52: `Loot`, `Plants`,
+`Jump pads_PushBLock_Gates`, `Mabu_Citizens`, `OpeningCS`, …):
+
+```
+type-104 placement (typical span 0xF8)
+  +0x08 name            +0x24 f32 x  +0x28 f32 y  +0x2C f32 z      +0x34 f32 heading (deg)     +0xB8 f32 scale (100 = 1.0)
+  +0xA8 -> type-92 behaviour script     +0xC4 -> t67 companion
+  +0xDC -> type-64 model record (its name is the .mdl path)         +0xE0 -> t66 companion
+```
+
+Wrapper offsets map onto it (type-111: +0x48; so wrapper +0x6C = record +0x24, +0x7C = +0x34, +0x100 = +0xB8).
+List them:
+
+```
+node cli.mjs igz placements <level.bld.decoded> --fixups .local/dolphin-evidence/ptr-scan3-fixups.json [--layer Plants] [--near 90,40,20] [--limit N]
+```
+
+Each row: offset, name, position, heading, scale, model, script, layers. This is the object list of an editor.
+
 ## 2. Move a prop (M2-style, in place)
 
-Edit the three floats at `+0x6C` of the wrapper (the same bytes as `+0x24` of the embedded type-104 record).
+Edit the three floats at `+0x24` of the type-104 record (= `+0x6C` of a type-111 wrapper).
 Nothing else changes; file length unchanged. Demonstrated on `sunflower_Template(2)` (0x1E4 variant)
 in run `m3-level_027_tutorial-e3-1789304824550`: the plant stood where the new triple said.
 
@@ -83,8 +105,11 @@ rebuilt archive can be counted with `--replicates <first id>` (SC-004: same inpu
 
 ## 4. Limits (honest)
 
-- **Stay within one script and one template class** (same `+0x1C` target): the only cross-script, cross-class
-  replacement tried (G2) froze the game in-game. Isolating which of the two variables matters is in progress.
+- **Push blocks froze twice** (G2 cross-script/cross-class, G2b same script/class/size with the slot`s name, script and
+  companion kept), both at the same moment of the opening cutscene, both positioned at (85.5, 10, 42) on the start
+  island. G2b exonerates the replacement variables; a push block (physics + GameElement_PushBlock script) present on the
+  start island during the cutscene is the suspect. Control (in-place move only) pending. Until then: plants are proven,
+  gameplay objects are not.
 
 - Duplication **consumes a slot**: the victim disappears. Candidates for sacrifice in the tutorial: the 18
   `CS_*` camera markers of cutscenes you do not need, the level-end markers. Growing the number of records

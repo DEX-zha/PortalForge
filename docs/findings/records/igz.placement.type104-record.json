@@ -1,0 +1,30 @@
+{
+  "id": "igz.placement.type104-record",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type-104 header-table record: +0x08 name (section-2 string), +0x24 f32 x, +0x28 f32 y, +0x2C f32 z, +0x34 f32 heading (deg), +0xB8 f32 scale (100 = 1.0), +0xA8 -> type-92 behaviour script, +0xC4 -> type-67 companion, +0xDC -> type-64 model record (named by the .mdl path; embedded in the wrapper or shared), +0xE0 -> type-66 companion; typical span 0xF8; embedded inside a wrapper record (type-111 \"set [set]||to\" at +0x48, type-123 \"clone\" at +0x70, type-100/107/113/119 instructions, type-99/52 layer blocks) and referenced by LAYER records (named type-52 table records)",
+  "structure": "The placement record of the level: 673 type-104 table entries in the tutorial file, 618 with a world position, grouped by ~45 named layers (Loot 88, Jump pads_PushBLock_Gates 62, Bridges_Rocks_Floating Stuff 58, Mabu_Citizens 55, PlacedLoot_Common 41, Plants 38, Camera_Adjustors 24, Destructibles_Common 24, OpeningCS 22 …)",
+  "location": {
+    "offset": "examples: 0x3495E4 sunflower_Template(1) (82.25, 9.96, 41.95); 0x324C44 Windmill_Blades2 (85.52, 22.14, 50.33) WindmillBlades.mdl / 027_WindmillProp.ai; 0x186E04 HatBox (-186.27, 15.13, 32) hat_box.mdl; 0x29CCB8 Barrel_Canon_Remove_2 barrel.mdl; 0x1B1B4C Dock (65.23, 14.86, 14.63)",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 248
+  },
+  "meaning": "This is the universal editable handle of a level: every prop, loot, destructible, NPC, camera marker or sound emitter the level places is one type-104 record with an inline transform, a model reference and an optional behaviour script, listed in the header table and owned by a layer. The type-111 wrapper studied first (level.prop.scriptset-placement) is one embedding among several: its +0x6C/+0x7C/+0x100 fields are the type-104 record`s +0x24/+0x34/+0xB8. `igz placements --fixups <map> [--layer X] [--near x,z,r]` lists them (src/igz/placements.mjs). Moving = edit +0x24..+0x2C in place. Duplicating = same-size replacement of a sacrificable record. Layers are the natural grouping for an editor`s object list. Pointer offsets are from the runtime fixup map (words rewritten in RAM); positions verified world-scale against the known spawn (91.7, 10.3, 44.7).",
+  "evidence": [
+    {
+      "probe": "scratch census104.mjs / t104.mjs: all 673 type-104 header-table entries, wrapper type at -0x48, position validity, inbound confirmed pointer words grouped by the table record that contains them",
+      "summary": "618/673 carry a plausible world position; 30 are wrapped by type-111, 7 by type-52, 4 by type-113, 2 by type-100, 630 by other structures; inbound pointers come from named type-52 layer records (45 layers) and from script instructions that use the actor"
+    },
+    {
+      "probe": "scratch t104.mjs: pointer fields of standalone placements from six layers (Loot, Bridges_Start_Area_Props, Mabu_Citizens, Destructibles_Common, Plants, LastMabu01) read from the fixup map",
+      "summary": "same layout in every layer: +0xA8 script (t92), +0xC4 t67, +0xDC model (t64 named with the .mdl path), +0xE0 t66; heading at +0x34 (0/44/90/130/339 deg), scale 100 at +0xB8"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789304824550",
+      "summary": "the in-place move of sunflower_Template(2) edited exactly this record`s +0x24..+0x2C (wrapper +0x6C) and the plant moved on screen"
+    }
+  ]
+}

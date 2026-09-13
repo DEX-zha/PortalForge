@@ -12,7 +12,7 @@
     "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
     "length": 456
   },
-  "meaning": "If the +0x6C triple is the world position of a visible prop, these records are the visible handle the visible-duplication chantier needs: M2 = edit the triple in place; M3 = copy one record over a sacrificable same-type same-size record of the same script (igz clone-entity --replace-record, keeping the victim`s name and companion pointers), zero shift, so the count-bounded blob walk stays aligned. Selection used only header-table entries and runtime-confirmed pointer words (fixup map), not the heuristic header detector. Test: sunflower(1) copied over weed(8) with position (85.5, 10, 42): expected a second sunflower next to sunflower(1) and no weed at weed(8)`s spot. LIMIT: the recipe is proven within one script and one template class (+0x1C); the cross-script + cross-class copy G2 froze in-game (see evidence).",
+  "meaning": "If the +0x6C triple is the world position of a visible prop, these records are the visible handle the visible-duplication chantier needs: M2 = edit the triple in place; M3 = copy one record over a sacrificable same-type same-size record of the same script (igz clone-entity --replace-record, keeping the victim`s name and companion pointers), zero shift, so the count-bounded blob walk stays aligned. Selection used only header-table entries and runtime-confirmed pointer words (fixup map), not the heuristic header detector. Test: sunflower(1) copied over weed(8) with position (85.5, 10, 42): expected a second sunflower next to sunflower(1) and no weed at weed(8)`s spot. LIMIT: proven on plants (Plants layer). Both push-block attempts (G2 cross-script/class, G2b same script/class) froze in-game during the opening cutscene; the replacement itself is exonerated by G2b, the object class/position at cutscene time is suspected (control pending).",
   "evidence": [
     {
       "probe": "igz script 0x33F450 (decodeScript) + scratch sunflower.mjs",
@@ -41,6 +41,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789305160219",
       "summary": "LIMIT (G2, screening): copying a push-block placement (class +0x1C -> 0x1B1A58, script Remove_Stuf_at_start.ai) over a camera-marker slot (class 0x1E1FB4, script 027_Level_End_Temp.ai) froze the game in-game during the opening cutscene. Same-size replacement is proven only within one script and one template class so far; cross-class/cross-script replacement is not."
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789305543965",
+      "summary": "LIMIT (G2b): same-script, same-class, same-size replacement of one push block by another, slot name/script/companion kept, positioned at (85.5, 10, 42): froze in-game at the same moment as G2. The replacement variables are excluded as the cause; a push block on the start island during the opening cutscene is the common factor (control: in-place move, pending)."
     }
   ]
 }
