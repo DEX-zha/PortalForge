@@ -376,6 +376,24 @@ export const commands = {
   async edit(pos, o) {
     const E = await import('./editor/placements.mjs');
     const sub = pos[0]; const file = path.resolve(need(pos[1], 'level.bld.decoded file'));
+    // `serve` opens its own session: the fixup map is optional there, because a level without one is exactly
+    // the case User Story 4 exists to prove (feature 003 T010).
+    if (sub === 'serve') {
+      const { openSession } = await import('./editor/session.mjs');
+      const { startServer } = await import('./editor/server.mjs');
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(oneFixup(o.fixups)), 'utf8')) : null;
+      const session = openSession(file, { archive: need(o.archive, 'archive'), entry: Number(need(o.entry, 'entry')), fixups });
+      const served = await startServer({ session, port: o.port ? Number(o.port) : 7378 });
+      const lines = [
+        'session ' + session.id + '  ' + session.file,
+        'placements ' + session.placements.length + ' in ' + session.layers.length + ' layer(s); class type ' + session.detection.placement_type +
+          '; models ' + session.counts.direct + ' direct, ' + session.counts.absent + ' absent' + (session.has_runtime_map ? '; runtime fixup map loaded' : '; no runtime map, every pointer-derived value is structural'),
+        'view ' + served.url,
+        'the editor writes nothing until you save; press Ctrl+C to stop',
+      ];
+      if (o.open) { const { spawn } = await import('node:child_process'); spawn(process.platform === 'win32' ? 'cmd' : 'open', process.platform === 'win32' ? ['/c', 'start', '', served.url] : [served.url], { detached: true, stdio: 'ignore' }).unref(); }
+      return { result: { session: session.id, url: served.url, placements: session.placements.length }, text: lines.join(String.fromCharCode(10)), keepAlive: true };
+    }
     const level = E.openLevel(file, path.resolve(need(oneFixup(o.fixups), 'fixups')));
     const nums = s => s.split(',').map(Number);
     if (sub === 'list') {

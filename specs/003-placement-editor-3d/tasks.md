@@ -33,9 +33,9 @@ the browser view under `src/view/`, tests under `tests/`. No new package and no 
 
 **Purpose**: bring in the one new dependency and create the files the later phases fill.
 
-- [ ] T001 Add `three` as a pinned dependency in `tools/ssa-archive/package.json`, install it, and confirm it resolves from `tools/ssa-archive/node_modules/three` with no network access at run time (research R2)
-- [ ] T002 [P] Create the browser view skeleton as empty ES modules with a header comment each: `tools/ssa-archive/src/view/index.html`, `app.mjs`, `scene.mjs`, `select.mjs`, `layers.mjs`, `inspector.mjs`, `coords.mjs`
-- [ ] T003 [P] Create the editor process skeleton as empty ES modules with a header comment each: `tools/ssa-archive/src/editor/session.mjs`, `save.mjs`, `server.mjs`
+- [X] T001 Add `three` as a pinned dependency in `tools/ssa-archive/package.json`, install it, and confirm it resolves from `tools/ssa-archive/node_modules/three` with no network access at run time (research R2)
+- [X] T002 [P] Create the browser view skeleton as empty ES modules with a header comment each: `tools/ssa-archive/src/view/index.html`, `app.mjs`, `scene.mjs`, `select.mjs`, `layers.mjs`, `inspector.mjs`, `coords.mjs`
+- [X] T003 [P] Create the editor process skeleton as empty ES modules with a header comment each: `tools/ssa-archive/src/editor/session.mjs`, `save.mjs`, `server.mjs`
 
 ---
 
@@ -46,13 +46,13 @@ done, because every story reads a session over the contract.
 
 **⚠️ CRITICAL**: no user story work begins until this phase is complete.
 
-- [ ] T004 [P] Write the failing session tests in `tools/ssa-archive/tests/editor-session.test.mjs`: opening refuses when the gate files do not report M1 and M2 as PASS, refuses when no placement class is detected, refuses when any resolved record fails `specs/002-igz-entity-model/contracts/placement-v1.schema.json`, and on success exposes `id`, `file`, `archive`, `entry`, `original_sha256`, `placements`, `layers`, `detection`, `has_runtime_map`, `edits` empty and `dirty` false
-- [ ] T005 [P] Write the failing transport tests in `tools/ssa-archive/tests/editor-server.test.mjs`: the server binds `127.0.0.1` only, serves `index.html`, serves the modules under `src/view/`, serves `three` from `node_modules`, and returns 404 for any path outside those two directories including traversal attempts
-- [ ] T006 [P] Write the failing coordinate tests in `tools/ssa-archive/tests/view-coords.test.mjs`: the mapping is a single exported function, it is its own inverse when applied twice, and flipping the documented handedness flag changes exactly one horizontal axis
-- [ ] T007 Implement `openSession` in `tools/ssa-archive/src/editor/session.mjs` using the existing `resolveAll` and the frozen schema, with the refusals from T004; every refusal names the file and the reason and returns no session (data-model EditorSession, FR-006, FR-010)
-- [ ] T008 Implement the coordinate mapping in `tools/ssa-archive/src/view/coords.mjs` as the single place any axis convention is written, with the handedness flag documented in the file header (research R7)
-- [ ] T009 Implement the `node:http` server and the static routes in `tools/ssa-archive/src/editor/server.mjs`, serving only `src/view/` and `node_modules/three`, refusing every other path (contract `GET /` and `GET /view/*`)
-- [ ] T010 Wire `edit serve <level.bld.decoded> --archive --entry [--fixups] [--port] [--open]` in `tools/ssa-archive/src/cli-commands.mjs` and declare its options in `tools/ssa-archive/cli.mjs`, printing the session id and the view URL and exiting 2 with a named reason on refusal (contract, command line)
+- [X] T004 [P] Write the failing session tests in `tools/ssa-archive/tests/editor-session.test.mjs`: opening refuses when the gate files do not report M1 and M2 as PASS, refuses when no placement class is detected, refuses when any resolved record fails `specs/002-igz-entity-model/contracts/placement-v1.schema.json`, and on success exposes `id`, `file`, `archive`, `entry`, `original_sha256`, `placements`, `layers`, `detection`, `has_runtime_map`, `edits` empty and `dirty` false
+- [X] T005 [P] Write the failing transport tests in `tools/ssa-archive/tests/editor-server.test.mjs`: the server binds `127.0.0.1` only, serves `index.html`, serves the modules under `src/view/`, serves `three` from `node_modules`, and returns 404 for any path outside those two directories including traversal attempts
+- [X] T006 [P] Write the failing coordinate tests in `tools/ssa-archive/tests/view-coords.test.mjs`: the mapping is a single exported function, it is its own inverse when applied twice, and flipping the documented handedness flag changes exactly one horizontal axis
+- [X] T007 Implement `openSession` in `tools/ssa-archive/src/editor/session.mjs` using the existing `resolveAll` and the frozen schema, with the refusals from T004; every refusal names the file and the reason and returns no session (data-model EditorSession, FR-006, FR-010)
+- [X] T008 Implement the coordinate mapping in `tools/ssa-archive/src/view/coords.mjs` as the single place any axis convention is written, with the handedness flag documented in the file header (research R7)
+- [X] T009 Implement the `node:http` server and the static routes in `tools/ssa-archive/src/editor/server.mjs`, serving only `src/view/` and `node_modules/three`, refusing every other path (contract `GET /` and `GET /view/*`)
+- [X] T010 Wire `edit serve <level.bld.decoded> --archive --entry [--fixups] [--port] [--open]` in `tools/ssa-archive/src/cli-commands.mjs` and declare its options in `tools/ssa-archive/cli.mjs`, printing the session id and the view URL and exiting 2 with a named reason on refusal (contract, command line)
 
 **Checkpoint**: a level can be opened, refused for the right reasons, and a page can be served. No API yet.
 
