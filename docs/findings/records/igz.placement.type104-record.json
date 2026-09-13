@@ -12,7 +12,7 @@
     "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
     "length": 248
   },
-  "meaning": "This is the universal editable handle of a level: every prop, loot, destructible, NPC, camera marker or sound emitter the level places is one type-104 record with an inline transform, a model reference and an optional behaviour script, listed in the header table and owned by a layer. The type-111 wrapper studied first (level.prop.scriptset-placement) is one embedding among several: its +0x6C/+0x7C/+0x100 fields are the type-104 record`s +0x24/+0x34/+0xB8. `igz placements --fixups <map> [--layer X] [--near x,z,r]` lists them (src/igz/placements.mjs). Moving = edit +0x24..+0x2C in place. Duplicating = same-size replacement of a sacrificable record. Layers are the natural grouping for an editor`s object list. Pointer offsets are from the runtime fixup map (words rewritten in RAM); positions verified world-scale against the known spawn (91.7, 10.3, 44.7).",
+  "meaning": "This is the universal editable handle of a level: every prop, loot, destructible, NPC, camera marker or sound emitter the level places is one type-104 record with an inline transform, a model reference and an optional behaviour script, listed in the header table and owned by a layer. The type-111 wrapper studied first (level.prop.scriptset-placement) is one embedding among several: its +0x6C/+0x7C/+0x100 fields are the type-104 record`s +0x24/+0x34/+0xB8. `igz placements --fixups <map> [--layer X] [--near x,z,r]` lists them (src/igz/placements.mjs). Moving = edit +0x24..+0x2C in place. Duplicating = same-size replacement of a sacrificable record. Layers are the natural grouping for an editor`s object list. Pointer offsets are from the runtime fixup map (words rewritten in RAM); positions verified world-scale against the known spawn (91.7, 10.3, 44.7). Validated on five IGZ files: the field offsets hold everywhere and +0xDC is the only model field observed (no indirect or ambiguous case in 1 988 placements). The class index differs per file (igz.types.per-file-indices), so the class is detected structurally rather than hardcoded.",
   "evidence": [
     {
       "probe": "scratch census104.mjs / t104.mjs: all 673 type-104 header-table entries, wrapper type at -0x48, position validity, inbound confirmed pointer words grouped by the table record that contains them",
@@ -37,6 +37,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789315647217",
       "summary": "screening (1 boot): a standalone type-104 placement (weed_flowerBTemplate(5), no type-111 wrapper) copied over another of the same span (weed_2_Template(16)) with the slot name and refcount kept renders the SOURCE model at the new position (85.5, 10, 42) at scale 250 — a large flowerB plant where the baseline shows bare ground (pixel diff vs run 1789301970935). Duplication of a placement therefore needs neither a script wrapper nor a shared-record rewrite; 8 words changed in the whole file."
+    },
+    {
+      "probe": "igz models: structural resolution over five IGZ files (Level_027_Tutorial, Challenge_Level_000, Challenge_Level_001, Level_000_Mining, 001_Gryphon) with the tutorial runtime fixup map as ground truth",
+      "summary": "the layout generalises: in all five files 100% of the detected placements are named, carry scale 100 at +0xB8 and a heading in [-360,360] at +0x34. Model resolution through +0xDC: tutorial 453/673 direct, Challenge_000 239/319, Challenge_001 224/361, Mining 374/617, Gryphon 14/18; ZERO indirect and ZERO ambiguous anywhere, the rest resolve no model and are markers. On the tutorial the structural resolver agrees with the runtime fixup map on 673/673 placements with no false positive and nothing missed."
     }
   ]
 }

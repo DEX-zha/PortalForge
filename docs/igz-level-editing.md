@@ -175,6 +175,89 @@ node cli.mjs edit replace <level.bld.decoded> <source offset> --over <victim off
 - Output is a decoded `level.bld`; rebuild and boot with `experiment m3 --file <out> --plan <plan>` (or `experiment m2`
   for a single float) and judge as usual. Fixup map required (tutorial: `ptr-scan3-fixups.json`).
 
+
+## 7. Model resolution and safety, validated across levels
+
+### The stable placement record
+
+    Placement = {
+      offset, span, name,
+      position  +0x24 f32 x,y,z        rotation  +0x34 f32 heading (deg)     scale  +0xB8 f32 (100 = 1.0)
+      behavior  +0xA8 -> script record or none
+      model     +0xDC -> model record; { status: direct | indirect | ambiguous | absent, field, offset, path }
+      shared_state { model_record, users, shared, rewritten_by_replacing }
+      evidence  { layout, model, behavior }   where each value is runtime-pointer | structural | none
+    }
+
+`evidence` is the point of the record: it says how a value was obtained, never just what it is. `runtime-pointer`
+means the word is in the level's runtime fixup map, so the game itself rewrote it at load. `structural` means only
+the file's own construction supports it.
+
+### Never key on a type index or a type name
+
+The placement class is index 104 in the tutorial and 95, 97, 98 in the other three levels of the sample disc
+(`igz.types.per-file-indices`, CONFIRMED). Type names are no safer: section 0 is split on NUL and the name range is
+interrupted by 12-byte block records, so the index-to-name alignment drifts and 1 358 of the tutorial's 2 858 header
+entries parse to an empty name. The class is therefore **detected structurally** in each file: every class in the
+header table is scored on the layout signature above, and the dominant one wins. In all five files tested the choice
+is unambiguous, with no runner-up scoring above zero.
+
+```
+node cli.mjs igz models <level.bld.decoded> [--fixups <map> --validate] [--limit N]
+```
+
+### Validation across five IGZ files
+
+| Level | placement class | placements | direct | indirect | ambiguous | absent | model records | shared | inside a blob | critical | medium |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `Level_027_Tutorial` | type 104 (models 64), detected 429/673, runner-up 0 | 673 | 453 | 0 | 0 | 220 | 210 | 61 | 210 | 31 | 409 |
+| `Challenge_Level_000` | type 95 (models 53), detected 229/319, runner-up 0 | 319 | 239 | 0 | 0 | 80 | 38 | 11 | 38 | 0 | 272 |
+| `Challenge_Level_001` | type 97 (models 55), detected 205/361, runner-up 0 | 361 | 224 | 0 | 0 | 137 | 101 | 23 | 101 | 0 | 301 |
+| `Level_000_Mining` | type 98 (models 58), detected 351/617, runner-up 0 | 617 | 374 | 0 | 0 | 243 | 134 | 38 | 134 | 39 | 469 |
+| `001_Gryphon` (character) | type 57 (models 9), detected 8/18, runner-up 0 | 18 | 14 | 0 | 0 | 4 | 11 | 3 | 11 | 0 | 13 |
+
+Read it this way. **Resolved** cases are the `direct` column: 1 304 of 1 988 placements across the five files, every
+one of them through `+0xDC`. **Ambiguous** cases: none, anywhere. **Absent** cases are the `absent` column, 684
+placements that resolve no model at all; they are the markers, cameras, cutscene points, sound emitters and trigger
+volumes, and moving one changes a cutscene rather than a visible prop. The character archive behaves like a small
+level, which is the expected answer rather than a failure: placements are an engine-wide structure, not a level one.
+
+Ground truth: on the tutorial, the only file with a runtime fixup map, the structural resolver agrees with the map on
+**673/673 placements**, with no false positive and nothing missed. That agreement is why its answers on the four other
+files are usable, and it is also the limit of the claim: those four have not been booted.
+
+Every model record of every file lies inside some other placement's blob (210/210, 38/38, 101/101, 134/134, 11/11), so
+a same-size replacement always rewrites at least one model record. The only question is how many placements share it.
+
+### Safety rules
+
+`assessPlacement` and `assessReplacement` (`src/editor/safety.mjs`) return rules carrying a severity and the finding
+behind them. `edit replace` attaches them to the plan and prints them; a `blocking` rule turns the plan INVALID.
+
+| Severity | Meaning |
+| --- | --- |
+| `blocking` | the edit cannot produce a loadable file; the plan is refused |
+| `critical` | observed to break the game, or silently changes objects the user did not ask to change |
+| `high` | a real risk with boot evidence behind it |
+| `medium` | plausible risk, not evidenced either way; it needs one boot to settle |
+| `info` | worth knowing, not a risk |
+
+| Rule | Severity | What it catches |
+| --- | --- | --- |
+| `SPAN_MISMATCH` | blocking | the copied block and the slot differ in size; only same-size replacement keeps the count-bounded walk aligned |
+| `TRACK_BOUND_BEHAVIOUR` | critical | the behaviour script is a known track-bound family (push blocks); two boots froze |
+| `SHARED_MODEL_REWRITE` | critical | the victim blob holds a model record used by other placements; copying retextures all of them |
+| `SHARED_RECORD_REWRITE` | critical | the victim blob holds another record referenced from outside |
+| `AMBIGUOUS_MODEL` | high | several model records reachable and none at `+0xDC` |
+| `SCRIPTED_PLACEMENT` | medium | a behaviour script at `+0xA8`. The evidence disagrees: windmill blades moved fine over two boots, a push block froze twice. Boot once before trusting it |
+| `MARKER_NO_MODEL` | info | no model resolves; this is a marker, not a visible prop |
+| `OWN_RECORD_REWRITE` | info | the rewritten record is used by nothing outside the blob |
+| `NO_RUNTIME_MAP` | info | this level has no fixup map, so pointer fields are structural only |
+
+Counted over the five files, `critical` fires on 70 placements, all of them push blocks, and `medium` on 1 464, which
+is simply how many placements carry a behaviour script. Severity is deliberately not inflated: a scripted placement is
+a reason to boot, not a reason to refuse.
+
 ## 5. Why earlier attempts froze (for the record)
 
 Appending or inserting records shifts the count-bounded head walk or gets stomped by positional blob walks;

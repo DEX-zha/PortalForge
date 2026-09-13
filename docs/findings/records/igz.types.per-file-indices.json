@@ -1,0 +1,26 @@
+{
+  "id": "igz.types.per-file-indices",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "igz-objects",
+  "confidence": "CONFIRMED",
+  "endian": "be",
+  "type": "u32 type index in object header word 0, indexing that file's own section-0 name table; the same class has a different index in every file, and the parsed name/index alignment drifts",
+  "structure": "Type indices are per file and type names are not reliably aligned, so no cross-file tool may key on either",
+  "location": {
+    "offset": "the placement class is index 104 in Level_027_Tutorial, 95 in Challenge_Level_000, 97 in Challenge_Level_001, 98 in Level_000_Mining and 57 in the 001_Gryphon character archive; its model records are 64 / 53 / 55 / 58 / 9 in the same order",
+    "file_pattern": "level/*.bld:level.bld (decoded), character/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "Two independent traps for any tool that reads more than one IGZ. First, the type INDEX is per file: hardcoding 104 for a placement reads igAlphaFunctionAttr or igGraphPathList in another level, which is why a first pass of the model resolver found 673 placements in the tutorial and zero everywhere else. Second, the type NAME is not a safe substitute: parseTypes splits section 0 on NUL and the name range is interrupted by 12-byte block records, so the index-to-name alignment drifts (1 358 of the tutorial's 2 858 header-table entries resolve to an empty name, and the placement class parses as igTransformSequence1_5 in the tutorial but as igAlphaFunctionAttr at the corresponding index elsewhere). The working rule is to DETECT a class structurally in each file, from the record layout, and to treat the parsed name as a label only. src/igz/model-resolve.mjs does this: it scores every class in the header table on a layout signature (world position at +0x24, heading at +0x34, scale 100 at +0xB8, a resolvable asset reference at +0xDC) and picks the dominant one, which is unambiguous in all five files tested (no runner-up scored above zero).",
+  "evidence": [
+    {
+      "probe": "scratch types.mjs / names.mjs / detect.mjs over five IGZ files of the sample disc",
+      "summary": "index 104 resolves to igTransformSequence1_5, SpriteInfoList, tfbSpriteInfo, SpriteInfoList and ContactInfo in the five files; looking the tutorial name up by name finds it at 104, 195, 197, 211 and absent, none of which match the structurally detected placement classes 104, 95, 97, 98, 57 — so the name table itself is misaligned"
+    },
+    {
+      "probe": "igz models (structural detection) validated against the runtime fixup map of the tutorial",
+      "summary": "the structural detector picks type 104 in the tutorial and agrees with the runtime fixup map on 673/673 placements, then picks exactly one candidate class in each of the four other files with no runner-up"
+    }
+  ]
+}

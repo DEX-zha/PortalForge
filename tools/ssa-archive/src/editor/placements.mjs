@@ -19,6 +19,7 @@ import { buildGraph } from '../igz/graph.mjs';
 import { scriptTable } from '../igz/script.mjs';
 import { listPlacements } from '../igz/placements.mjs';
 import { planReplaceRecord } from '../igz/relocate.mjs';
+import { assessReplacement, worst, blocked } from './safety.mjs';
 
 export const FIELDS = { position: 0x24, heading: 0x34, scale: 0xb8, behavior: 0xa8, model: 0xdc, name: 0x08, companions: [0xc4, 0xe0] };
 export const COMPANION_TYPES = new Set([65, 66, 67, 147]);
@@ -87,6 +88,10 @@ export function setTransform(level, offset, { position = null, heading = null, s
   return { buffer: out, plan };
 }
 
+// The safety rules read the stable placement shape; the editor's row carries the same facts under other keys.
+const forSafety = r => ({ name: r.name, span: r.span ?? 0, behavior: r.script ? { path: r.script.path ?? null, offset: r.script.offset } : null,
+  model: { status: r.model ? 'direct' : 'absent', field: FIELDS.model, offset: r.model?.offset ?? null, path: r.model?.path ?? null }, model_candidates: [] });
+
 const describe = r => ({ offset: r.offset, name: r.name, layers: r.layers, model: r.model ? r.model.path : null, script: r.script ? r.script.path : null, position: r.position, heading: r.heading, scale: r.scale, safety: r.safety, wrapper: r.wrapper ?? null });
 
 // Auto keep-list for a victim record: its name, and every confirmed pointer field whose target is a companion record.
@@ -100,12 +105,14 @@ export function replacePlacement(level, source, victim, { position = null, headi
   const S = getPlacement(level, source), V = getPlacement(level, victim);
   if (S.script && !allowScripted) throw Object.assign(new Error(`source ${S.name} is ${S.safety.safety} (${S.safety.reasons.join('; ')}); pass --allow-scripted to duplicate it anyway`), { exitCode: 1 });
   const edits = []; const push = (q, v) => edits.push({ offset: q, type: 'f32be', value: v });
-  let recipe, src, vic, keepList, resolve = null, refcount, base;
+  let recipe, src, vic, keepList, resolve = null, refcount, base, copied = { source: 0, victim: 0 };
   if (S.wrapper && V.wrapper && S.wrapper.size === V.wrapper.size) {
     recipe = 'wrapper-proven'; src = S.wrapper.offset; vic = V.wrapper.offset; refcount = 'one'; base = WRAPPER_EMBED;
+    copied = { source: S.wrapper.size, victim: V.wrapper.size };
     keepList = keep === 'auto' ? autoKeep(level, { offset: V.wrapper.offset, size: V.wrapper.size }, WRAPPER_EMBED + FIELDS.name) : keep;
   } else {
     recipe = 't104-generic'; src = source; vic = victim; refcount = 'victim'; base = 0;
+    copied = { source: tableRecord(level, source).size, victim: tableRecord(level, victim).size };
     resolve = (buf, off) => tableRecord(level, off, buf);
     keepList = keep === 'auto' ? autoKeep(level, tableRecord(level, victim), FIELDS.name) : keep;
   }
@@ -117,6 +124,11 @@ export function replacePlacement(level, source, victim, { position = null, headi
   r.plan.placement_source = describe(S);
   r.plan.placement_victim = describe(V);
   if (recipe.startsWith('t104')) r.plan.validation.warnings = [...(r.plan.validation.warnings ?? []), 'recipe t104-generic is screening-confirmed (one boot, m3-level_027_tutorial-e3-1789315647217); SC-004 needs a second identical boot before it counts as PASS'];
+  // Safety rules, from the plan's own shared-record report: what this replacement changes beyond the slot.
+  const sharedInVictim = (r.plan.shared_records ?? []).filter(x => x.bytes_changed).map(x => ({ offset: x.offset, users: x.external_users + 1, path: x.name_before }));
+  r.plan.safety = assessReplacement(forSafety(S), forSafety(V), { hasRuntimeMap: !!level.ptrSet, sharedInVictim, spanMatch: copied.source === copied.victim, copied });
+  r.plan.safety_worst = worst(r.plan.safety);
+  if (blocked(r.plan.safety)) { r.plan.validation.status = 'INVALID'; r.plan.validation.failures.push(...r.plan.safety.filter(x => x.severity === 'blocking').map(x => ({ stage: 'safety', reason: x.id + ': ' + x.message }))); }
   return r;
 }
 

@@ -185,6 +185,27 @@ export const commands = {
       const written = C.writePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
       return { result: { ...r.plan, ...written, graph_after: r.graph_after }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `plan ${r.plan.validation.status}: clone of ${r.plan.source.type_name}@0x${r.plan.source.object_offset.toString(16)} at 0x${r.plan.insert_at.toString(16)} (+${r.plan.inserted_bytes} B, id 0x${r.plan.new_id.toString(16)}), ${r.plan.changes.length} edit(s), ${r.plan.updates.length} table update(s)` + (r.plan.validation.failures.length ? '\n' + r.plan.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n') : '') + `\n-> ${written.outFile}${written.planFile ? ' ; plan ' + written.planFile : ''}` };
     }
+    if (sub === 'models') {
+      const M = await import('./igz/model-resolve.mjs');
+      const S = await import('./editor/safety.mjs');
+      const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(o.fixups), 'utf8')) : null;
+      const res = M.resolveAll(buf, g, fixups);
+      const lines = [M.formatResolve(res, { limit: o.limit ? Number(o.limit) : 20 })];
+      if (fixups && o.validate) {
+        const v = M.validateAgainstFixups(buf, g, fixups);
+        lines.push('', 'ground truth (runtime fixup map): agreement ' + (v.agreement * 100).toFixed(1) + '% (' + v.agreed + '/' + v.total + '), structural-only ' + v.false_positives.length + ', missed ' + v.missed.length);
+        for (const r of v.false_positives.slice(0, 5)) lines.push('  structural-only 0x' + r.offset.toString(16) + ' ' + r.name);
+        for (const r of v.missed.slice(0, 5)) lines.push('  missed 0x' + r.offset.toString(16) + ' ' + r.name);
+      }
+      if (res.file_has_placements) {
+        const graded = res.rows.map(p => ({ p, rules: S.assessPlacement(p, { hasRuntimeMap: !!fixups }) }));
+        const tally = {}; for (const x of graded) { const w = S.worst(x.rules); tally[w] = (tally[w] ?? 0) + 1; }
+        const risky = graded.filter(x => x.rules.some(r => r.severity === 'critical' || r.severity === 'high'));
+        lines.push('', 'safety over ' + res.placements + ' placements: ' + S.SEVERITY.map(sv => sv + ' ' + (tally[sv] ?? 0)).join(', '));
+        for (const x of risky.slice(0, o.limit ? Number(o.limit) : 8)) lines.push('  0x' + x.p.offset.toString(16) + ' ' + String(x.p.name).padEnd(28) + x.rules.map(r => r.severity + '/' + r.id).join(' '));
+      }
+      return { result: { ...res, rows: o.json ? res.rows : undefined }, text: lines.join('\n') };
+    }
     if (sub === 'placements') {
       const P = await import('./igz/placements.mjs');
       const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
@@ -376,7 +397,9 @@ export const commands = {
       const keep = o.keep && o.keep !== 'auto' ? o.keep.split(',').filter(Boolean).map(x => parseInt(x, 16)) : 'auto';
       const r = E.replacePlacement(level, Number(need(pos[2], 'source placement offset')), Number(need(o.over, 'over')), { ...transform, keep });
       const w = writeOut(r.buffer, r.plan); const p = r.plan;
-      return { result: { ...p, ...w }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status} [replace, recipe ${p.recipe}]: ${p.placement_source.name} copied over ${p.placement_victim.name} (${p.placement_victim.layers.join(' | ')}); kept ${p.kept_fields.join(',')}; pointers internal ${p.pointers.internal} external ${p.pointers.external}; edits ${p.changes.length}; file length unchanged\n${p.validation.failures.map(f => '  ' + f.stage + ': ' + f.reason).join('\n')}${(p.validation.warnings ?? []).map(x => '  WARNING: ' + x).join('\n')}\nfile ${w.outFile}${w.planFile ? '\nplan ' + w.planFile : ''}` };
+      const SF = await import('./editor/safety.mjs');
+      const safetyText = p.safety && p.safety.length ? '\nsafety (worst: ' + p.safety_worst + '):\n' + SF.formatRules(p.safety) : '';
+      return { result: { ...p, ...w }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status} [replace, recipe ${p.recipe}]: ${p.placement_source.name} copied over ${p.placement_victim.name} (${p.placement_victim.layers.join(' | ')}); kept ${p.kept_fields.join(',')}; pointers internal ${p.pointers.internal} external ${p.pointers.external}; edits ${p.changes.length}; file length unchanged${safetyText}\n${p.validation.failures.map(f => '  ' + f.stage + ': ' + f.reason).join('\n')}${(p.validation.warnings ?? []).map(x => '  WARNING: ' + x).join('\n')}\nfile ${w.outFile}${w.planFile ? '\nplan ' + w.planFile : ''}` };
     }
     throw new CliError(`Unknown edit subcommand ${sub} (list|show|set|replace)`, 3);
   },
