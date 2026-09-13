@@ -12,7 +12,7 @@
     "file_pattern": "level/*.bld:level.bld (decoded), character/*.bld:level.bld (decoded)",
     "length": 4
   },
-  "meaning": "Two independent traps for any tool that reads more than one IGZ. First, the type INDEX is per file: hardcoding 104 for a placement reads igAlphaFunctionAttr or igGraphPathList in another level, which is why a first pass of the model resolver found 673 placements in the tutorial and zero everywhere else. Second, the type NAME is not a safe substitute: parseTypes splits section 0 on NUL and the name range is interrupted by 12-byte block records, so the index-to-name alignment drifts (1 358 of the tutorial's 2 858 header-table entries resolve to an empty name, and the placement class parses as igTransformSequence1_5 in the tutorial but as igAlphaFunctionAttr at the corresponding index elsewhere). The working rule is to DETECT a class structurally in each file, from the record layout, and to treat the parsed name as a label only. src/igz/model-resolve.mjs does this: it scores every class in the header table on a layout signature (world position at +0x24, heading at +0x34, scale 100 at +0xB8, a resolvable asset reference at +0xDC) and picks the dominant one, which is unambiguous in all five files tested (no runner-up scored above zero).",
+  "meaning": "Two independent traps for any tool that reads more than one IGZ. First, the type INDEX is per file: hardcoding 104 for a placement reads igAlphaFunctionAttr or igGraphPathList in another level, which is why a first pass of the model resolver found 673 placements in the tutorial and zero everywhere else. Second, the type NAME is not a safe substitute: parseTypes splits section 0 on NUL and the name range is interrupted by 12-byte block records, so the index-to-name alignment drifts (1 358 of the tutorial's 2 858 header-table entries resolve to an empty name, and the placement class parses as igTransformSequence1_5 in the tutorial but as igAlphaFunctionAttr at the corresponding index elsewhere). The working rule is to DETECT a class structurally in each file, from the record layout, and to treat the parsed name as a label only. src/igz/model-resolve.mjs does this: it scores every class in the header table on a layout signature (world position at +0x24, heading at +0x34, scale 100 at +0xB8, a resolvable asset reference at +0xDC) and picks the dominant one, which is unambiguous in all five files tested (no runner-up scored above zero). Measured across the whole disc: 23 distinct indices hold placements depending on the file, which is why nothing may key on the number.",
   "evidence": [
     {
       "probe": "scratch types.mjs / names.mjs / detect.mjs over five IGZ files of the sample disc",
@@ -21,6 +21,10 @@
     {
       "probe": "igz models (structural detection) validated against the runtime fixup map of the tutorial",
       "summary": "the structural detector picks type 104 in the tutorial and agrees with the runtime fixup map on 673/673 placements, then picks exactly one candidate class in each of the four other files with no runner-up"
+    },
+    {
+      "probe": "ssa-archive corpus over all 76 level archives of the disc (docs/placement-corpus-all-levels.json)",
+      "summary": "the placement class is one of 23 different indices across the disc (76, 79, 86, 88, 91, 93, 94, 95, 96, 97, 98, 100, 101, 102, 103, 104, 105, 106, 108, 110, 111, 115 and 121), and the structural detector picks exactly one in 75 of the 76 files with NO second class scoring a single strict hit anywhere. The one file with no placement class is Title.bld, a menu scene with 173 header-table entries and no placed object at all."
     }
   ]
 }

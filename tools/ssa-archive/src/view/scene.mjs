@@ -42,16 +42,33 @@ export function createScene(canvas) {
   scene.add(key);
   scene.add(new THREE.GridHelper(400, 40, 0x2c313b, 0x22262e));
 
-  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, entries: [], selected: null, outline: null };
+  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, entries: [], selected: null, outline: null, size: { w: 0, h: 0 }, drawn: 0, box: null };
 
+  // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
+  // reported as zero before layout settles, and a zero-sized drawing buffer renders one flat colour across the
+  // whole column, which is indistinguishable from an empty scene.
+  const host = canvas.parentElement ?? canvas;
+  const sizeOf = () => {
+    const r = host.getBoundingClientRect();
+    return { w: Math.max(1, Math.floor(r.width || host.clientWidth || 1)), h: Math.max(1, Math.floor(r.height || host.clientHeight || 1)) };
+  };
+  let last = { w: 0, h: 0 };
   const resize = () => {
-    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    const { w, h } = sizeOf();
+    if (w === last.w && h === last.h) return;
+    last = { w, h };
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
+    state.size = { w, h };
   };
-  new ResizeObserver(resize).observe(canvas);
+  new ResizeObserver(resize).observe(host);
+  addEventListener('resize', resize);
   resize();
+  // Layout may not have settled when the module runs; keep checking until a real size shows up.
+  let settle = 0;
+  const untilSized = () => { resize(); if (state.size?.w > 1 && state.size?.h > 1) return; if (settle++ < 120) requestAnimationFrame(untilSized); };
+  untilSized();
 
   renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 
@@ -78,7 +95,18 @@ export function createScene(canvas) {
     state.outline = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: SELECTED_COLOUR, wireframe: true }));
     state.outline.visible = false;
     scene.add(state.outline);
+    state.drawn = state.entries.length;
     frameAll();
+  }
+
+  // What the scene believes it is showing. The view puts this on screen: an empty picture with 673 proxies drawn
+  // is a camera or sizing problem, and an empty picture with 0 drawn is a data problem.
+  function diagnostics() {
+    const b = state.box;
+    return { proxies: state.drawn, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
+      canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0,
+      bounds: b && !b.isEmpty() ? { min: b.min.toArray().map(v => Math.round(v)), max: b.max.toArray().map(v => Math.round(v)) } : null,
+      camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)) };
   }
 
   const dummy = new THREE.Object3D();
@@ -216,6 +244,7 @@ export function createScene(canvas) {
   function frameAll() {
     const box = new THREE.Box3();
     for (const p of state.placements) box.expandByPoint(new THREE.Vector3(...mapping.toView(p.position)));
+    state.box = box.clone();
     frameBox(box.expandByScalar(PROXY_SIZE * 2));
   }
 
@@ -239,5 +268,5 @@ export function createScene(canvas) {
     controls.update();
   }
 
-  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, state };
+  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, diagnostics, state };
 }

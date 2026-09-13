@@ -12,7 +12,16 @@ import { buildGraph } from './graph.mjs';
 export function scriptTable(buf, graph) {
   const sec = graph.sections[graph.object_section];
   const tableEnd = sec.offset + (buf.readUInt32BE(sec.offset + 0x14) & 0x7fffffff);
-  const entries = []; for (let p = sec.offset + 0x20; p < tableEnd; p += 4) entries.push(sec.offset + buf.readUInt32BE(p));
+  // A table word carries the same flagged high bit as any other section-1 pointer, and some levels use it:
+  // Level_009_Minefield holds 0x80051E0C here. Adding it unmasked walks past the end of the file, which is how
+  // this surfaced when the corpus widened from four levels to all 76 on the disc. Entries that still land
+  // outside the object section after masking are dropped rather than trusted.
+  const entries = [];
+  for (let p = sec.offset + 0x20; p < tableEnd; p += 4) {
+    const off = buf.readUInt32BE(p) & 0x7fffffff;
+    if (off === 0 || off >= sec.size) continue;
+    entries.push(sec.offset + off);
+  }
   return [...new Set(entries)].sort((a, b) => a - b);
 }
 

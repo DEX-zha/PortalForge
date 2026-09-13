@@ -1,0 +1,3373 @@
+{
+  "model_version": 1,
+  "generated": "2026-09-13",
+  "rows": [
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_000-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_000-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 53,
+        "strict": 229,
+        "entries": 319,
+        "runner_up": 0
+      },
+      "placements": 319,
+      "counts": {
+        "direct": 239,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 80
+      },
+      "rates": {
+        "resolved": 74.9,
+        "ambiguous": 0,
+        "absent": 25.1,
+        "layered": 98.1
+      },
+      "models": {
+        "records": 38,
+        "shared": 11,
+        "inside_a_placement": 38,
+        "shared_rate": 28.9,
+        "max_users": 154
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 272,
+        "info": 47
+      },
+      "schema": {
+        "checked": 319,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_001-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_001-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 55,
+        "strict": 205,
+        "entries": 361,
+        "runner_up": 0
+      },
+      "placements": 361,
+      "counts": {
+        "direct": 224,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 137
+      },
+      "rates": {
+        "resolved": 62,
+        "ambiguous": 0,
+        "absent": 38,
+        "layered": 99.4
+      },
+      "models": {
+        "records": 101,
+        "shared": 23,
+        "inside_a_placement": 101,
+        "shared_rate": 22.8,
+        "max_users": 40
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 301,
+        "info": 60
+      },
+      "schema": {
+        "checked": 361,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_002-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_002-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 91,
+        "model_type": 53,
+        "strict": 237,
+        "entries": 313,
+        "runner_up": 0
+      },
+      "placements": 313,
+      "counts": {
+        "direct": 245,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 68
+      },
+      "rates": {
+        "resolved": 78.3,
+        "ambiguous": 0,
+        "absent": 21.7,
+        "layered": 98.7
+      },
+      "models": {
+        "records": 44,
+        "shared": 9,
+        "inside_a_placement": 44,
+        "shared_rate": 20.5,
+        "max_users": 103
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 279,
+        "info": 34
+      },
+      "schema": {
+        "checked": 313,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_003-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_003-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 55,
+        "strict": 200,
+        "entries": 381,
+        "runner_up": 0
+      },
+      "placements": 381,
+      "counts": {
+        "direct": 234,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 147
+      },
+      "rates": {
+        "resolved": 61.4,
+        "ambiguous": 0,
+        "absent": 38.6,
+        "layered": 98.2
+      },
+      "models": {
+        "records": 122,
+        "shared": 28,
+        "inside_a_placement": 122,
+        "shared_rate": 23,
+        "max_users": 28
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 336,
+        "info": 45
+      },
+      "schema": {
+        "checked": 381,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_004-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_004-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 54,
+        "strict": 213,
+        "entries": 359,
+        "runner_up": 0
+      },
+      "placements": 359,
+      "counts": {
+        "direct": 236,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 123
+      },
+      "rates": {
+        "resolved": 65.7,
+        "ambiguous": 0,
+        "absent": 34.3,
+        "layered": 98.6
+      },
+      "models": {
+        "records": 70,
+        "shared": 18,
+        "inside_a_placement": 70,
+        "shared_rate": 25.7,
+        "max_users": 40
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 29,
+        "high": 0,
+        "medium": 274,
+        "info": 56
+      },
+      "schema": {
+        "checked": 359,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_005-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_005-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 54,
+        "strict": 244,
+        "entries": 411,
+        "runner_up": 0
+      },
+      "placements": 411,
+      "counts": {
+        "direct": 262,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 149
+      },
+      "rates": {
+        "resolved": 63.7,
+        "ambiguous": 0,
+        "absent": 36.3,
+        "layered": 94.9
+      },
+      "models": {
+        "records": 76,
+        "shared": 22,
+        "inside_a_placement": 76,
+        "shared_rate": 28.9,
+        "max_users": 63
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 363,
+        "info": 48
+      },
+      "schema": {
+        "checked": 411,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_006-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_006-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 54,
+        "strict": 190,
+        "entries": 314,
+        "runner_up": 0
+      },
+      "placements": 314,
+      "counts": {
+        "direct": 200,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 114
+      },
+      "rates": {
+        "resolved": 63.7,
+        "ambiguous": 0,
+        "absent": 36.3,
+        "layered": 93.6
+      },
+      "models": {
+        "records": 98,
+        "shared": 22,
+        "inside_a_placement": 98,
+        "shared_rate": 22.4,
+        "max_users": 33
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 281,
+        "info": 33
+      },
+      "schema": {
+        "checked": 314,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_007-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_007-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 94,
+        "model_type": 54,
+        "strict": 167,
+        "entries": 293,
+        "runner_up": 0
+      },
+      "placements": 293,
+      "counts": {
+        "direct": 180,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 113
+      },
+      "rates": {
+        "resolved": 61.4,
+        "ambiguous": 0,
+        "absent": 38.6,
+        "layered": 94.2
+      },
+      "models": {
+        "records": 94,
+        "shared": 19,
+        "inside_a_placement": 94,
+        "shared_rate": 20.2,
+        "max_users": 25
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 19,
+        "high": 0,
+        "medium": 214,
+        "info": 60
+      },
+      "schema": {
+        "checked": 293,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_008-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_008-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 45,
+        "strict": 120,
+        "entries": 265,
+        "runner_up": 0
+      },
+      "placements": 265,
+      "counts": {
+        "direct": 144,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 121
+      },
+      "rates": {
+        "resolved": 54.3,
+        "ambiguous": 0,
+        "absent": 45.7,
+        "layered": 97.7
+      },
+      "models": {
+        "records": 53,
+        "shared": 13,
+        "inside_a_placement": 53,
+        "shared_rate": 24.5,
+        "max_users": 28
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 188,
+        "info": 77
+      },
+      "schema": {
+        "checked": 265,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_009-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_009-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 55,
+        "strict": 216,
+        "entries": 696,
+        "runner_up": 0
+      },
+      "placements": 696,
+      "counts": {
+        "direct": 244,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 452
+      },
+      "rates": {
+        "resolved": 35.1,
+        "ambiguous": 0,
+        "absent": 64.9,
+        "layered": 99
+      },
+      "models": {
+        "records": 88,
+        "shared": 29,
+        "inside_a_placement": 88,
+        "shared_rate": 33,
+        "max_users": 82
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 627,
+        "info": 69
+      },
+      "schema": {
+        "checked": 696,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_010-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_010-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 54,
+        "strict": 199,
+        "entries": 354,
+        "runner_up": 0
+      },
+      "placements": 354,
+      "counts": {
+        "direct": 218,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 136
+      },
+      "rates": {
+        "resolved": 61.6,
+        "ambiguous": 0,
+        "absent": 38.4,
+        "layered": 98
+      },
+      "models": {
+        "records": 59,
+        "shared": 17,
+        "inside_a_placement": 59,
+        "shared_rate": 28.8,
+        "max_users": 68
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 284,
+        "info": 70
+      },
+      "schema": {
+        "checked": 354,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_011-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_011-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 94,
+        "model_type": 45,
+        "strict": 191,
+        "entries": 341,
+        "runner_up": 0
+      },
+      "placements": 341,
+      "counts": {
+        "direct": 204,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 137
+      },
+      "rates": {
+        "resolved": 59.8,
+        "ambiguous": 0,
+        "absent": 40.2,
+        "layered": 97.9
+      },
+      "models": {
+        "records": 75,
+        "shared": 21,
+        "inside_a_placement": 75,
+        "shared_rate": 28,
+        "max_users": 78
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 294,
+        "info": 47
+      },
+      "schema": {
+        "checked": 341,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_012-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_012-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 121,
+        "model_type": 46,
+        "strict": 361,
+        "entries": 544,
+        "runner_up": 0
+      },
+      "placements": 544,
+      "counts": {
+        "direct": 371,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 173
+      },
+      "rates": {
+        "resolved": 68.2,
+        "ambiguous": 0,
+        "absent": 31.8,
+        "layered": 98.3
+      },
+      "models": {
+        "records": 96,
+        "shared": 25,
+        "inside_a_placement": 96,
+        "shared_rate": 26,
+        "max_users": 129
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 464,
+        "info": 80
+      },
+      "schema": {
+        "checked": 544,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_013-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_013-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 94,
+        "model_type": 47,
+        "strict": 246,
+        "entries": 410,
+        "runner_up": 0
+      },
+      "placements": 410,
+      "counts": {
+        "direct": 268,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 142
+      },
+      "rates": {
+        "resolved": 65.4,
+        "ambiguous": 0,
+        "absent": 34.6,
+        "layered": 99.3
+      },
+      "models": {
+        "records": 119,
+        "shared": 26,
+        "inside_a_placement": 119,
+        "shared_rate": 21.8,
+        "max_users": 37
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 334,
+        "info": 76
+      },
+      "schema": {
+        "checked": 410,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_014-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_014-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 94,
+        "model_type": 53,
+        "strict": 156,
+        "entries": 247,
+        "runner_up": 0
+      },
+      "placements": 247,
+      "counts": {
+        "direct": 163,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 84
+      },
+      "rates": {
+        "resolved": 66,
+        "ambiguous": 0,
+        "absent": 34,
+        "layered": 92.7
+      },
+      "models": {
+        "records": 34,
+        "shared": 9,
+        "inside_a_placement": 34,
+        "shared_rate": 26.5,
+        "max_users": 91
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 212,
+        "info": 35
+      },
+      "schema": {
+        "checked": 247,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_015-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_015-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 53,
+        "strict": 219,
+        "entries": 314,
+        "runner_up": 0
+      },
+      "placements": 314,
+      "counts": {
+        "direct": 226,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 88
+      },
+      "rates": {
+        "resolved": 72,
+        "ambiguous": 0,
+        "absent": 28,
+        "layered": 98.1
+      },
+      "models": {
+        "records": 40,
+        "shared": 13,
+        "inside_a_placement": 40,
+        "shared_rate": 32.5,
+        "max_users": 70
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 282,
+        "info": 32
+      },
+      "schema": {
+        "checked": 314,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_016-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_016-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 55,
+        "strict": 208,
+        "entries": 348,
+        "runner_up": 0
+      },
+      "placements": 348,
+      "counts": {
+        "direct": 223,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 125
+      },
+      "rates": {
+        "resolved": 64.1,
+        "ambiguous": 0,
+        "absent": 35.9,
+        "layered": 93.1
+      },
+      "models": {
+        "records": 79,
+        "shared": 21,
+        "inside_a_placement": 79,
+        "shared_rate": 26.6,
+        "max_users": 39
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 314,
+        "info": 34
+      },
+      "schema": {
+        "checked": 348,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_017-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_017-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 49,
+        "strict": 186,
+        "entries": 293,
+        "runner_up": 0
+      },
+      "placements": 293,
+      "counts": {
+        "direct": 203,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 90
+      },
+      "rates": {
+        "resolved": 69.3,
+        "ambiguous": 0,
+        "absent": 30.7,
+        "layered": 98.6
+      },
+      "models": {
+        "records": 75,
+        "shared": 24,
+        "inside_a_placement": 75,
+        "shared_rate": 32,
+        "max_users": 22
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 237,
+        "info": 56
+      },
+      "schema": {
+        "checked": 293,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_018-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_018-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 102,
+        "model_type": 60,
+        "strict": 195,
+        "entries": 357,
+        "runner_up": 0
+      },
+      "placements": 357,
+      "counts": {
+        "direct": 208,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 149
+      },
+      "rates": {
+        "resolved": 58.3,
+        "ambiguous": 0,
+        "absent": 41.7,
+        "layered": 93.8
+      },
+      "models": {
+        "records": 73,
+        "shared": 13,
+        "inside_a_placement": 73,
+        "shared_rate": 17.8,
+        "max_users": 46
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 11,
+        "high": 0,
+        "medium": 244,
+        "info": 102
+      },
+      "schema": {
+        "checked": 357,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_019-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_019-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 41,
+        "strict": 229,
+        "entries": 328,
+        "runner_up": 0
+      },
+      "placements": 328,
+      "counts": {
+        "direct": 242,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 86
+      },
+      "rates": {
+        "resolved": 73.8,
+        "ambiguous": 0,
+        "absent": 26.2,
+        "layered": 97.9
+      },
+      "models": {
+        "records": 84,
+        "shared": 21,
+        "inside_a_placement": 84,
+        "shared_rate": 25,
+        "max_users": 33
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 280,
+        "info": 48
+      },
+      "schema": {
+        "checked": 328,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_020-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_020-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 49,
+        "strict": 128,
+        "entries": 257,
+        "runner_up": 0
+      },
+      "placements": 257,
+      "counts": {
+        "direct": 142,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 115
+      },
+      "rates": {
+        "resolved": 55.3,
+        "ambiguous": 0,
+        "absent": 44.7,
+        "layered": 98.4
+      },
+      "models": {
+        "records": 56,
+        "shared": 13,
+        "inside_a_placement": 56,
+        "shared_rate": 23.2,
+        "max_users": 31
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 206,
+        "info": 51
+      },
+      "schema": {
+        "checked": 257,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_021-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_021-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 60,
+        "strict": 198,
+        "entries": 380,
+        "runner_up": 0
+      },
+      "placements": 380,
+      "counts": {
+        "direct": 211,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 169
+      },
+      "rates": {
+        "resolved": 55.5,
+        "ambiguous": 0,
+        "absent": 44.5,
+        "layered": 98.7
+      },
+      "models": {
+        "records": 86,
+        "shared": 13,
+        "inside_a_placement": 86,
+        "shared_rate": 15.1,
+        "max_users": 48
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 229,
+        "info": 151
+      },
+      "schema": {
+        "checked": 380,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_022-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_022-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 102,
+        "model_type": 59,
+        "strict": 282,
+        "entries": 658,
+        "runner_up": 0
+      },
+      "placements": 658,
+      "counts": {
+        "direct": 344,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 314
+      },
+      "rates": {
+        "resolved": 52.3,
+        "ambiguous": 0,
+        "absent": 47.7,
+        "layered": 98
+      },
+      "models": {
+        "records": 166,
+        "shared": 45,
+        "inside_a_placement": 166,
+        "shared_rate": 27.1,
+        "max_users": 56
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 444,
+        "info": 214
+      },
+      "schema": {
+        "checked": 658,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_023-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_023-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 59,
+        "strict": 284,
+        "entries": 469,
+        "runner_up": 0
+      },
+      "placements": 469,
+      "counts": {
+        "direct": 301,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 168
+      },
+      "rates": {
+        "resolved": 64.2,
+        "ambiguous": 0,
+        "absent": 35.8,
+        "layered": 98.9
+      },
+      "models": {
+        "records": 100,
+        "shared": 19,
+        "inside_a_placement": 100,
+        "shared_rate": 19,
+        "max_users": 113
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 20,
+        "high": 0,
+        "medium": 333,
+        "info": 116
+      },
+      "schema": {
+        "checked": 469,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_024-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_024-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 50,
+        "strict": 182,
+        "entries": 350,
+        "runner_up": 0
+      },
+      "placements": 350,
+      "counts": {
+        "direct": 216,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 134
+      },
+      "rates": {
+        "resolved": 61.7,
+        "ambiguous": 0,
+        "absent": 38.3,
+        "layered": 95.1
+      },
+      "models": {
+        "records": 127,
+        "shared": 32,
+        "inside_a_placement": 127,
+        "shared_rate": 25.2,
+        "max_users": 19
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 274,
+        "info": 76
+      },
+      "schema": {
+        "checked": 350,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_025-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_025-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 101,
+        "model_type": 59,
+        "strict": 193,
+        "entries": 481,
+        "runner_up": 0
+      },
+      "placements": 481,
+      "counts": {
+        "direct": 219,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 262
+      },
+      "rates": {
+        "resolved": 45.5,
+        "ambiguous": 0,
+        "absent": 54.5,
+        "layered": 97.9
+      },
+      "models": {
+        "records": 138,
+        "shared": 22,
+        "inside_a_placement": 138,
+        "shared_rate": 15.9,
+        "max_users": 20
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 9,
+        "high": 0,
+        "medium": 317,
+        "info": 155
+      },
+      "schema": {
+        "checked": 481,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_026-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_026-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 96,
+        "model_type": 49,
+        "strict": 183,
+        "entries": 281,
+        "runner_up": 0
+      },
+      "placements": 281,
+      "counts": {
+        "direct": 201,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 80
+      },
+      "rates": {
+        "resolved": 71.5,
+        "ambiguous": 0,
+        "absent": 28.5,
+        "layered": 92.9
+      },
+      "models": {
+        "records": 105,
+        "shared": 17,
+        "inside_a_placement": 105,
+        "shared_rate": 16.2,
+        "max_users": 31
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 239,
+        "info": 42
+      },
+      "schema": {
+        "checked": 281,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_027-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_027-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 50,
+        "strict": 187,
+        "entries": 346,
+        "runner_up": 0
+      },
+      "placements": 346,
+      "counts": {
+        "direct": 201,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 145
+      },
+      "rates": {
+        "resolved": 58.1,
+        "ambiguous": 0,
+        "absent": 41.9,
+        "layered": 97.1
+      },
+      "models": {
+        "records": 106,
+        "shared": 20,
+        "inside_a_placement": 106,
+        "shared_rate": 18.9,
+        "max_users": 18
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 280,
+        "info": 66
+      },
+      "schema": {
+        "checked": 346,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_028-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_028-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 59,
+        "strict": 211,
+        "entries": 435,
+        "runner_up": 0
+      },
+      "placements": 435,
+      "counts": {
+        "direct": 230,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 205
+      },
+      "rates": {
+        "resolved": 52.9,
+        "ambiguous": 0,
+        "absent": 47.1,
+        "layered": 92.9
+      },
+      "models": {
+        "records": 86,
+        "shared": 25,
+        "inside_a_placement": 86,
+        "shared_rate": 29.1,
+        "max_users": 49
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 42,
+        "high": 0,
+        "medium": 270,
+        "info": 123
+      },
+      "schema": {
+        "checked": 435,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_029-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_029-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 50,
+        "strict": 238,
+        "entries": 380,
+        "runner_up": 0
+      },
+      "placements": 380,
+      "counts": {
+        "direct": 261,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 119
+      },
+      "rates": {
+        "resolved": 68.7,
+        "ambiguous": 0,
+        "absent": 31.3,
+        "layered": 92.9
+      },
+      "models": {
+        "records": 123,
+        "shared": 26,
+        "inside_a_placement": 123,
+        "shared_rate": 21.1,
+        "max_users": 27
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 6,
+        "high": 0,
+        "medium": 307,
+        "info": 67
+      },
+      "schema": {
+        "checked": 380,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_030-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_030-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 60,
+        "strict": 367,
+        "entries": 557,
+        "runner_up": 0
+      },
+      "placements": 557,
+      "counts": {
+        "direct": 387,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 170
+      },
+      "rates": {
+        "resolved": 69.5,
+        "ambiguous": 0,
+        "absent": 30.5,
+        "layered": 96.6
+      },
+      "models": {
+        "records": 74,
+        "shared": 15,
+        "inside_a_placement": 74,
+        "shared_rate": 20.3,
+        "max_users": 98
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 444,
+        "info": 113
+      },
+      "schema": {
+        "checked": 557,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\challenge_level_031-all\\entries\\3-level.bld.decoded",
+      "name": "challenge_level_031-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 60,
+        "strict": 209,
+        "entries": 390,
+        "runner_up": 0
+      },
+      "placements": 390,
+      "counts": {
+        "direct": 230,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 160
+      },
+      "rates": {
+        "resolved": 59,
+        "ambiguous": 0,
+        "absent": 41,
+        "layered": 95.4
+      },
+      "models": {
+        "records": 73,
+        "shared": 16,
+        "inside_a_placement": 73,
+        "shared_rate": 21.9,
+        "max_users": 93
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 274,
+        "info": 116
+      },
+      "schema": {
+        "checked": 390,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\credits-all\\entries\\3-level.bld.decoded",
+      "name": "credits-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 79,
+        "model_type": 5,
+        "strict": 48,
+        "entries": 59,
+        "runner_up": 0
+      },
+      "placements": 59,
+      "counts": {
+        "direct": 55,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 4
+      },
+      "rates": {
+        "resolved": 93.2,
+        "ambiguous": 0,
+        "absent": 6.8,
+        "layered": 98.3
+      },
+      "models": {
+        "records": 34,
+        "shared": 6,
+        "inside_a_placement": 34,
+        "shared_rate": 17.6,
+        "max_users": 8
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 33,
+        "info": 26
+      },
+      "schema": {
+        "checked": 59,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_000_mining-all\\entries\\3-level.bld.decoded",
+      "name": "level_000_mining-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 58,
+        "strict": 351,
+        "entries": 617,
+        "runner_up": 0
+      },
+      "placements": 617,
+      "counts": {
+        "direct": 374,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 243
+      },
+      "rates": {
+        "resolved": 60.6,
+        "ambiguous": 0,
+        "absent": 39.4,
+        "layered": 97.6
+      },
+      "models": {
+        "records": 134,
+        "shared": 38,
+        "inside_a_placement": 134,
+        "shared_rate": 28.4,
+        "max_users": 41
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 39,
+        "high": 0,
+        "medium": 469,
+        "info": 109
+      },
+      "schema": {
+        "checked": 617,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_001_castle-all\\entries\\3-level.bld.decoded",
+      "name": "level_001_castle-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 59,
+        "strict": 603,
+        "entries": 1047,
+        "runner_up": 0
+      },
+      "placements": 1047,
+      "counts": {
+        "direct": 632,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 415
+      },
+      "rates": {
+        "resolved": 60.4,
+        "ambiguous": 0,
+        "absent": 39.6,
+        "layered": 99.1
+      },
+      "models": {
+        "records": 199,
+        "shared": 58,
+        "inside_a_placement": 199,
+        "shared_rate": 29.1,
+        "max_users": 71
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 15,
+        "high": 0,
+        "medium": 847,
+        "info": 185
+      },
+      "schema": {
+        "checked": 1047,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_002_dungeon-all\\entries\\3-level.bld.decoded",
+      "name": "level_002_dungeon-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 55,
+        "strict": 586,
+        "entries": 1009,
+        "runner_up": 0
+      },
+      "placements": 1009,
+      "counts": {
+        "direct": 617,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 392
+      },
+      "rates": {
+        "resolved": 61.1,
+        "ambiguous": 0,
+        "absent": 38.9,
+        "layered": 99.2
+      },
+      "models": {
+        "records": 185,
+        "shared": 59,
+        "inside_a_placement": 185,
+        "shared_rate": 31.9,
+        "max_users": 49
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 39,
+        "high": 0,
+        "medium": 845,
+        "info": 125
+      },
+      "schema": {
+        "checked": 1009,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_003_catapult-all\\entries\\3-level.bld.decoded",
+      "name": "level_003_catapult-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 52,
+        "strict": 583,
+        "entries": 920,
+        "runner_up": 0
+      },
+      "placements": 920,
+      "counts": {
+        "direct": 617,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 303
+      },
+      "rates": {
+        "resolved": 67.1,
+        "ambiguous": 0,
+        "absent": 32.9,
+        "layered": 96
+      },
+      "models": {
+        "records": 231,
+        "shared": 60,
+        "inside_a_placement": 231,
+        "shared_rate": 26,
+        "max_users": 47
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 766,
+        "info": 154
+      },
+      "schema": {
+        "checked": 920,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_006_islandescort-all\\entries\\3-level.bld.decoded",
+      "name": "level_006_islandescort-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 86,
+        "model_type": 51,
+        "strict": 444,
+        "entries": 910,
+        "runner_up": 0
+      },
+      "placements": 910,
+      "counts": {
+        "direct": 527,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 383
+      },
+      "rates": {
+        "resolved": 57.9,
+        "ambiguous": 0,
+        "absent": 42.1,
+        "layered": 100
+      },
+      "models": {
+        "records": 238,
+        "shared": 58,
+        "inside_a_placement": 238,
+        "shared_rate": 24.4,
+        "max_users": 38
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 13,
+        "high": 0,
+        "medium": 510,
+        "info": 387
+      },
+      "schema": {
+        "checked": 910,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_008_islandtown-all\\entries\\3-level.bld.decoded",
+      "name": "level_008_islandtown-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 63,
+        "strict": 535,
+        "entries": 937,
+        "runner_up": 0
+      },
+      "placements": 937,
+      "counts": {
+        "direct": 596,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 341
+      },
+      "rates": {
+        "resolved": 63.6,
+        "ambiguous": 0,
+        "absent": 36.4,
+        "layered": 97.2
+      },
+      "models": {
+        "records": 243,
+        "shared": 69,
+        "inside_a_placement": 243,
+        "shared_rate": 28.4,
+        "max_users": 46
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 7,
+        "high": 0,
+        "medium": 646,
+        "info": 284
+      },
+      "schema": {
+        "checked": 937,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_009_minefield-all\\entries\\3-level.bld.decoded",
+      "name": "level_009_minefield-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 106,
+        "model_type": 66,
+        "strict": 431,
+        "entries": 808,
+        "runner_up": 0
+      },
+      "placements": 808,
+      "counts": {
+        "direct": 465,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 343
+      },
+      "rates": {
+        "resolved": 57.5,
+        "ambiguous": 0,
+        "absent": 42.5,
+        "layered": 98.8
+      },
+      "models": {
+        "records": 231,
+        "shared": 59,
+        "inside_a_placement": 231,
+        "shared_rate": 25.5,
+        "max_users": 27
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 11,
+        "high": 0,
+        "medium": 590,
+        "info": 207
+      },
+      "schema": {
+        "checked": 808,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_010b_finalbattle-all\\entries\\3-level.bld.decoded",
+      "name": "level_010b_finalbattle-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 76,
+        "model_type": 17,
+        "strict": 218,
+        "entries": 490,
+        "runner_up": 0
+      },
+      "placements": 490,
+      "counts": {
+        "direct": 296,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 194
+      },
+      "rates": {
+        "resolved": 60.4,
+        "ambiguous": 0,
+        "absent": 39.6,
+        "layered": 99.6
+      },
+      "models": {
+        "records": 244,
+        "shared": 17,
+        "inside_a_placement": 244,
+        "shared_rate": 7,
+        "max_users": 16
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 5,
+        "high": 0,
+        "medium": 210,
+        "info": 275
+      },
+      "schema": {
+        "checked": 490,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_010_finallevel-all\\entries\\3-level.bld.decoded",
+      "name": "level_010_finallevel-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 60,
+        "strict": 272,
+        "entries": 668,
+        "runner_up": 0
+      },
+      "placements": 668,
+      "counts": {
+        "direct": 302,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 366
+      },
+      "rates": {
+        "resolved": 45.2,
+        "ambiguous": 0,
+        "absent": 54.8,
+        "layered": 99.9
+      },
+      "models": {
+        "records": 114,
+        "shared": 43,
+        "inside_a_placement": 114,
+        "shared_rate": 37.7,
+        "max_users": 25
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 535,
+        "info": 133
+      },
+      "schema": {
+        "checked": 668,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_014_oilisland-all\\entries\\3-level.bld.decoded",
+      "name": "level_014_oilisland-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 103,
+        "model_type": 64,
+        "strict": 430,
+        "entries": 795,
+        "runner_up": 0
+      },
+      "placements": 795,
+      "counts": {
+        "direct": 476,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 319
+      },
+      "rates": {
+        "resolved": 59.9,
+        "ambiguous": 0,
+        "absent": 40.1,
+        "layered": 98
+      },
+      "models": {
+        "records": 164,
+        "shared": 55,
+        "inside_a_placement": 164,
+        "shared_rate": 33.5,
+        "max_users": 53
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 11,
+        "high": 0,
+        "medium": 619,
+        "info": 165
+      },
+      "schema": {
+        "checked": 795,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_017_lumberjacks-all\\entries\\3-level.bld.decoded",
+      "name": "level_017_lumberjacks-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 110,
+        "model_type": 56,
+        "strict": 476,
+        "entries": 918,
+        "runner_up": 0
+      },
+      "placements": 918,
+      "counts": {
+        "direct": 539,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 379
+      },
+      "rates": {
+        "resolved": 58.7,
+        "ambiguous": 0,
+        "absent": 41.3,
+        "layered": 99.3
+      },
+      "models": {
+        "records": 233,
+        "shared": 61,
+        "inside_a_placement": 233,
+        "shared_rate": 26.2,
+        "max_users": 56
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 708,
+        "info": 210
+      },
+      "schema": {
+        "checked": 918,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_018_threetowers-all\\entries\\3-level.bld.decoded",
+      "name": "level_018_threetowers-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 56,
+        "strict": 687,
+        "entries": 1023,
+        "runner_up": 0
+      },
+      "placements": 1023,
+      "counts": {
+        "direct": 741,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 282
+      },
+      "rates": {
+        "resolved": 72.4,
+        "ambiguous": 0,
+        "absent": 27.6,
+        "layered": 95.9
+      },
+      "models": {
+        "records": 259,
+        "shared": 67,
+        "inside_a_placement": 259,
+        "shared_rate": 25.9,
+        "max_users": 80
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 774,
+        "info": 249
+      },
+      "schema": {
+        "checked": 1023,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_019_stonegolem-all\\entries\\3-level.bld.decoded",
+      "name": "level_019_stonegolem-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 62,
+        "strict": 587,
+        "entries": 1101,
+        "runner_up": 0
+      },
+      "placements": 1101,
+      "counts": {
+        "direct": 620,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 481
+      },
+      "rates": {
+        "resolved": 56.3,
+        "ambiguous": 0,
+        "absent": 43.7,
+        "layered": 99.2
+      },
+      "models": {
+        "records": 197,
+        "shared": 73,
+        "inside_a_placement": 197,
+        "shared_rate": 37.1,
+        "max_users": 80
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 33,
+        "high": 0,
+        "medium": 809,
+        "info": 259
+      },
+      "schema": {
+        "checked": 1101,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_021_sheep-all\\entries\\3-level.bld.decoded",
+      "name": "level_021_sheep-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 96,
+        "model_type": 57,
+        "strict": 551,
+        "entries": 866,
+        "runner_up": 0
+      },
+      "placements": 866,
+      "counts": {
+        "direct": 592,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 274
+      },
+      "rates": {
+        "resolved": 68.4,
+        "ambiguous": 0,
+        "absent": 31.6,
+        "layered": 97.5
+      },
+      "models": {
+        "records": 191,
+        "shared": 53,
+        "inside_a_placement": 191,
+        "shared_rate": 27.7,
+        "max_users": 65
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 38,
+        "high": 0,
+        "medium": 576,
+        "info": 252
+      },
+      "schema": {
+        "checked": 866,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_023_spiderdungeon-all\\entries\\3-level.bld.decoded",
+      "name": "level_023_spiderdungeon-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 91,
+        "model_type": 52,
+        "strict": 594,
+        "entries": 917,
+        "runner_up": 0
+      },
+      "placements": 917,
+      "counts": {
+        "direct": 629,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 288
+      },
+      "rates": {
+        "resolved": 68.6,
+        "ambiguous": 0,
+        "absent": 31.4,
+        "layered": 99.2
+      },
+      "models": {
+        "records": 179,
+        "shared": 57,
+        "inside_a_placement": 179,
+        "shared_rate": 31.8,
+        "max_users": 52
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 17,
+        "high": 0,
+        "medium": 773,
+        "info": 127
+      },
+      "schema": {
+        "checked": 917,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_024_minetrain-all\\entries\\3-level.bld.decoded",
+      "name": "level_024_minetrain-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 88,
+        "model_type": 63,
+        "strict": 483,
+        "entries": 989,
+        "runner_up": 0
+      },
+      "placements": 989,
+      "counts": {
+        "direct": 529,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 460
+      },
+      "rates": {
+        "resolved": 53.5,
+        "ambiguous": 0,
+        "absent": 46.5,
+        "layered": 100
+      },
+      "models": {
+        "records": 200,
+        "shared": 58,
+        "inside_a_placement": 200,
+        "shared_rate": 29,
+        "max_users": 55
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 46,
+        "high": 0,
+        "medium": 661,
+        "info": 282
+      },
+      "schema": {
+        "checked": 989,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_025_pandoranhub-all\\entries\\3-level.bld.decoded",
+      "name": "level_025_pandoranhub-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 96,
+        "model_type": 50,
+        "strict": 383,
+        "entries": 752,
+        "runner_up": 0
+      },
+      "placements": 752,
+      "counts": {
+        "direct": 444,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 308
+      },
+      "rates": {
+        "resolved": 59,
+        "ambiguous": 0,
+        "absent": 41,
+        "layered": 99.3
+      },
+      "models": {
+        "records": 201,
+        "shared": 48,
+        "inside_a_placement": 201,
+        "shared_rate": 23.9,
+        "max_users": 34
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 515,
+        "info": 237
+      },
+      "schema": {
+        "checked": 752,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_026_aircastle-all\\entries\\3-level.bld.decoded",
+      "name": "level_026_aircastle-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 94,
+        "model_type": 55,
+        "strict": 535,
+        "entries": 934,
+        "runner_up": 0
+      },
+      "placements": 934,
+      "counts": {
+        "direct": 589,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 345
+      },
+      "rates": {
+        "resolved": 63.1,
+        "ambiguous": 0,
+        "absent": 36.9,
+        "layered": 99.3
+      },
+      "models": {
+        "records": 214,
+        "shared": 64,
+        "inside_a_placement": 214,
+        "shared_rate": 29.9,
+        "max_users": 47
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 19,
+        "high": 0,
+        "medium": 713,
+        "info": 202
+      },
+      "schema": {
+        "checked": 934,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_027_tutorial-all\\entries\\3-level.bld.decoded",
+      "name": "level_027_tutorial-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 64,
+        "strict": 429,
+        "entries": 673,
+        "runner_up": 0
+      },
+      "placements": 673,
+      "counts": {
+        "direct": 453,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 220
+      },
+      "rates": {
+        "resolved": 67.3,
+        "ambiguous": 0,
+        "absent": 32.7,
+        "layered": 98.7
+      },
+      "models": {
+        "records": 210,
+        "shared": 61,
+        "inside_a_placement": 210,
+        "shared_rate": 29,
+        "max_users": 42
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 31,
+        "high": 0,
+        "medium": 409,
+        "info": 233
+      },
+      "schema": {
+        "checked": 673,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_032_haunted_castle-all\\entries\\3-level.bld.decoded",
+      "name": "level_032_haunted_castle-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 93,
+        "model_type": 60,
+        "strict": 701,
+        "entries": 1231,
+        "runner_up": 0
+      },
+      "placements": 1231,
+      "counts": {
+        "direct": 764,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 467
+      },
+      "rates": {
+        "resolved": 62.1,
+        "ambiguous": 0,
+        "absent": 37.9,
+        "layered": 99.8
+      },
+      "models": {
+        "records": 274,
+        "shared": 85,
+        "inside_a_placement": 274,
+        "shared_rate": 31,
+        "max_users": 92
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 14,
+        "high": 0,
+        "medium": 858,
+        "info": 359
+      },
+      "schema": {
+        "checked": 1231,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_034_trollhub-all\\entries\\3-level.bld.decoded",
+      "name": "level_034_trollhub-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 96,
+        "model_type": 50,
+        "strict": 515,
+        "entries": 832,
+        "runner_up": 0
+      },
+      "placements": 832,
+      "counts": {
+        "direct": 557,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 275
+      },
+      "rates": {
+        "resolved": 66.9,
+        "ambiguous": 0,
+        "absent": 33.1,
+        "layered": 99.3
+      },
+      "models": {
+        "records": 239,
+        "shared": 65,
+        "inside_a_placement": 239,
+        "shared_rate": 27.2,
+        "max_users": 54
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 13,
+        "high": 0,
+        "medium": 640,
+        "info": 179
+      },
+      "schema": {
+        "checked": 832,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_036_haunted_expansion-all\\entries\\3-level.bld.decoded",
+      "name": "level_036_haunted_expansion-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 105,
+        "model_type": 67,
+        "strict": 433,
+        "entries": 1154,
+        "runner_up": 0
+      },
+      "placements": 1154,
+      "counts": {
+        "direct": 477,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 677
+      },
+      "rates": {
+        "resolved": 41.3,
+        "ambiguous": 0,
+        "absent": 58.7,
+        "layered": 99
+      },
+      "models": {
+        "records": 237,
+        "shared": 47,
+        "inside_a_placement": 237,
+        "shared_rate": 19.8,
+        "max_users": 50
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 48,
+        "high": 0,
+        "medium": 810,
+        "info": 296
+      },
+      "schema": {
+        "checked": 1154,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_037_piratestronghold-all\\entries\\3-level.bld.decoded",
+      "name": "level_037_piratestronghold-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 65,
+        "strict": 537,
+        "entries": 1089,
+        "runner_up": 0
+      },
+      "placements": 1089,
+      "counts": {
+        "direct": 581,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 508
+      },
+      "rates": {
+        "resolved": 53.4,
+        "ambiguous": 0,
+        "absent": 46.6,
+        "layered": 99.5
+      },
+      "models": {
+        "records": 216,
+        "shared": 66,
+        "inside_a_placement": 216,
+        "shared_rate": 30.6,
+        "max_users": 39
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 1,
+        "high": 0,
+        "medium": 843,
+        "info": 245
+      },
+      "schema": {
+        "checked": 1089,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_038_tree_adventure-all\\entries\\3-level.bld.decoded",
+      "name": "level_038_tree_adventure-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 56,
+        "strict": 459,
+        "entries": 805,
+        "runner_up": 0
+      },
+      "placements": 805,
+      "counts": {
+        "direct": 492,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 313
+      },
+      "rates": {
+        "resolved": 61.1,
+        "ambiguous": 0,
+        "absent": 38.9,
+        "layered": 93.7
+      },
+      "models": {
+        "records": 214,
+        "shared": 53,
+        "inside_a_placement": 214,
+        "shared_rate": 24.8,
+        "max_users": 31
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 6,
+        "high": 0,
+        "medium": 626,
+        "info": 173
+      },
+      "schema": {
+        "checked": 805,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_039_undeadvolcano-all\\entries\\3-level.bld.decoded",
+      "name": "level_039_undeadvolcano-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 104,
+        "model_type": 66,
+        "strict": 399,
+        "entries": 827,
+        "runner_up": 0
+      },
+      "placements": 827,
+      "counts": {
+        "direct": 430,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 397
+      },
+      "rates": {
+        "resolved": 52,
+        "ambiguous": 0,
+        "absent": 48,
+        "layered": 98.9
+      },
+      "models": {
+        "records": 181,
+        "shared": 44,
+        "inside_a_placement": 181,
+        "shared_rate": 24.3,
+        "max_users": 25
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 33,
+        "high": 0,
+        "medium": 639,
+        "info": 155
+      },
+      "schema": {
+        "checked": 827,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_040_trolltrenches-all\\entries\\3-level.bld.decoded",
+      "name": "level_040_trolltrenches-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 100,
+        "model_type": 53,
+        "strict": 640,
+        "entries": 1057,
+        "runner_up": 0
+      },
+      "placements": 1057,
+      "counts": {
+        "direct": 688,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 369
+      },
+      "rates": {
+        "resolved": 65.1,
+        "ambiguous": 0,
+        "absent": 34.9,
+        "layered": 99.5
+      },
+      "models": {
+        "records": 234,
+        "shared": 79,
+        "inside_a_placement": 234,
+        "shared_rate": 33.8,
+        "max_users": 28
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 29,
+        "high": 0,
+        "medium": 759,
+        "info": 269
+      },
+      "schema": {
+        "checked": 1057,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_046_dragon_expansion-all\\entries\\3-level.bld.decoded",
+      "name": "level_046_dragon_expansion-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 59,
+        "strict": 522,
+        "entries": 1033,
+        "runner_up": 0
+      },
+      "placements": 1033,
+      "counts": {
+        "direct": 557,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 476
+      },
+      "rates": {
+        "resolved": 53.9,
+        "ambiguous": 0,
+        "absent": 46.1,
+        "layered": 97.6
+      },
+      "models": {
+        "records": 183,
+        "shared": 55,
+        "inside_a_placement": 183,
+        "shared_rate": 30.1,
+        "max_users": 56
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 6,
+        "high": 0,
+        "medium": 706,
+        "info": 321
+      },
+      "schema": {
+        "checked": 1033,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage1-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage1-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 105,
+        "model_type": 60,
+        "strict": 308,
+        "entries": 597,
+        "runner_up": 0
+      },
+      "placements": 597,
+      "counts": {
+        "direct": 346,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 251
+      },
+      "rates": {
+        "resolved": 58,
+        "ambiguous": 0,
+        "absent": 42,
+        "layered": 99.8
+      },
+      "models": {
+        "records": 243,
+        "shared": 41,
+        "inside_a_placement": 243,
+        "shared_rate": 16.9,
+        "max_users": 12
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 270,
+        "info": 327
+      },
+      "schema": {
+        "checked": 597,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage2-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage2-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 115,
+        "model_type": 66,
+        "strict": 339,
+        "entries": 644,
+        "runner_up": 0
+      },
+      "placements": 644,
+      "counts": {
+        "direct": 366,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 278
+      },
+      "rates": {
+        "resolved": 56.8,
+        "ambiguous": 0,
+        "absent": 43.2,
+        "layered": 99.5
+      },
+      "models": {
+        "records": 257,
+        "shared": 43,
+        "inside_a_placement": 257,
+        "shared_rate": 16.7,
+        "max_users": 9
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 298,
+        "info": 346
+      },
+      "schema": {
+        "checked": 644,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage3-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage3-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 103,
+        "model_type": 66,
+        "strict": 302,
+        "entries": 554,
+        "runner_up": 0
+      },
+      "placements": 554,
+      "counts": {
+        "direct": 328,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 226
+      },
+      "rates": {
+        "resolved": 59.2,
+        "ambiguous": 0,
+        "absent": 40.8,
+        "layered": 99.6
+      },
+      "models": {
+        "records": 234,
+        "shared": 45,
+        "inside_a_placement": 234,
+        "shared_rate": 19.2,
+        "max_users": 10
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 251,
+        "info": 303
+      },
+      "schema": {
+        "checked": 554,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage4-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage4-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 108,
+        "model_type": 60,
+        "strict": 332,
+        "entries": 603,
+        "runner_up": 0
+      },
+      "placements": 603,
+      "counts": {
+        "direct": 358,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 245
+      },
+      "rates": {
+        "resolved": 59.4,
+        "ambiguous": 0,
+        "absent": 40.6,
+        "layered": 99.7
+      },
+      "models": {
+        "records": 243,
+        "shared": 49,
+        "inside_a_placement": 243,
+        "shared_rate": 20.2,
+        "max_users": 18
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 10,
+        "high": 0,
+        "medium": 269,
+        "info": 324
+      },
+      "schema": {
+        "checked": 603,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage5-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage5-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 103,
+        "model_type": 66,
+        "strict": 347,
+        "entries": 663,
+        "runner_up": 0
+      },
+      "placements": 663,
+      "counts": {
+        "direct": 374,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 289
+      },
+      "rates": {
+        "resolved": 56.4,
+        "ambiguous": 0,
+        "absent": 43.6,
+        "layered": 99.8
+      },
+      "models": {
+        "records": 237,
+        "shared": 47,
+        "inside_a_placement": 237,
+        "shared_rate": 19.8,
+        "max_users": 17
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 295,
+        "info": 368
+      },
+      "schema": {
+        "checked": 663,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\level_hub_stage6-all\\entries\\3-level.bld.decoded",
+      "name": "level_hub_stage6-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 103,
+        "model_type": 67,
+        "strict": 285,
+        "entries": 546,
+        "runner_up": 0
+      },
+      "placements": 546,
+      "counts": {
+        "direct": 312,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 234
+      },
+      "rates": {
+        "resolved": 57.1,
+        "ambiguous": 0,
+        "absent": 42.9,
+        "layered": 99.5
+      },
+      "models": {
+        "records": 227,
+        "shared": 37,
+        "inside_a_placement": 227,
+        "shared_rate": 16.3,
+        "max_users": 19
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 243,
+        "info": 303
+      },
+      "schema": {
+        "checked": 546,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_001_cubedungeon-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_001_cubedungeon-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 51,
+        "strict": 150,
+        "entries": 315,
+        "runner_up": 0
+      },
+      "placements": 315,
+      "counts": {
+        "direct": 197,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 118
+      },
+      "rates": {
+        "resolved": 62.5,
+        "ambiguous": 0,
+        "absent": 37.5,
+        "layered": 93.3
+      },
+      "models": {
+        "records": 153,
+        "shared": 24,
+        "inside_a_placement": 153,
+        "shared_rate": 15.7,
+        "max_users": 8
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 189,
+        "info": 126
+      },
+      "schema": {
+        "checked": 315,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_002_cyndersexp-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_002_cyndersexp-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 55,
+        "strict": 159,
+        "entries": 340,
+        "runner_up": 0
+      },
+      "placements": 340,
+      "counts": {
+        "direct": 212,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 128
+      },
+      "rates": {
+        "resolved": 62.4,
+        "ambiguous": 0,
+        "absent": 37.6,
+        "layered": 94.7
+      },
+      "models": {
+        "records": 156,
+        "shared": 23,
+        "inside_a_placement": 156,
+        "shared_rate": 14.7,
+        "max_users": 17
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 199,
+        "info": 141
+      },
+      "schema": {
+        "checked": 340,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_003_darkforest-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_003_darkforest-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 95,
+        "model_type": 52,
+        "strict": 138,
+        "entries": 307,
+        "runner_up": 0
+      },
+      "placements": 307,
+      "counts": {
+        "direct": 189,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 118
+      },
+      "rates": {
+        "resolved": 61.6,
+        "ambiguous": 0,
+        "absent": 38.4,
+        "layered": 95.4
+      },
+      "models": {
+        "records": 152,
+        "shared": 24,
+        "inside_a_placement": 152,
+        "shared_rate": 15.8,
+        "max_users": 5
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 181,
+        "info": 126
+      },
+      "schema": {
+        "checked": 307,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_004_ancientsewer-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_004_ancientsewer-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 88,
+        "model_type": 47,
+        "strict": 148,
+        "entries": 329,
+        "runner_up": 0
+      },
+      "placements": 329,
+      "counts": {
+        "direct": 200,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 129
+      },
+      "rates": {
+        "resolved": 60.8,
+        "ambiguous": 0,
+        "absent": 39.2,
+        "layered": 99.1
+      },
+      "models": {
+        "records": 155,
+        "shared": 26,
+        "inside_a_placement": 155,
+        "shared_rate": 16.8,
+        "max_users": 7
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 192,
+        "info": 137
+      },
+      "schema": {
+        "checked": 329,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_006_troll-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_006_troll-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 98,
+        "model_type": 59,
+        "strict": 155,
+        "entries": 337,
+        "runner_up": 0
+      },
+      "placements": 337,
+      "counts": {
+        "direct": 205,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 132
+      },
+      "rates": {
+        "resolved": 60.8,
+        "ambiguous": 0,
+        "absent": 39.2,
+        "layered": 95.5
+      },
+      "models": {
+        "records": 148,
+        "shared": 26,
+        "inside_a_placement": 148,
+        "shared_rate": 17.6,
+        "max_users": 14
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 201,
+        "info": 136
+      },
+      "schema": {
+        "checked": 337,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_007_spikes-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_007_spikes-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 93,
+        "model_type": 49,
+        "strict": 208,
+        "entries": 385,
+        "runner_up": 0
+      },
+      "placements": 385,
+      "counts": {
+        "direct": 255,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 130
+      },
+      "rates": {
+        "resolved": 66.2,
+        "ambiguous": 0,
+        "absent": 33.8,
+        "layered": 94.3
+      },
+      "models": {
+        "records": 177,
+        "shared": 31,
+        "inside_a_placement": 177,
+        "shared_rate": 17.5,
+        "max_users": 15
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 242,
+        "info": 143
+      },
+      "schema": {
+        "checked": 385,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_008_pirategrotto-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_008_pirategrotto-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 97,
+        "model_type": 54,
+        "strict": 154,
+        "entries": 320,
+        "runner_up": 0
+      },
+      "placements": 320,
+      "counts": {
+        "direct": 203,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 117
+      },
+      "rates": {
+        "resolved": 63.4,
+        "ambiguous": 0,
+        "absent": 36.6,
+        "layered": 96.6
+      },
+      "models": {
+        "records": 158,
+        "shared": 24,
+        "inside_a_placement": 158,
+        "shared_rate": 15.2,
+        "max_users": 10
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 189,
+        "info": 131
+      },
+      "schema": {
+        "checked": 320,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_009_legendary_ancientsewer-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_009_legendary_ancientsewer-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 103,
+        "model_type": 49,
+        "strict": 134,
+        "entries": 304,
+        "runner_up": 0
+      },
+      "placements": 304,
+      "counts": {
+        "direct": 184,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 120
+      },
+      "rates": {
+        "resolved": 60.5,
+        "ambiguous": 0,
+        "absent": 39.5,
+        "layered": 98.7
+      },
+      "models": {
+        "records": 145,
+        "shared": 21,
+        "inside_a_placement": 145,
+        "shared_rate": 14.5,
+        "max_users": 8
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 176,
+        "info": 128
+      },
+      "schema": {
+        "checked": 304,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\pvp_level_010_ice-all\\entries\\3-level.bld.decoded",
+      "name": "pvp_level_010_ice-all",
+      "has_runtime_map": false,
+      "detected": {
+        "placement_type": 111,
+        "model_type": 51,
+        "strict": 149,
+        "entries": 321,
+        "runner_up": 0
+      },
+      "placements": 321,
+      "counts": {
+        "direct": 197,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 124
+      },
+      "rates": {
+        "resolved": 61.4,
+        "ambiguous": 0,
+        "absent": 38.6,
+        "layered": 96
+      },
+      "models": {
+        "records": 147,
+        "shared": 25,
+        "inside_a_placement": 147,
+        "shared_rate": 17,
+        "max_users": 11
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 187,
+        "info": 134
+      },
+      "schema": {
+        "checked": 321,
+        "invalid": 0,
+        "errors": []
+      }
+    },
+    {
+      "file": "C:\\Users\\romai\\Desktop\\PortalForge\\.local\\workspaces\\title-all\\entries\\3-level.bld.decoded",
+      "name": "title-all",
+      "has_runtime_map": false,
+      "detected": null,
+      "placements": 0,
+      "counts": {
+        "direct": 0,
+        "indirect": 0,
+        "ambiguous": 0,
+        "absent": 0
+      },
+      "rates": {
+        "resolved": 0,
+        "ambiguous": 0,
+        "absent": 0,
+        "layered": 0
+      },
+      "models": {
+        "records": 0,
+        "shared": 0,
+        "inside_a_placement": 0,
+        "shared_rate": 0,
+        "max_users": 0
+      },
+      "safety": {
+        "blocking": 0,
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "info": 0
+      },
+      "schema": {
+        "checked": 0,
+        "invalid": 0,
+        "errors": []
+      }
+    }
+  ],
+  "totals": {
+    "files": 76,
+    "failed": 0,
+    "placements": 43258,
+    "direct": 26042,
+    "indirect": 0,
+    "ambiguous": 0,
+    "absent": 17216,
+    "model_records": 11269,
+    "shared_models": 2691,
+    "models_inside": 11269,
+    "schema_checked": 43258,
+    "schema_invalid": 0,
+    "safety": {
+      "blocking": 0,
+      "critical": 620,
+      "high": 0,
+      "medium": 30968,
+      "info": 11670
+    },
+    "rates": {
+      "resolved": 60.2,
+      "ambiguous": 0,
+      "absent": 39.8,
+      "shared_models": 23.9,
+      "models_inside": 100,
+      "schema_valid": 100
+    }
+  }
+}

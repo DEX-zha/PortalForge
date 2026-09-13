@@ -55,6 +55,7 @@ async function main() {
   renderLayers(index);
   state.scene.setVisible(visibleSet(state.placements, state.visible));
 
+  showDiagnostics();
   $('c').addEventListener('pointerdown', onPick);
   $('frame-all').addEventListener('click', () => state.scene.frameAll());
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
@@ -104,6 +105,22 @@ function gradeOf(p) {
   if (p.model.status === 'ambiguous') return 'high';
   if (p.behavior) return 'medium';
   return 'info';
+}
+
+// On screen rather than in a console: if the view is empty, this says whether the proxies exist, whether the
+// canvas has a size, and where the camera is pointing.
+function showDiagnostics() {
+  const tick = () => {
+    const d = state.scene.diagnostics();
+    $('diag').textContent = [
+      d.proxies + ' proxies (' + d.boxes + ' boxes, ' + d.markers + ' markers)',
+      'canvas ' + d.canvas.w + '×' + d.canvas.h + ' · buffer ' + d.pixels + 'px',
+      d.bounds ? 'level ' + d.bounds.min.join(',') + ' to ' + d.bounds.max.join(',') : 'no bounds',
+      'camera ' + d.camera.join(',') + ' looking at ' + d.target.join(','),
+    ].join(String.fromCharCode(10));
+    setTimeout(tick, 1000);
+  };
+  tick();
 }
 
 function apply() { state.scene.setVisible(visibleSet(state.placements, state.visible)); }

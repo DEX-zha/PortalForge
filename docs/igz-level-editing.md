@@ -255,6 +255,32 @@ four other files usable, and it is also the limit of the claim, since those four
 Every model record of every file lies inside some other placement's blob (494 of 494), so a same-size replacement
 always rewrites at least one model record. The only question is how many placements share it.
 
+
+### The whole disc
+
+`docs/placement-corpus-all-levels.json` is the same validation run over **every level archive on the disc**, 76
+files, extracted with `disc-extract`. It is the widest check the project can make without a boot.
+
+| | |
+| --- | --- |
+| placements | 43 258 |
+| conforming to `placement-v1` | 43 258 of 43 258 |
+| resolved through `+0xDC` | 60.2% |
+| indirect, and ambiguous | 0 and 0, anywhere |
+| model records | 11 269, of which 2 691 shared |
+| model records inside another placement's blob | 11 269 of 11 269 |
+| files where a second class scored a single hit | none |
+| files with no placement class | one, `Title.bld`, a menu scene |
+| safety grading | 0 blocking, 620 critical, 30 968 medium, 11 670 info |
+
+Two things this run settled that four levels could not. The placement class is one of **23 different indices**
+across the disc, so a tool keyed on the number would be wrong on most of the game, and the detector is never
+ambiguous: in 75 files it picks a class and no other class scores a single strict hit.
+
+It also found a real defect. The header-table reader added a table word to the section base **without masking the
+flagged high bit**, which no tutorial word ever sets; `Level_009_Minefield` holds `0x80051E0C` there and the
+read walked past the end of the file. Four levels were not enough to see it and 76 were.
+
 ### Safety rules
 
 `assessPlacement` and `assessReplacement` (`src/editor/safety.mjs`) return rules carrying a severity and the finding

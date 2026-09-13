@@ -17,9 +17,14 @@
   section { border-left: 1px solid var(--line); }
   h2 { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
        margin: 14px 12px 6px; font-weight: 600; }
-  #canvas-wrap { position: relative; }
-  canvas { display: block; width: 100%; height: 100%; }
+  /* min-height:0 stops this grid row from being sized by its content, and absolute positioning takes the canvas
+     out of the percentage-height chain: that chain is what left the drawing buffer one pixel wide, stretched
+     across the column as one flat colour and indistinguishable from an empty scene. */
+  #canvas-wrap { position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+  canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
   #hint { position: absolute; left: 12px; bottom: 10px; color: var(--dim); font-size: 12px; pointer-events: none; }
+  #diag { position: absolute; right: 12px; top: 10px; color: var(--dim); font-size: 11px; pointer-events: none;
+          text-align: right; line-height: 1.4; white-space: pre; }
   .layer { display: flex; align-items: center; gap: 8px; padding: 3px 12px; cursor: pointer; }
   .layer:hover { background: #262a33; }
   .layer input { margin: 0; }
@@ -73,6 +78,7 @@
 
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
+  <div id="diag"></div>
   <div id="hint">drag to orbit · right-drag to pan · wheel to zoom · click a proxy, click again to reach what is behind it</div>
   <div id="error" hidden></div>
 </div>
