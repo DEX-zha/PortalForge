@@ -193,6 +193,31 @@ export const commands = {
       const p = r.plan;
       return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status}: ${p.source.type_name}@0x${p.source.object_offset.toString(16)} block ${p.source.block_bytes} B -> clone @0x${p.insert_at.toString(16)} (+${p.inserted_bytes} B${p.insert_before !== null ? `, inserted before 0x${p.insert_before.toString(16)}, end pad ${p.end_pad}` : ''}), refcounts bumped ${p.refcounts.length}, table entry ${p.table_entry ? `#${p.table_entry.index}` : 'none'}, pointers internal ${p.pointers.internal} external ${p.pointers.external}, rebased after shift ${p.pointers.rebased_after_shift}, new ids ${p.new_ids.length}, edits ${p.changes.length}\n${p.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n')}${written.planFile ? '\nplan ' + written.planFile : ''}\nfile ${written.outFile}` };
     }
+    if (sub === 'relocation-probe') {
+      const R = await import('./igz/relocation.mjs');
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const truth = R.relocationTruth(buf, fixups);
+      const results = [];
+      const onlyTemplate = o.probe && o.probe.includes('template');
+      if (!onlyTemplate) for (const s of g.sections) {
+        if (o.section !== undefined && s.index !== Number(o.section)) continue;
+        if (s.index === g.object_section) continue;
+        const sb = buf.subarray(s.offset, s.offset + s.size);
+        results.push(...R.probeFlat(truth, `sec${s.index}`, sb));
+        results.push(...R.probeBitmap(truth, `sec${s.index}`, sb));
+      }
+      results.sort((a, b) => (b.recall + b.precision) - (a.recall + a.precision));
+      const tt = R.typeTemplates(buf, fixups);
+      const lines = [`ground truth: ${truth.wordIdx.length} relocated words over ${truth.nWords} section-1 words`];
+      lines.push('top flat/bitmap decoders (by recall+precision):');
+      for (const r of results.slice(0, 14)) lines.push(`  ${r.section.padEnd(6)} ${r.decoder.padEnd(22)} produced ${String(r.produced).padStart(8)}  precision ${(100 * r.precision).toFixed(1)}%  recall ${(100 * r.recall).toFixed(1)}%`);
+      lines.push(`per-type templates explain ${(100 * tt.explained_pct).toFixed(1)}% of pointer fields (${tt.explained}/${tt.total}); ${tt.templates.filter(t => t.template.length).length} types have a non-empty pointer template`);
+      const sm = R.structuralModel(buf, fixups);
+      lines.push(`structural model: fixed-field ${(100 * sm.fixed / sm.total).toFixed(1)}% + array-run ${(100 * sm.array / sm.total).toFixed(1)}% = ${(100 * sm.explained_pct).toFixed(1)}% explained; ${sm.unexplained} unexplained`);
+      if (sm.unexplained_samples.length) lines.push('  unexplained e.g. ' + sm.unexplained_samples.slice(0, 6).map(u => `${u.type}${u.field}`).join(' '));
+      if (o.out) fs.writeFileSync(path.resolve(o.out), JSON.stringify({ truth_words: truth.wordIdx.length, section_words: truth.nWords, results, templates: tt.templates, explained_pct: tt.explained_pct }, null, 2));
+      return { result: { results: results.slice(0, 30), templates_explained_pct: tt.explained_pct }, text: lines.join('\n') };
+    }
     if (sub === 'fixups') {
       const { fixupMap, crossSectionPointers } = await import('./igz/fixups.mjs');
       const live = fs.readFileSync(path.resolve(need(pos[2], 'resident section dump')));

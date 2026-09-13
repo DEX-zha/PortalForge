@@ -5,14 +5,14 @@
   "category": "references",
   "confidence": "LIKELY",
   "endian": "be",
-  "type": "an explicit list (not yet located/decoded) of section-1 word offsets that the loader rebases into pointers",
-  "structure": "The pointer-relocation table: the structure that actually turns record fields into live pointers",
+  "type": "reflection-driven: per-type field descriptors (igMetaField-style: field offset + is-pointer + array-count) walked per object, NOT a flat stored offset list",
+  "structure": "The pointer relocation is computed at load from per-type field metadata, not read from a flat table",
   "location": {
     "offset": "unknown; not stored as raw offsets, cumulative sums, a bitmap, or a byte/u16 delta stream in sections 0,2-8",
     "file_pattern": "level/*.bld:level.bld (decoded)",
     "length": 1
   },
-  "meaning": "This is the structure that makes an IGZ object \"live\". Constructing a record (writing its class/vtable pointer at word +0) happens for every record in the enumerated span, but a record only functions once its pointer FIELDS are rebased (section-relative offset -> resident address). That rebasing is driven by an explicit relocation table, NOT by the record bytes: (1) a clone whose pointer words were hand-rebased in the file is still not fixed up by the game (owner+0x14 stays the raw offset 0x40c424, owner+0x3c -> physics stays raw), so the game ignores the file bytes and re-derives pointers from its own table; (2) the table is position-sensitive: growing the header table by one entry shifts every object 32 bytes and desynchronises the relocation globally (a registered clone froze the load after only 1 036 of 21 680 records, vs 21 403 when only the tail shifted). Consequences: to duplicate an entity the clone`s new pointer-word offsets must be inserted into this table (and all later entries shifted), and the table must be found first. It is 159 245 entries for the tutorial, dominated by runs of consecutive pointer words (77 971 gaps of 1), but is not present verbatim as offsets/cumsum/bitmap/byte-delta/u16-delta in any other section, so it is compressed or interleaved and remains to be decoded. This is the sole remaining blocker for M3.",
+  "meaning": "Static probe (igz relocation-probe) result: the 162 110 relocated section-1 words are reproduced by NO flat encoding — not raw offsets, cumulative deltas, LEB128, byte/u16 delta streams, nor a bitmap, in any of sections 0,2-8 (best recall < 2%); there is no named fixup section (no ROFS/RVTB/etc. magic; sections end exactly at EOF). Instead a structural model explains 76.2% directly (29.2% at type-consistent fixed field offsets, 47.1% inside contiguous pointer arrays whose length varies per instance) and the remainder are per-instance pointers in variable-layout records. This is the signature of REFLECTION-DRIVEN relocation: each type carries field descriptors (offset, is-pointer, and for list fields a count to follow), and the loader walks every processed object`s fields by its type to rebase them (Alchemy igMetaObject/igMetaField). Consequences for M3, reframed: there is NO flat relocation list to decode and extend; a clone of an EXISTING type needs no new relocation data — it only needs to be PROCESSED by the same per-type field walk as the originals, which is gated on being a first-class record (a header-table entry). The remaining task is therefore (a) locate the per-type field descriptors in the section-0 metadata to model relocation to 100% and, (b) register the clone without the global-shift desync that broke the header-table growth attempt (m3-…-1789258792820). Tooling: `igz relocation-probe <decoded> --fixups <map>` scores encoding hypotheses and the structural model on every section.",
   "evidence": [
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
@@ -21,6 +21,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789258792820",
       "summary": "clone inside span WITH a table entry (32-byte global shift): relocation desynced globally, only 1 036 records constructed, header type words wrongly rebased (physics +0 0x7b -> base+0x7b), early hang"
+    },
+    {
+      "probe": "ssa-archive igz relocation-probe (reloc-probe.json)",
+      "summary": "no flat/bitmap decoder exceeds 2% recall on any section; structural model (type fixed fields + array runs) explains 76.2%; no fixup-section magic; file ends at the last section"
     }
   ]
 }

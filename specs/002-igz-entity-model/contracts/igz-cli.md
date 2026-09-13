@@ -32,7 +32,10 @@ Reverse references: every word of every section whose value resolves to the obje
 ### `igz containers <decoded file> [--type <name>] [--limit n]` / `igz members <decoded file> <object offset>`
 Data-driven list decoding: `{count, capacity, pointer}` triples whose array resolves to object headers, and inline arrays of object offsets; `members` lists the containers holding one object.
 
-### `igz fixups <decoded file> <resident section dump> [--base 0x80DBC020] [--out <map.json>]`
+### `igz relocation-probe <decoded file> --fixups <map.json> [--section N] [--probe template] [--out <report.json>]`
+Static search for how the game encodes which words to rebase into pointers. Scores flat encodings (u32/u16 raw and cumulative-delta, LEB128, byte/u16 delta streams), sliding bitmaps, per-type templates and a structural model (type-consistent fixed fields + contiguous pointer arrays) against the ground-truth relocated-word set from `--fixups`. Result on the tutorial: no flat encoding exceeds ~2% recall, no fixup-section magic, structural model explains 76% — relocation is reflection-driven (per-type field descriptors), not a flat table.
+
+### `igz fixups <decoded file> <resident section dump> [--base 0x80DBC020] [--regions <mem1.bin>,<mem2.bin>] [--section-address <i>=<addr>]... [--out <map.json>]`
 Diffs the file against the resident copy of its object section (from `experiment ptr-scan --dimensions`) and classifies every rewritten word (pointer, class, id, string, code, zeroed, filled); reports which objects the loader visited and writes the pointer/id word lists used by `igz clone-entity`.
 
 ### `igz clone-entity <decoded file> <owner offset> --end <block end> --fixups <map.json> --finding <id> [--set <hex offset in block>[:type]=<value>]... --out <decoded file> [--plan <plan.json>] [--no-register] [--also-finding <id>]...`
