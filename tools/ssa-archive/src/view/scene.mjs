@@ -113,7 +113,8 @@ export function createScene(canvas) {
     return { proxies: state.drawn, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
       canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0, proxy: Math.round(state.proxy * 10) / 10,
       bounds: b && !b.isEmpty() ? { min: b.min.toArray().map(v => Math.round(v)), max: b.max.toArray().map(v => Math.round(v)) } : null,
-      camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)) };
+      camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)),
+      distanceText: Math.round(camera.position.distanceTo(controls.target)) + 'u out' };
   }
 
   const dummy = new THREE.Object3D();

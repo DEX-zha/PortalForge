@@ -17,7 +17,12 @@ const api = async (path, body) => {
   return payload;
 };
 
-const fail = message => { const box = $('error'); box.hidden = false; box.textContent = message; };
+const fail = message => {
+  const box = $('error');
+  box.hidden = false;
+  box.innerHTML = '<div><b>The editor cannot show this level.</b>' + message.replace(/</g, '&lt;') + '</div>';
+  shown = true;
+};
 
 const state = { placements: [], layers: [], visible: new Set(), selection: null, scene: null, mode: null, dirty: false, undoDepth: 0, redoDepth: 0, saved: null, patched: null };
 
@@ -111,17 +116,27 @@ async function main() {
 function showDiagnostics() {
   const tick = () => {
     const d = state.scene.diagnostics();
-    $('diag').textContent = [
-      d.proxies + ' proxies (' + d.boxes + ' boxes, ' + d.markers + ' markers)',
-      'canvas ' + d.canvas.w + '×' + d.canvas.h + ', buffer ' + d.pixels + 'px',
-      'proxy ' + d.proxy + ' units',
-      d.bounds ? 'level ' + d.bounds.min.join(',') + ' to ' + d.bounds.max.join(',') : 'no bounds',
-      'camera ' + d.camera.join(',') + ' looking at ' + d.target.join(','),
-    ].join(String.fromCharCode(10));
+    const small = d.canvas.w < 40 || d.canvas.h < 40;
+    $('diag').textContent = d.proxies + ' drawn, canvas ' + d.canvas.w + '\u00d7' + d.canvas.h
+      + ', buffer ' + d.pixels + 'px, proxy ' + d.proxy + 'u, camera ' + d.distanceText;
+    $('diag').classList.toggle('bad', small || !d.proxies);
+
+    // A collapsed viewport used to look exactly like an empty level. Say which one it is, in words, on top of
+    // everything, rather than leaving a black rectangle to be interpreted.
+    // Three consecutive bad readings, not one: layout has not always settled on the first tick, and an
+    // overlay that flashes on every load would teach a person to ignore it.
+    bad = (small || !d.proxies) ? bad + 1 : 0;
+    if (bad >= 3) {
+      fail(small
+        ? 'The viewport has no room to draw in: it measures ' + d.canvas.w + ' by ' + d.canvas.h + ' pixels. '
+          + 'This is a page layout fault, not a level fault; ' + d.proxies + ' proxies are ready to draw.'
+        : 'The level opened but produced no proxies to draw.');
+    } else if (shown) { $('error').hidden = true; shown = false; }
     setTimeout(tick, 1000);
   };
   tick();
 }
+let shown = false, bad = 0;
 
 function apply() { state.scene.setVisible(visibleSet(state.placements, state.visible)); }
 

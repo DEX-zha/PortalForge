@@ -1,5 +1,10 @@
+<!DOCTYPE html>
 <!-- 3D placement editor view (feature 003). Served verbatim by src/editor/server.mjs; no build step, no bundler,
-     so reading the shipped file and reading the source is the same act. -->
+     so reading the shipped file and reading the source is the same act.
+
+     The doctype is not decoration. Without it the browser renders in quirks mode, the height chain this layout
+     depends on does not resolve, and the viewport column collapses to nothing while every panel around it looks
+     correct. Do not remove it. -->
 <meta charset="utf-8">
 <title>PortalForge placement editor</title>
 <style>
@@ -15,11 +20,12 @@
           --serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
           --sans: ui-sans-serif, system-ui, 'Segoe UI', sans-serif; }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body { margin: 0; height: 100vh; display: grid; grid-template-columns: 260px 1fr 380px; grid-template-rows: 44px 1fr;
          background: var(--bg); color: var(--text); overflow: hidden;
          font: 13px/1.5 var(--sans); font-variant-numeric: tabular-nums; }
   header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 14px;
-           border-bottom: 1px solid var(--line); background: var(--panel); }
+           border-bottom: 1px solid var(--line); background: var(--panel); overflow: hidden; }
   header b { font: 400 16px/1 var(--serif); letter-spacing: .01em; }
   header .dim { color: var(--dim); }
   aside, section { overflow-y: auto; background: var(--panel); }
@@ -30,11 +36,13 @@
   /* min-height:0 stops this grid row from being sized by its content, and absolute positioning takes the canvas
      out of the percentage-height chain: that chain is what left the drawing buffer one pixel wide, stretched
      across the column as one flat colour and indistinguishable from an empty scene. */
-  #canvas-wrap { position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+  /* min-height:0 lets the grid row shrink; the floor stops it reaching zero, which is the state that hid both the
+     viewport and every message inside it. */
+  #canvas-wrap { position: relative; min-height: 240px; min-width: 0; overflow: hidden; }
   canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
   #hint { position: absolute; left: 12px; bottom: 10px; color: var(--dim); font-size: 12px; pointer-events: none; }
-  #diag { position: absolute; right: 12px; top: 10px; color: var(--dim); font-size: 11px; pointer-events: none;
-          text-align: right; line-height: 1.5; white-space: pre; opacity: .55; }
+  #diag { color: var(--dim); font-size: 11px; white-space: nowrap; }
+  #diag.bad { color: var(--high); }
   #tally { display: flex; gap: 14px; align-items: baseline; color: var(--dim); }
   #tally b { font: 500 13px/1 var(--sans); color: var(--text); }
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--pick); outline-offset: 1px; }
@@ -66,14 +74,16 @@
            padding: 4px 9px; cursor: pointer; font: inherit; }
   button:hover { background: #263341; border-color: #33414f; }
   button:disabled { opacity: .4; cursor: default; }
-  #error { position: absolute; inset: 0; display: grid; place-items: center; padding: 40px; text-align: center;
-           color: var(--high); background: var(--bg); }
+  #error { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 40px;
+           text-align: center; color: var(--high); background: var(--bg); font-size: 14px; line-height: 1.6; }
+  #error b { display: block; font: 400 18px/1.3 var(--serif); color: var(--text); margin-bottom: 10px; }
 </style>
 
 <header>
   <b>Placement editor</b>
   <span class="dim" id="file">opening…</span>
   <span id="tally"></span>
+  <span id="diag" title="what the scene believes it is showing"></span>
   <span style="flex:1"></span>
   <span id="tools"><button id="gizmo-move">Move</button><button id="gizmo-rotate">Rotate</button><button id="gizmo-scale">Scale</button><button id="gizmo-off">Off</button></span>
   <button id="frame-all">Frame level</button>
@@ -93,7 +103,6 @@
 
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
-  <div id="diag"></div>
   <div id="hint">drag to orbit, right-drag to pan, wheel to zoom. Click a proxy; click again to reach what is behind it.</div>
   <div id="error" hidden></div>
 </div>
