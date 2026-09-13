@@ -260,6 +260,23 @@ nothing in game would say which one was right.
 That leaves exactly one thing unproven for User Story 4, and it is the one the story is about: **a level other
 than the tutorial, loaded by the game, showing an edit.** Only option 1 answers it.
 
+
+**Two shortcuts to a second level were looked for and both are dead ends, 2026-09-13, no boot spent.**
+
+The Dolphin file monitor records every archive the game reads. Across every run this project has made, exactly two
+level archives were ever touched: `level/Level_027_Tutorial.arc` and `level/Title.arc`, with their `.bld`
+companions. No other level is loaded by any path the toolkit can drive.
+
+`Title.bld` was therefore extracted and examined, because it loads automatically on every boot about forty
+seconds in, which would have made it an ideal second subject. It carries 173 header-table entries and **no
+placements at all**: no class in it holds records with a world position and a resolvable model, and the detector
+reports no candidate whatsoever. It is a menu scene, not a placed level.
+
+So a second level needs a save state, and the state must live in the project profile, because that is where the
+runner looks. `ssa-archive experiment play` now launches the game there and hands it over: play to the start of
+Mining, save with Shift+F1 to Shift+F8, close Dolphin, and tell the runner the slot. The scenario then costs its
+two boots and nothing more.
+
 **Scenario 2 (T024), passed by derivation rather than by eye.** See the R7 outcome in `research.md`: four judged
 in-game runs fix the view direction as +z and screen-right as -x, which makes the game right-handed with y up,
 the same as three.js. No axis is negated.

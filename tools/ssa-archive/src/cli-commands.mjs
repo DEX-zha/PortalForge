@@ -103,6 +103,22 @@ export const commands = {
       const r = await runM1({ archive: need(o.archive, 'archive'), variant: o.variant ?? null, figure: o.figure ?? null, script: o.script, skipControl: !!o['skip-control'] });
       return { result: r, exitCode: r.exitCode ?? (r.status === 'PASS' ? 0 : 1), text: `${r.status} (${r.failing_stage ?? 'ok'}): ${r.notes ?? ''}\n${r.output}` };
     }
+    // `experiment play` launches the game in the project profile and hands it to the researcher. It scripts
+    // nothing and judges nothing: it exists so a save state can be made where the runner will look for it,
+    // which is .local/dolphin-user/StateSaves, not the user's own Dolphin installation.
+    if (kind === 'play') {
+      const { GameSession, gameFromConfig } = await import('./experiments/run-game.mjs');
+      const target = o.game ?? gameFromConfig();
+      const session = await new GameSession(console.log).connect();
+      await session.launch(target, 'play');
+      const lines = [
+        'the game is running in the project profile; this command does not touch your own Dolphin',
+        'play to where you want the state, then save it with Dolphin: Shift+F1 to Shift+F8 for slots 1 to 8',
+        'states are written to .local/dolphin-user/StateSaves, which is where the experiment runner looks',
+        'close Dolphin when you are done; nothing here is recorded as an experiment',
+      ];
+      return { result: { launched: target }, text: lines.join(String.fromCharCode(10)), keepAlive: true };
+    }
     if (kind === 'm2') {
       const { runM2 } = await import('./experiments/m2-mutation.mjs');
       const watch = (o.watch ?? []).map(w => Number(w));
