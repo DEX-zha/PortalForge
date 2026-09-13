@@ -64,3 +64,27 @@ test('decodeScript reads a type-92 script: count/capacity/size word, array at +0
   assert.ok(d.instructions.every(e => e.in_blob && e.header));
   assert.equal(d.coverage.uncovered_bytes, 0);
 });
+
+test('listPlacements lists type-104 header-table records with position, heading, scale, model, script and layer names', async () => {
+  const { listPlacements } = await import('../src/igz/placements.mjs');
+  const { buildGraph } = await import('../src/igz/graph.mjs');
+  const types = Array.from({ length: 105 }, (_, i) => i === 52 ? 'layer' : i === 64 ? 'model' : i === 92 ? 'script' : i === 104 ? 'placement' : 't' + i);
+  const built = buildIgz({ types, strings: ['Crate_01', 'Props', 'C:/tfb/Content/Models/Objects/crate.mdl', 'Crate.ai'],
+    objects: [
+      { type: 104, size: 0x100, fields: [{ at: 0x08, u32: 0x01000000 }, { at: 0x24, f32: 12.5 }, { at: 0x28, f32: 3 }, { at: 0x2c, f32: -7 }, { at: 0x34, f32: 90 }, { at: 0xb8, f32: 100 }, { at: 0xa8, obj: 3 }, { at: 0xdc, obj: 2 }] },
+      { type: 52, size: 0x40, fields: [{ at: 0x08, u32: 0x01000009 }, { at: 0x20, obj: 0 }] },   // layer "Props" -> placement
+      { type: 64, size: 0x20, fields: [{ at: 0x08, u32: 0x0100000f }] },                        // model record named by the .mdl path
+      { type: 92, size: 0x20, fields: [{ at: 0x08, u32: 0x01000037 }] },                        // script
+    ], headTable: [0, 1, 2, 3] });
+  const [P, L, M, S] = built.objectOffsets;
+  const g = buildGraph(built.buf, { fields: false });
+  const fixups = { section_offset: built.sections.s1, pointer_words: [L + 0x20, P + 0xa8, P + 0xdc] };
+  const res = listPlacements(built.buf, g, fixups);
+  assert.equal(res.total_type104, 1); assert.equal(res.listed, 1);
+  const r = res.rows[0];
+  assert.equal(r.offset, P); assert.equal(r.name, 'Crate_01'); assert.deepEqual(r.position, [12.5, 3, -7]); assert.equal(r.heading, 90); assert.equal(r.scale, 100);
+  assert.equal(r.model.offset, M); assert.match(r.model.path, /crate\.mdl$/); assert.equal(r.script.offset, S); assert.deepEqual(r.layers, ['Props']);
+  assert.equal(listPlacements(built.buf, g, fixups, { layer: 'nothing' }).listed, 0);
+  assert.equal(listPlacements(built.buf, g, fixups, { near: [12, -7, 2] }).listed, 1);
+  assert.equal(listPlacements(built.buf, g, fixups, { near: [50, 50, 2] }).listed, 0);
+});

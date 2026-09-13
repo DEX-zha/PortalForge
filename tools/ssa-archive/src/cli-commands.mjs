@@ -184,6 +184,14 @@ export const commands = {
       const written = C.writePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
       return { result: { ...r.plan, ...written, graph_after: r.graph_after }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `plan ${r.plan.validation.status}: clone of ${r.plan.source.type_name}@0x${r.plan.source.object_offset.toString(16)} at 0x${r.plan.insert_at.toString(16)} (+${r.plan.inserted_bytes} B, id 0x${r.plan.new_id.toString(16)}), ${r.plan.changes.length} edit(s), ${r.plan.updates.length} table update(s)` + (r.plan.validation.failures.length ? '\n' + r.plan.validation.failures.map(f => `  ${f.stage}: ${f.reason}`).join('\n') : '') + `\n-> ${written.outFile}${written.planFile ? ' ; plan ' + written.planFile : ''}` };
     }
+    if (sub === 'placements') {
+      const P = await import('./igz/placements.mjs');
+      const fixups = JSON.parse(fs.readFileSync(path.resolve(need(o.fixups, 'fixups')), 'utf8'));
+      const near = o.near ? o.near.split(',').map(Number) : null;
+      if (near && near.length !== 3) throw new CliError('--near expects x,z,radius');
+      const res = P.listPlacements(buf, g, fixups, { layer: o.layer ?? null, near, all: !!o.all });
+      return { result: res, text: P.formatPlacements(res, { limit: o.limit ? Number(o.limit) : 60 }) };
+    }
     if (sub === 'script' || sub === 'scripts') {
       const S = await import('./igz/script.mjs');
       const fixups = o.fixups ? JSON.parse(fs.readFileSync(path.resolve(o.fixups), 'utf8')) : null;
