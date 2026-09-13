@@ -1,0 +1,22 @@
+{
+  "id": "level.hugo.cutscene-waypoints",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "UNKNOWN",
+  "endian": "be",
+  "type": "four f32be world-position triples as arguments of one OpUseMacro \"move to || working | until within | with anim\" instruction",
+  "structure": "Hugo`s intro-cutscene path: script-argument positions in 027_HugoCS.ai",
+  "location": {
+    "offset": "OpUseMacro@0x2B7178 (size 0x274, inside table record 0x2B633C = C:/tfb/Content/Levels/Level_027/Scripts/027_HugoCS.ai): +0x7C (88.87,10.90,38.45), +0x1EC (88.84,10.89,36.82), +0x224 (91.17,10.89,38.45), +0x25C (92.69,10.75,40.97); string \"PortalEntry_P1\" at +0x60",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 12
+  },
+  "meaning": "The visible dynamic actors of the tutorial are not placed records: the island is baked geometry (sections 4/6; no 4x4 transform table in section 1 — the 913 matrix-like patterns are vertex-format/script data, and the type-42 object 0x115B50 is a bounding-volume tree), the 957 type-52 nodes are an asset registry (176 .lvl names x 11), and actors are spawned by scripts with positions as arguments. Hugo`s cutscene script carries four waypoints 3–6 units from the spawn as arguments of a single \"move to\" macro call. Candidate for an M2-style visible mutation (move one waypoint by +8 X: Hugo should walk elsewhere in the intro) — the visible handle needed for T018 and for the visible-duplication chantier. UNKNOWN until observed.",
+  "evidence": [
+    {
+      "probe": "scratch ops.mjs / opmacro.mjs (header table + strings + triples)",
+      "summary": "single OpUseMacro in 027_HugoCS.ai with 4 world-scale triples near PortalEntry_P1; record constructed at runtime (49 words changed)"
+    }
+  ]
+}
