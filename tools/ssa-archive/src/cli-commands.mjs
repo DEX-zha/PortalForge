@@ -212,6 +212,13 @@ export const commands = {
       const fixups = R.loadFixups(path.resolve(need(o.fixups, 'fixups')));
       const common = { start: Number(need(pos[2], 'owner offset')), end: Number(need(o.end, 'end')), findingId: need(o.finding, 'finding'), edits, bumpRefcounts: !o['no-refcounts'], extraFindings: o['also-finding'] ?? [] };
       let r, p;
+      if (o['replace-record'] !== undefined) {
+        const keep = (o.keep ?? '').split(',').filter(Boolean).map(x => parseInt(x, 16));
+        r = R.planReplaceRecord(buf, fixups, { source: Number(pos[2]), victim: Number(o['replace-record']), keep, findingId: common.findingId, edits, extraFindings: common.extraFindings });
+        p = r.plan;
+        const written = R.writeReachablePlan(r, { outFile: path.resolve(need(o.out, 'out')), planFile: o.plan ? path.resolve(o.plan) : null });
+        return { result: { ...p, ...written, graph_after: r.graph_after }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: p.validation.status + ' [replace-record]: ' + p.source.type_name + '@0x' + p.source.object_offset.toString(16) + ' copied over ' + p.victim_type_name + '@0x' + p.victim.toString(16) + '; kept ' + p.kept_fields.join(',') + '; pointers internal ' + p.pointers.internal + ' external ' + p.pointers.external + '; edits ' + p.changes.length + '; file length unchanged\n' + p.validation.failures.map(f => '  ' + f.stage + ': ' + f.reason).join('\n') + (written.planFile ? '\nplan ' + written.planFile : '') + '\nfile ' + written.outFile };
+      }
       if (o['replace-node'] !== undefined) {
         r = R.planReplaceNode(buf, fixups, { source: Number(pos[2]), victim: o['replace-node'] === 'next' ? null : Number(o['replace-node']), linkField: o['link-field'] !== undefined ? Number(o['link-field']) : 0x64, findingId: common.findingId, edits, extraFindings: common.extraFindings });
         p = r.plan;

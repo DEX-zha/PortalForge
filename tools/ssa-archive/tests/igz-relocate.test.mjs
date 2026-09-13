@@ -212,3 +212,33 @@ test('planReplaceNode duplicates a chain node in place: only the victim block ch
   assert.equal(sec.offset + r.buffer.readUInt32BE(A + 0x14), P);                     // pred untouched
   assert.equal(buildGraph(r.buffer).objects.length, 4);
 });
+
+test('planReplaceRecord copies a same-size record over a victim inside a script: internal pointers rebased, kept fields retain the victim values, only the victim block (and bumped refcounts) change', async () => {
+  const { planReplaceRecord } = await import('../src/igz/relocate.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-replrec-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  const built = buildIgz({ objects: [
+    { type: 3, size: 0x40, fields: [{ at: 0x14, obj: 3 }, { at: 0x18, u32: 0x3ff00000 }, { at: 0x20, u32: 0xaaaa0001 }, { at: 0x24, obj: 4 }] },   // S: shared ref, float-ish payload, name, companion
+    { type: 3, size: 0x40, fields: [{ at: 0x14, obj: 3 }, { at: 0x18, u32: 0x40000000 }, { at: 0x20, u32: 0xbbbb0002 }, { at: 0x24, obj: 5 }] },   // V (victim)
+    { type: 1, size: 0x20 },                                                                                                                       // filler
+    { type: 2, size: 0x20 },   // shared record (refcount bumped)
+    { type: 4, size: 0x20 },   // S companion
+    { type: 4, size: 0x20 },   // V companion (kept)
+  ], headTable: [2] });
+  const [S, V, , Sh, Cs, Cv] = built.objectOffsets;
+  const fixups = { section_offset: built.sections.s1, pointer_words: [S + 0x14, S + 0x24, V + 0x14, V + 0x24], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+  const r = planReplaceRecord(built.buf, fixups, { source: S, victim: V, keep: [0x20, 0x24], findingId: 'test.spawn', findingsOpts: { dir }, edits: [{ offset: 0x18, type: 'f32be', value: 5 }] });
+  assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
+  assert.equal(r.buffer.length, built.buf.length);
+  const sec = buildGraph(built.buf).sections[1];
+  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0xbbbb0002);                    // kept: victim name
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x24), Cv);                // kept: victim companion
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Sh);                // external pointer copied
+  assert.equal(r.buffer.readUInt32BE(Sh + 4), built.buf.readUInt32BE(Sh + 4) + 1); // shared refcount bumped
+  assert.equal(r.buffer.readFloatBE(V + 0x18), 5);                               // edit applied on the copy
+  assert.equal(r.buffer.readUInt32BE(V + 4), 1);
+  for (let p = 0; p + 4 <= built.buf.length; p += 4) { if ((p >= V && p < V + 0x40) || p === Sh + 4) continue; assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16)); }
+  assert.deepEqual(r.plan.pointers, { internal: 0, external: 1, kept: 2 });
+  const bad = planReplaceRecord(built.buf, fixups, { source: S, victim: Sh, findingId: 'test.spawn', findingsOpts: { dir } });
+  assert.equal(bad.plan.validation.status, 'INVALID');                           // type/size mismatch refused
+});

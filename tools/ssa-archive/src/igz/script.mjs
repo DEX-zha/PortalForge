@@ -46,7 +46,10 @@ export function decodeScript(buf, graph, fixups, recOffset) {
     const w = arrayStart + 4 * i; const v = buf.readUInt32BE(w); const target = sec.offset + (v & 0xffffff);
     let rec = byOff.get(target);
     const loose = !rec && looseHeader(buf, target);
-    if (loose) rec = { offset: target, type: buf.readUInt32BE(target), type_name: graph.types?.[buf.readUInt32BE(target)]?.name ?? null, size: 0x40 };
+    if (loose) { // size = distance to the next known record header (graph object or plausible header), bounded
+      let nxt = target + 0x40; const after = graph.objects.find(o => o.offset > target); const bound = Math.min(after ? after.offset : sec.offset + sec.size, target + 0x2000);
+      for (let p = target + 0x10; p < bound; p += 4) if (looseHeader(buf, p)) { nxt = p; break; } if (nxt === target + 0x40 && bound > nxt) nxt = bound;
+      rec = { offset: target, type: buf.readUInt32BE(target), type_name: graph.types?.[buf.readUInt32BE(target)]?.name ?? null, size: nxt - target }; }
     const entry = { index: i, pointer_word: w, target, in_blob: target >= recOffset && target < end, confirmed_pointer: ptrSet.has(w), header: !!rec, shared: loose || (rec && !(target >= recOffset && target < end)) };
     if (rec) {
       entry.type = rec.type; entry.type_name = rec.type_name; entry.size = rec.size;

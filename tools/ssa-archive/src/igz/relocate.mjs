@@ -443,6 +443,48 @@ export function planReplaceNode(buf, fixups, { source, victim = null, linkField 
   return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
 }
 
+// Generalised same-size replacement (visible-duplication chantier): copy a script instruction record S
+// over a sacrificable record V of the same type and size (e.g. a "set [set]||to" placement over another
+// placement in the same script, whose owner pointer array already addresses V). Pointers internal to S are
+// rebased to V; external pointers are copied except the fields listed in `keep`, which retain V's own
+// values (V's companion records — its ScriptSetReference / igNodeList — and its name, so the set stays
+// unique and nothing is orphaned). Refcount = 1. Only V's block changes.
+export function planReplaceRecord(buf, fixups, { source, victim, keep = [], findingId, edits = [], findingsOpts = {}, extraFindings = [] }) {
+  const finding = Findings.load(findingId, findingsOpts);
+  if (finding.confidence !== 'CONFIRMED') { const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED'); e.exitCode = 1; throw e; }
+  const graph = buildGraph(buf, { fields: false }); const sec = graph.sections[graph.object_section];
+  const S = graph.objects.find(o => o.offset === source), V = graph.objects.find(o => o.offset === victim);
+  if (!S || !V) throw Object.assign(new Error('source or victim is not an object header'), { exitCode: 1 });
+  const failures = [], changes = [];
+  if (S.type !== V.type) failures.push({ stage: 'validation', reason: 'victim type ' + V.type + ' != source type ' + S.type });
+  if (S.size !== V.size) failures.push({ stage: 'validation', reason: 'victim size 0x' + V.size.toString(16) + ' != source size 0x' + S.size.toString(16) });
+  const ptrSet = new Set(fixups.pointer_words);
+  const out = Buffer.from(buf);
+  buf.copy(out, V.offset, S.offset, S.offset + S.size);
+  out.writeUInt32BE(1, V.offset + 4);
+  const delta = V.offset - S.offset; let internal = 0, external = 0, kept = 0;
+  for (let q = 12; q + 4 <= S.size; q += 4) {
+    if (keep.includes(q)) { out.writeUInt32BE(buf.readUInt32BE(V.offset + q), V.offset + q); kept++; continue; }
+    if (!ptrSet.has(S.offset + q)) continue;
+    const v = buf.readUInt32BE(S.offset + q); const t = sec.offset + (v & 0x7fffffff);
+    if (t >= S.offset && t < S.offset + S.size) { out.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, V.offset + q); internal++; }
+    else { external++; const rc = out.readUInt32BE(t + 4); if (rc >= 1 && rc <= 200000) out.writeUInt32BE(rc + 1, t + 4); }
+  }
+  // the victim's own pointer fields that are NOT kept and were pointers lose their referent: no decrement (safe over-count)
+  for (const ed of edits) { const [width, write] = TYPES[ed.type] ?? []; if (!write) throw new Error('unsupported edit type ' + ed.type); if (ed.offset + width > S.size) throw new Error('edit outside the record'); const old_hex = out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex'); write(out, V.offset + ed.offset, ed.value); changes.push({ field: '+0x' + ed.offset.toString(16), type: ed.type, old_hex, new_hex: out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex') }); }
+  if (out.length !== buf.length) failures.push({ stage: 'validation', reason: 'file length changed' });
+  const rcLocs = new Set(); for (let q = 12; q + 4 <= S.size; q += 4) if (!keep.includes(q) && ptrSet.has(S.offset + q)) { const t = sec.offset + (buf.readUInt32BE(S.offset + q) & 0x7fffffff); if (!(t >= S.offset && t < S.offset + S.size)) rcLocs.add(t + 4); }
+  for (let p = 0; p + 4 <= buf.length; p += 4) { if (p >= V.offset && p < V.offset + V.size) continue; if (rcLocs.has(p)) continue; if (buf.readUInt32BE(p) !== out.readUInt32BE(p)) { failures.push({ stage: 'validation', reason: 'byte change outside the victim at 0x' + p.toString(16) }); break; } }
+  let after = null;
+  try { after = buildGraph(out, { fields: false }); const c = after.objects.find(o => o.offset === V.offset); if (!c || c.type !== S.type) failures.push({ stage: 'validation', reason: 'copy not recognised at the victim slot' }); if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset }))); } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  const plan = { source: { object_offset: S.offset, type_name: S.type_name, finding_id: findingId }, changes, insert_at: V.offset, updates: [{ location: V.offset + 4, field: 'refcount', old: buf.readUInt32BE(V.offset + 4), new: 1 }], new_id: S.id,
+    validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'replace-record', victim: V.offset, victim_type_name: V.type_name, kept_fields: keep.map(q => '+0x' + q.toString(16)), pointers: { internal, external, kept }, refcounts: [...rcLocs].map(l => ({ location: l, field: 'refcount +1' })), findings: [findingId, ...extraFindings], method: 'same-size same-type record replacement inside a script; victim companions and name kept' };
+  const v = schemaValidator('duplication-plan.schema.json', contracts002);
+  const { mode, victim: _v, victim_type_name, kept_fields, pointers, refcounts, findings, method, ...rest } = plan;
+  plan.schema_valid = v(rest); plan.schema_errors = v.errors ?? null;
+  return { plan, buffer: out, graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null };
+}
+
 export function writeReachablePlan(result, { outFile, planFile }) {
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   fs.writeFileSync(outFile, result.buffer);
