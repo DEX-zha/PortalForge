@@ -108,8 +108,10 @@ rebuilt archive can be counted with `--replicates <first id>` (SC-004: same inpu
 - **Push blocks froze twice** (G2 cross-script/cross-class, G2b same script/class/size with the slot`s name, script and
   companion kept), both at the same moment of the opening cutscene, both positioned at (85.5, 10, 42) on the start
   island. G2b exonerates the replacement variables; a push block (physics + GameElement_PushBlock script) present on the
-  start island during the cutscene is the suspect. Control (in-place move only) pending. Until then: plants are proven,
-  gameplay objects are not.
+  start island during the cutscene is the suspect. Decoding its behaviour script (PushBlock_Template.ai, 1415
+  instructions) shows STARTUP logic bound to tracks, waypoints and switches: a push block dropped where no track exists
+  cannot initialise (`level.pushblock.track-dependency`, LIKELY). Rule for the editor: props without a behaviour
+  script (plants, rocks, debris) are safe to move/duplicate; track-bound gameplay elements must keep their context.
 
 - Duplication **consumes a slot**: the victim disappears. Candidates for sacrifice in the tutorial: the 18
   `CS_*` camera markers of cutscenes you do not need, the level-end markers. Growing the number of records

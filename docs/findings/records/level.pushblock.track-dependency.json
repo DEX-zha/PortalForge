@@ -1,0 +1,30 @@
+{
+  "id": "level.pushblock.track-dependency",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "gameplay-logic",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "type-104 placement whose +0xA8 behaviour script is PushBlock_Template.ai (0x20B6D8, 1415 instructions: \"Minion Locked State Params\", \"Current Track\", \"Distance to Waypoint\", \"Assign Track Toggle\", \"Track_Switches\", sets \"Push_Blocks\"/\"Canons\")",
+  "structure": "Push blocks are track-bound gameplay elements: relocating one away from its track/waypoints freezes the level at start",
+  "location": {
+    "offset": "PushBlock_Template.ai script record 0x20B6D8 (shared by Push_Block_Template(1) 0x232258 and (2) 0x20B598, +0xF0 of the type-111 wrapper = +0xA8 of the type-104 record); freezes reproduced with copies positioned at (85.5, 10, 42) on the start island",
+    "file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)",
+    "length": 0
+  },
+  "meaning": "Not every placement can be moved or duplicated freely: a push block's STARTUP logic resolves its track, waypoints and switches; a copy dropped on the start island with no track nearby froze the game in-game at the beginning of the opening cutscene in both attempts, whatever the replacement variables (cross-script/cross-class in G2, same script/class/size with the slot's own script and companion kept in G2b). Plants (no behaviour script dependencies) never froze. For the editor: props without a behaviour script (or with self-contained ones) are safe to move/duplicate; track-bound gameplay elements must keep their track context. A control run (in-place move of PushBlock_Mabu to the same spot, no replacement) would turn this into CONFIRMED.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789305160219",
+      "summary": "G2: Push_Block_Template(1) copied over CS_Closing01a at (85.5, 10, 42): froze in-game during the opening cutscene"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789305543965",
+      "summary": "G2b: Push_Block_Template(2) copied over PushBlock_Mabu (same script, class, size; slot name/script/companion kept) at (85.5, 10, 42): froze at the same moment. Replacement variables excluded"
+    },
+    {
+      "probe": "igz script 0x20B6D8 (decodeScript)",
+      "summary": "PushBlock_Template.ai STARTUP creates track/waypoint/switch variables (\"Current Track\", \"Distance to Waypoint\", \"Assign Track Toggle\", \"Track_Switches\"): the element depends on level context that the start island does not provide"
+    }
+  ]
+}
