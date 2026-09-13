@@ -3,7 +3,7 @@
   "updated": "2026-09-13",
   "editable": false,
   "category": "world-entities",
-  "confidence": "LIKELY",
+  "confidence": "CONFIRMED",
   "endian": "be",
   "type": "type-104 header-table record: +0x08 name (section-2 string), +0x24 f32 x, +0x28 f32 y, +0x2C f32 z, +0x34 f32 heading (deg), +0xB8 f32 scale (100 = 1.0), +0xA8 -> type-92 behaviour script, +0xC4 -> type-67 companion, +0xDC -> type-64 model record (named by the .mdl path; embedded in the wrapper or shared), +0xE0 -> type-66 companion; typical span 0xF8; embedded inside a wrapper record (type-111 \"set [set]||to\" at +0x48, type-123 \"clone\" at +0x70, type-100/107/113/119 instructions, type-99/52 layer blocks) and referenced by LAYER records (named type-52 table records)",
   "structure": "The placement record of the level: 673 type-104 table entries in the tutorial file, 618 with a world position, grouped by ~45 named layers (Loot 88, Jump pads_PushBLock_Gates 62, Bridges_Rocks_Floating Stuff 58, Mabu_Citizens 55, PlacedLoot_Common 41, Plants 38, Camera_Adjustors 24, Destructibles_Common 24, OpeningCS 22 …)",
@@ -29,6 +29,10 @@
     {
       "experiment_id": "m2-level_027_tutorial-e3-o3296360-1789305999607",
       "summary": "screening (1 boot): Windmill_Blades2 (layer Jump pads_PushBLock_Gates, not a type-111 wrapper) x moved 85.52 -> 79.5 at the record`s +0x24: the blades render detached from the hub, displaced as predicted, level plays. The handle holds for a non-plant, non-script-wrapper placement. A second identical boot would make it CONFIRMED."
+    },
+    {
+      "experiment_id": "m2-level_027_tutorial-e3-o3296360-1789307182968",
+      "summary": "formal confirmation: two boots of the byte-identical rebuilt archive (sha256 a1870f3e) with Windmill_Blades2 +0x24 x 85.52 -> 79.5 both show the blades detached from the hub at the predicted offset, level playing. The type-104 record is the editable placement: position +0x24, heading +0x34, scale +0xB8, behaviour +0xA8, model +0xDC, layer via type-52 references."
     }
   ]
 }

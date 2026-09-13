@@ -449,11 +449,13 @@ export function planReplaceNode(buf, fixups, { source, victim = null, linkField 
 // rebased to V; external pointers are copied except the fields listed in `keep`, which retain V's own
 // values (V's companion records — its ScriptSetReference / igNodeList — and its name, so the set stays
 // unique and nothing is orphaned). Refcount = 1. Only V's block changes.
-export function planReplaceRecord(buf, fixups, { source, victim, keep = [], findingId, edits = [], findingsOpts = {}, extraFindings = [] }) {
+// `resolve(buf, offset)` may supply record bounds for header-table records the refcount==1 graph detector does not list
+// (type-104 placements have refcount 3..7); `refcount` = 'one' (wrapper recipe) or 'victim' (slot keeps its inbound count).
+export function planReplaceRecord(buf, fixups, { source, victim, keep = [], findingId, edits = [], findingsOpts = {}, extraFindings = [], resolve = null, refcount = 'one' }) {
   const finding = Findings.load(findingId, findingsOpts);
   if (finding.confidence !== 'CONFIRMED') { const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED'); e.exitCode = 1; throw e; }
   const graph = buildGraph(buf, { fields: false }); const sec = graph.sections[graph.object_section];
-  const S = graph.objects.find(o => o.offset === source), V = graph.objects.find(o => o.offset === victim);
+  const S = resolve ? resolve(buf, source) : graph.objects.find(o => o.offset === source), V = resolve ? resolve(buf, victim) : graph.objects.find(o => o.offset === victim);
   if (!S || !V) throw Object.assign(new Error('source or victim is not an object header'), { exitCode: 1 });
   const failures = [], changes = [];
   if (S.type !== V.type) failures.push({ stage: 'validation', reason: 'victim type ' + V.type + ' != source type ' + S.type });
@@ -461,10 +463,11 @@ export function planReplaceRecord(buf, fixups, { source, victim, keep = [], find
   const ptrSet = new Set(fixups.pointer_words);
   const out = Buffer.from(buf);
   buf.copy(out, V.offset, S.offset, S.offset + S.size);
-  out.writeUInt32BE(1, V.offset + 4);
+  out.writeUInt32BE(refcount === 'victim' ? buf.readUInt32BE(V.offset + 4) : 1, V.offset + 4);
   const delta = V.offset - S.offset; let internal = 0, external = 0, kept = 0;
-  for (let q = 12; q + 4 <= S.size; q += 4) {
+  for (let q = 8; q + 4 <= S.size; q += 4) {   // word 2 (+8, the name) may be kept; words 0/1 are type and refcount
     if (keep.includes(q)) { out.writeUInt32BE(buf.readUInt32BE(V.offset + q), V.offset + q); kept++; continue; }
+    if (q < 12) continue;
     if (!ptrSet.has(S.offset + q)) continue;
     const v = buf.readUInt32BE(S.offset + q); const t = sec.offset + (v & 0x7fffffff);
     if (t >= S.offset && t < S.offset + S.size) { out.writeUInt32BE(((v & 0x80000000) | ((v & 0x7fffffff) + delta)) >>> 0, V.offset + q); internal++; }
@@ -476,8 +479,8 @@ export function planReplaceRecord(buf, fixups, { source, victim, keep = [], find
   const rcLocs = new Set(); for (let q = 12; q + 4 <= S.size; q += 4) if (!keep.includes(q) && ptrSet.has(S.offset + q)) { const t = sec.offset + (buf.readUInt32BE(S.offset + q) & 0x7fffffff); if (!(t >= S.offset && t < S.offset + S.size)) rcLocs.add(t + 4); }
   for (let p = 0; p + 4 <= buf.length; p += 4) { if (p >= V.offset && p < V.offset + V.size) continue; if (rcLocs.has(p)) continue; if (buf.readUInt32BE(p) !== out.readUInt32BE(p)) { failures.push({ stage: 'validation', reason: 'byte change outside the victim at 0x' + p.toString(16) }); break; } }
   let after = null;
-  try { after = buildGraph(out, { fields: false }); const c = after.objects.find(o => o.offset === V.offset); if (!c || c.type !== S.type) failures.push({ stage: 'validation', reason: 'copy not recognised at the victim slot' }); if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset }))); } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
-  const plan = { source: { object_offset: S.offset, type_name: S.type_name, finding_id: findingId }, changes, insert_at: V.offset, updates: [{ location: V.offset + 4, field: 'refcount', old: buf.readUInt32BE(V.offset + 4), new: 1 }], new_id: S.id,
+  try { after = buildGraph(out, { fields: false }); const c = resolve ? resolve(out, V.offset) : after.objects.find(o => o.offset === V.offset); if (!c || c.type !== S.type) failures.push({ stage: 'validation', reason: 'copy not recognised at the victim slot' }); if (after.issues.length) failures.push(...after.issues.map(i => ({ stage: 'validation', reason: i.reason, offset: i.offset }))); } catch (e) { failures.push({ stage: 'validation', reason: e.message }); }
+  const plan = { source: { object_offset: S.offset, type_name: S.type_name, finding_id: findingId }, changes, insert_at: V.offset, updates: [{ location: V.offset + 4, field: 'refcount', old: buf.readUInt32BE(V.offset + 4), new: out.readUInt32BE(V.offset + 4) }], new_id: S.id,
     validation: { status: failures.length ? 'INVALID' : 'VALID', failures }, mode: 'replace-record', victim: V.offset, victim_type_name: V.type_name, kept_fields: keep.map(q => '+0x' + q.toString(16)), pointers: { internal, external, kept }, refcounts: [...rcLocs].map(l => ({ location: l, field: 'refcount +1' })), findings: [findingId, ...extraFindings], method: 'same-size same-type record replacement inside a script; victim companions and name kept' };
   const v = schemaValidator('duplication-plan.schema.json', contracts002);
   const { mode, victim: _v, victim_type_name, kept_fields, pointers, refcounts, findings, method, ...rest } = plan;

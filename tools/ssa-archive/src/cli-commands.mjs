@@ -348,6 +348,37 @@ export const commands = {
     if (sub === 'editable') { const rows = F.editableFindings(); return { result: rows, text: rows.map(r => r.id).join('\n') || '(no editable finding: nothing is CONFIRMED yet)' }; }
     throw new CliError(`Unknown findings subcommand ${sub} (list|show|validate|render|promote|editable)`, 3);
   },
+  // edit: first experimental placement editor (type-104 records). Subcommands: list | show | set | replace.
+  async edit(pos, o) {
+    const E = await import('./editor/placements.mjs');
+    const sub = pos[0]; const file = path.resolve(need(pos[1], 'level.bld.decoded file'));
+    const level = E.openLevel(file, path.resolve(need(o.fixups, 'fixups')));
+    const nums = s => s.split(',').map(Number);
+    if (sub === 'list') {
+      const near = o.near ? nums(o.near) : null; if (near && near.length !== 3) throw new CliError('--near expects x,z,radius');
+      const res = E.listByLayer(level, { layer: o.layer ?? null, near, all: !!o.all });
+      return { result: res, text: E.formatLayers(res, { limit: o.limit ? Number(o.limit) : 40 }) };
+    }
+    if (sub === 'show') {
+      const r = E.getPlacement(level, Number(need(pos[2], 'placement offset')));
+      const lines = [E.formatRow(r), `  layers: ${r.layers.join(' | ') || '(none)'}  span 0x${r.span.toString(16)}  refcount ${r.refcount}  inbound pointers ${r.inbound_words}`, `  model: ${r.model ? r.model.path + ' (type ' + r.model.type + ' @0x' + r.model.offset.toString(16) + ')' : '-'}`, `  behaviour: ${r.script ? r.script.path + ' (@0x' + r.script.offset.toString(16) + ')' : '- (none: static)'}`, `  wrapper: ${r.wrapper ? 'type-111 @0x' + r.wrapper.offset.toString(16) + ' size 0x' + r.wrapper.size.toString(16) + ' (wrapper-proven duplication recipe available)' : 'none (t104-generic recipe only, not yet boot-confirmed)'}`, `  safety: ${r.safety.safety}${r.safety.reasons.length ? ' — ' + r.safety.reasons.join('; ') : ''}`];
+      return { result: r, text: lines.join('\n') };
+    }
+    const transform = { position: o.pos ? nums(o.pos) : null, heading: o.heading !== undefined ? Number(o.heading) : null, scale: o.scale !== undefined ? Number(o.scale) : null, allowScripted: !!o['allow-scripted'] };
+    const writeOut = (buffer, plan) => { const outFile = path.resolve(need(o.out, 'out')); fs.writeFileSync(outFile, buffer); let planFile = null; if (o.plan) { planFile = path.resolve(o.plan); fs.writeFileSync(planFile, JSON.stringify(plan, null, 2)); } return { outFile, planFile }; };
+    if (sub === 'set') {
+      const r = E.setTransform(level, Number(need(pos[2], 'placement offset')), transform);
+      const w = writeOut(r.buffer, r.plan);
+      return { result: { ...r.plan, ...w }, exitCode: r.plan.validation.status === 'VALID' ? 0 : 1, text: `${r.plan.validation.status} [set-transform]: ${r.plan.placement.name} (${r.plan.placement.safety.safety}) ${r.plan.changes.map(ch => ch.label + ' ' + ch.old + ' -> ' + ch.new).join(', ')}; file length unchanged\nfile ${w.outFile}${w.planFile ? '\nplan ' + w.planFile : ''}` };
+    }
+    if (sub === 'replace') {
+      const keep = o.keep && o.keep !== 'auto' ? o.keep.split(',').filter(Boolean).map(x => parseInt(x, 16)) : 'auto';
+      const r = E.replacePlacement(level, Number(need(pos[2], 'source placement offset')), Number(need(o.over, 'over')), { ...transform, keep });
+      const w = writeOut(r.buffer, r.plan); const p = r.plan;
+      return { result: { ...p, ...w }, exitCode: p.validation.status === 'VALID' ? 0 : 1, text: `${p.validation.status} [replace, recipe ${p.recipe}]: ${p.placement_source.name} copied over ${p.placement_victim.name} (${p.placement_victim.layers.join(' | ')}); kept ${p.kept_fields.join(',')}; pointers internal ${p.pointers.internal} external ${p.pointers.external}; edits ${p.changes.length}; file length unchanged\n${p.validation.failures.map(f => '  ' + f.stage + ': ' + f.reason).join('\n')}${(p.validation.warnings ?? []).map(x => '  WARNING: ' + x).join('\n')}\nfile ${w.outFile}${w.planFile ? '\nplan ' + w.planFile : ''}` };
+    }
+    throw new CliError(`Unknown edit subcommand ${sub} (list|show|set|replace)`, 3);
+  },
   async gates() {
     const docs = path.resolve(process.cwd(), '../../docs');
     const gates = ['M0', 'M1', 'M2', 'M3', 'M4A', 'M4B', 'M5'].map(name => {

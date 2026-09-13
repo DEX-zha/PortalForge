@@ -34,7 +34,7 @@ heuristic guesses. All 30 positioned type-111 records of the file are listed by 
 (`igz script <record> --fixups …` shows them per script); 3 are plants, 18 are cutscene camera holds
 (`CS_*`), 3 are push blocks, the rest are level-end / gate markers.
 
-## 1b. The general placement record (LIKELY: `igz.placement.type104-record`)
+## 1b. The general placement record (CONFIRMED: `igz.placement.type104-record`)
 
 The type-111 wrapper above is one embedding of the real object: a **type-104 placement record**, listed in the
 header table (673 in the tutorial, 618 positioned), grouped by named **layer** records (type 52: `Loot`, `Plants`,
@@ -126,6 +126,31 @@ rebuilt archive can be counted with `--replicates <first id>` (SC-004: same inpu
   the tutorial, still to be validated.
 - Instances that share a behaviour script (`+0xF0`) share the script record (refcount bumped): per-instance
   script variables are untested.
+
+## 6. The editor: `ssa-archive edit` (experimental)
+
+Data model (CONFIRMED by `igz.placement.type104-record`, two identical boots of the windmill-blades move):
+
+    Placement = { position (+0x24), rotation (+0x34 heading), scale (+0xB8), behavior (+0xA8 script or none),
+                  model (+0xDC type-64 record), layer (type-52 records that reference it) }
+
+```
+node cli.mjs edit list    <level.bld.decoded> --fixups <map> [--layer Plants] [--near x,z,r] [--limit N]
+node cli.mjs edit show    <level.bld.decoded> <placement offset> --fixups <map>
+node cli.mjs edit set     <level.bld.decoded> <placement offset> --fixups <map> [--pos x,y,z] [--heading deg] [--scale s] --out <file> [--plan p] [--allow-scripted]
+node cli.mjs edit replace <level.bld.decoded> <source offset> --over <victim offset> --fixups <map> [--pos ..] [--heading ..] [--scale ..] [--keep auto|hexlist] --out <file> [--plan p] [--allow-scripted]
+```
+
+- `list` groups placements by layer and flags each one: blank = static (safe), `!` = **scripted / potentially unsafe**
+  (+0xA8 is a behaviour script; see the push-block freezes), `?` = cutscene/camera marker or no model (not a visible prop).
+- `set` writes only the requested floats in place (validated: nothing else changes). Scripted placements are refused
+  unless `--allow-scripted` (the windmill blades carry `027_WindmillProp.ai` and moved fine, but a push block did not).
+- `replace` duplicates: it picks the **wrapper-proven** recipe when both placements sit at +0x48 of equal-size type-111
+  wrappers (`edit replace 0x3495E4 --over 0x34AC60 --pos 85.5,10,42` reproduces the boot-confirmed three-sunflower file
+  byte for byte), otherwise the **t104-generic** recipe (same span, slot name/refcount/companions kept) which the plan
+  flags as *not yet confirmed by a boot*. A scripted source is refused unless `--allow-scripted`.
+- Output is a decoded `level.bld`; rebuild and boot with `experiment m3 --file <out> --plan <plan>` (or `experiment m2`
+  for a single float) and judge as usual. Fixup map required (tutorial: `ptr-scan3-fixups.json`).
 
 ## 5. Why earlier attempts froze (for the record)
 
