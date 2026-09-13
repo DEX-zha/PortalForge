@@ -1,0 +1,26 @@
+{
+  "id": "igz.loader.blob-walk-stomps-insertions",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "behaviour of table-record constructors (type 52 memory nodes at 0x40 stride with an embedded sub-object at +0x1C; type 92 scripts): they walk their whole blob = [entry, next table entry)",
+  "structure": "Why inserting bytes anywhere inside the object span breaks the load: the enclosing table record grows and its constructor walks the inserted bytes",
+  "location": {
+    "offset": "any table-record blob in section 1",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Run m3-…-1789299359139 (PlacementReference clone inserted at 0x457588, right after the type-52 table record 0x457548): the loader finished the level (21 402 records constructed, same as a healthy load) and the clone WAS constructed with the PlacementReference class pointer through P.next — the first clone ever instantiated — yet the load hung and the six tail root records (2 type-52 + 4 RHSValueStack) stayed raw. The clone body carries the exact signature of the type-52 constructor: class pointers written at clone+0x1C, +0x40 and +0x5C, and the texture tag \"TFL8\" at +0x44 rewritten as a refcount (0x54464C38 -> 0x040E4C38) — i.e. the type-52 record at 0x457548 saw its blob grow from 0x40 to 0xB0 and walked the clone as two of its own 0x40 nodes (node at clone+0x00 with embedded +0x1C, node at clone+0x40 with embedded +0x5C). Constructing the clone twice (reflection via P.next, then the stride walk) derailed the tail walk, the root records never constructed and the post-load init hung. General rule: every byte of the span belongs to some table record`s blob, and at least types 52 and 92 walk their blob positionally, so ANY insertion inside the span corrupts the enclosing record. Safe placements are therefore outside every walked blob: the section end (the last blob tolerated appended bytes intact in run m3-…-1789256664691) with reachability provided by a pointer from a constructed record.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789299359139",
+      "summary": "clone at 0x457588 constructed (class 0x8049C738 via P.next), 6 tail roots raw, clone body stomped with type-52 node signature at +0x1C/+0x40/+0x44/+0x5C; hung on Loading"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
+      "summary": "earlier: script clone at the same insert point was sized 0x2A8 = merged with the following blob and the tail partially constructed — same mechanism"
+    }
+  ]
+}

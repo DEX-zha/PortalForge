@@ -1,0 +1,26 @@
+{
+  "id": "igz.loader.reflection-constructs-pointees",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "a record pointed at by a constructed record`s pointer field is constructed (class pointer assigned, fields rebased) even when it is not a header-table entry",
+  "structure": "Reachability through a rebased pointer field is what instantiates a non-table record",
+  "location": {
+    "offset": "PlacementReference +0x64 (next link) as the test case",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "In run m3-…-1789299359139 the copied PlacementReference at 0x457588 had no header-table entry; it was reached only through the predecessor`s rebased +0x64 link (live 0x812135A8 = base + 0x457588) and received the PlacementReference class pointer 0x8049C738 — the same as the original P and its old successor N, both also constructed. This is the missing link of M3: a duplicate of a generic entity becomes a live object when (1) a constructed record points at it and (2) no table-record constructor walks over it. The remaining condition to satisfy is (2), by placing the copy at the section end instead of inside a blob.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789299359139",
+      "summary": "P.next -> 0x812135A8 (rebased), deref -> 0x8049C738 (PlacementReference class): clone constructed; chain pred -> P -> clone -> N all constructed"
+    },
+    {
+      "probe": "ptr-scan1/2/3 fixup maps",
+      "summary": "PlacementReference class pointer is 0x8049C738 for every constructed instance; +0x64 words are runtime-confirmed pointers"
+    }
+  ]
+}
