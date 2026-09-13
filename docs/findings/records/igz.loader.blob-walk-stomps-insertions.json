@@ -21,6 +21,10 @@
     {
       "experiment_id": "m3-level_027_tutorial-e3-1789257261106",
       "summary": "earlier: script clone at the same insert point was sized 0x2A8 = merged with the following blob and the tail partially constructed — same mechanism"
+    },
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789300434156",
+      "summary": "same stomp signature reproduced from the OLD table start after a head-span insertion: the type-52 walker start is derived from a record count, not from the (rebased) table entry"
     }
   ]
 }

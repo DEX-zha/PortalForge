@@ -1,0 +1,26 @@
+{
+  "id": "igz.loader.head-span-count-walk",
+  "updated": "2026-09-13",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "the region [first object, first header-table record) is constructed by a positional walk that ends after a FIXED number of records, then the type-52 array walk (0x40 stride, embedded sub-object at +0x1C) starts where that walk ends",
+  "structure": "Head-span construction is count-bounded: inserting a record there shifts every later walker start by one record",
+  "location": {
+    "offset": "section 1, [0x4DE64, 0x123598) in the tutorial (1 680 refcount-1 records, 1 727 headers of any refcount)",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 1
+  },
+  "meaning": "Run m3-…-1789300434156 inserted a 0x70 PlacementReference copy inside the head span (at N, shifting N and all 20 007 later records by 0x70 with every pointer word rebased, table entries included). Result: the whole head span constructed (P, copy, N, all placements up to 0x123598) and the copy itself was constructed (class 0x8049C738), but the type-52 array walker started at 0x123598 — the OLD address of the first table record — although table entry #0 correctly said 0x123608: it walked the last head placement and the shifted type-52 array with a 0x10 misalignment (class writes at 0x1235B4, 0x1235D8, 0x1235F4, 0x123618, 0x123634 …, i.e. nodes every 0x40 from 0x123598 with embedded sub-objects at +0x1C), 10 397 table records stayed raw, the tail roots never constructed and the load hung. No stored offset or length reproduces 0x123598 (searched every section, the file header and non-rebased object words), so the head walk is bounded by a record COUNT the file does not expose as a plain word (candidates 1 680 / 1 727 were not found as meaningful fields), or by a count derived at runtime. Consequence: records cannot be INSERTED into the head span without also growing that count; a same-size REPLACEMENT of an existing head record keeps every count, size and table intact.",
+  "evidence": [
+    {
+      "experiment_id": "m3-level_027_tutorial-e3-1789300434156",
+      "summary": "copy constructed, head span constructed, type-52 walker started at old address 0x123598 (0x70 short), 10 397 table records raw, tail roots raw, hang"
+    },
+    {
+      "probe": "scratch findstart.mjs",
+      "summary": "no u32/u16 in the header, sections 0/2-8 or non-rebased section-1 words equals the first-table-record offset (abs/rel), the head-span length, or a record count in a list-header position"
+    }
+  ]
+}
