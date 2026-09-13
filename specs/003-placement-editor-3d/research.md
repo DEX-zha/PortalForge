@@ -120,6 +120,16 @@ runtime evidence shows it, so the mapping ships with a verification step rather 
 is itself unverified; ignoring the question, rejected because a mirrored view would make every spatial judgement
 in the tool wrong while looking entirely plausible.
 
+
+**Outcome (T024, settled 2026-09-13)**: settled by derivation from four judged in-game runs, not by looking at a
+rendered view. The spawn moved +8 on x and appeared screen-left (2 runs); the windmill blades moved -6 on x and
+appeared screen-right (2 runs); a sunflower copied to the largest x of three appeared leftmost (2 runs); and a
+plant moved +z appeared nearer the windmill, which sits at a larger z, so the camera looks along +z. With the view
+direction +z and up +y, screen-right is the cross product of forward and up, which is -x in a right-handed system
+and +x in a left-handed one. The game shows -x. **The game is right-handed with y up, like three.js, so the
+identity mapping preserves chirality and no axis is negated**: `flipX` stays false and `verified` is now true.
+`tests/view-coords-handedness.test.mjs` encodes the derivation so the flag cannot be flipped unnoticed.
+
 ---
 
 ## R8. Talking to the editor process
@@ -140,7 +150,7 @@ one.
 
 ## Unresolved after Phase 0
 
-- **The handedness of the horizontal plane** (R7). Verification is in the quickstart and must be done on the first
-  run against the tutorial; until it passes, no spatial claim the editor makes should be trusted.
+- ~~The handedness of the horizontal plane (R7)~~ **settled**: right-handed with y up, no mirror, derived from four
+  judged runs. See the outcome under R7.
 - **Whether a second level edits correctly in game** is not a research question but the subject of User Story 4;
   it is the acceptance criterion that turns this from a tutorial-specific tool into an editor.

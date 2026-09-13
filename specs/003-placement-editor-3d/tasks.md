@@ -84,7 +84,7 @@ select the windmill blades and confirm the inspector matches what that report st
 - [X] T021 [US1] Implement the inspector in `tools/ssa-archive/src/view/inspector.mjs`: name, position, rotation heading, scale, model path and status, behaviour script, layers, shared-model user count and owning placement, and next to each attribute the value of `evidence` for it, distinguishing runtime-confirmed from structural (FR-007, FR-008, FR-009)
 - [X] T022 [US1] Display the safety rules of the selected object in `tools/ssa-archive/src/view/inspector.mjs`, each with its severity and the finding behind it, marking a scripted placement with the warning that such an object has been observed both to survive and to break a level when moved (FR-016, FR-019)
 - [X] T023 [US1] Wire the view together in `tools/ssa-archive/src/view/app.mjs` and `index.html`: fetch the session, build the scene, render the layer list with per-layer visibility, route selection into the inspector, and show a named message instead of an empty scene when the file carries no placements (FR-006)
-- [ ] T024 [US1] (open: needs a person to compare the view with the screenshot) Run quickstart scenario 2 against `.local/dolphin-evidence/m3-level_027_tutorial-e3-1789301970935-run1-46-tutorial-skylander.png` and record the outcome in `specs/003-placement-editor-3d/research.md` under R7: either the mapping is confirmed, or one horizontal axis is negated in `tools/ssa-archive/src/view/coords.mjs` and the note says so. No boot; the screenshot already exists
+- [X] T024 [US1] Run quickstart scenario 2 against `.local/dolphin-evidence/m3-level_027_tutorial-e3-1789301970935-run1-46-tutorial-skylander.png` and record the outcome in `specs/003-placement-editor-3d/research.md` under R7: either the mapping is confirmed, or one horizontal axis is negated in `tools/ssa-archive/src/view/coords.mjs` and the note says so. No boot; the screenshot already exists
 
 **Checkpoint**: the editor is a working level viewer, writes nothing, and its spatial claims are verified.
 
@@ -250,6 +250,24 @@ Task: "Hit ordering and cycling in tools/ssa-archive/src/view/select.mjs"
 The spec allows the stories to be independent, and they are testable independently, but the honest sequence is
 US1 → US2 → US3 → US4: each later story reuses the surface the earlier one built. Running them in parallel would
 mean building the scene twice.
+
+---
+
+## Process debt
+
+Recorded rather than repaired, because repairing it would mean deleting working code to write a test that fails on
+purpose, and a test written after the fact does not become a test written before it by being re-run.
+
+- **T014 and T016 were implemented before their tests (T011).** The read endpoints of the API were written as part
+  of the server module in T009, so when the T011 contract tests were written they passed on the first run instead
+  of failing first. The tests are real and they do constrain the endpoints: they check the frozen schema, the
+  evidence fields, the layer grades and the same-size filter. What is missing is the demonstration that they would
+  have caught the absence of that code. Every other test in this feature was written first and observed to fail.
+- **The 3D rendering has no automated test at all**, by the plan's design rather than by omission. Everything
+  decidable without a screen was pushed into pure modules and is covered: layer visibility, hit cycling, the axis
+  derivation, and the inspector markup, which is checked against the real tutorial records in
+  `tests/view-inspector.test.mjs`. What remains unverified is what a GPU draws, which is what quickstart
+  scenarios 1 and 2 exist for.
 
 ---
 

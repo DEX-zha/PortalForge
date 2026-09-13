@@ -6,15 +6,24 @@
 // during the duplication runs suggests one horizontal axis is inverted relative to the obvious reading, and a
 // suggestion from a single camera angle is not proof.
 //
-// So the mapping ships straight, `flipX: false`, and marked unverified. Quickstart scenario 2 settles it by
-// comparing a top-down view of the tutorial with an in-game screenshot of the same island. When that check runs,
-// set `verified: true`, and set `flipX: true` as well if the layout came out mirrored. Nothing else in the editor
-// may hold an axis convention, so that decision is made once, here, and every spatial claim follows it.
+// SETTLED (T024), and by derivation rather than by looking at a render. Four judged in-game runs fix it:
+//   - the spawn x moved +8 and the Skylander appeared screen-LEFT (m2-…-o1734528-1789248814839, 2 runs);
+//   - Windmill_Blades2 x moved 85.52 -> 79.5 and the blades appeared screen-RIGHT (m2-…-o3296360, 2 runs);
+//   - a sunflower copied to x 85.5 appeared left of the originals at 82.25 and 79.68 (m3-…-1789304493862, 2 runs);
+//   - sunflower(2) moved x 79.68 -> 88 and z 40.94 -> 44 and appeared further left and nearer the windmill, which
+//     sits at z 50.33, so +z is away from the camera (m3-…-1789304824550).
+// The last one fixes the view direction as +z; the first three fix screen-right as -x. For a camera with forward
+// f and up u, screen-right is f x u, which is (-1,0,0) in a right-handed system and (+1,0,0) in a left-handed one.
+// The game shows -x, so the game is right-handed with y up, exactly like three.js, and the identity mapping
+// preserves chirality. No mirror. tests/view-coords-handedness.test.mjs encodes the derivation so that flipping
+// the flag cannot pass unnoticed.
+//
+// Nothing else in the editor may hold an axis convention: that decision is made once, here.
 
 export const HANDEDNESS = {
   flipX: false,
-  verified: false,
-  note: 'unverified until quickstart scenario 2 compares a top-down view of Level_027_Tutorial with an in-game screenshot',
+  verified: true,
+  note: 'right-handed, y up, same as three.js: derived from m2-…-o1734528-1789248814839, m2-…-o3296360-1789305999607, m3-…-1789304493862 and m3-…-1789304824550',
 };
 
 // Position triples only. The mapping is an involution: applying it twice returns the original, which is what makes
