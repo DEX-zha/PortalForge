@@ -171,7 +171,20 @@ and left the buffer one word away from how it opened. Undo now copies the origin
 `tests/editor-session.test.mjs` has a regression for it.
 
 
-**Scenario 6 (T041): two boots spent, no judged record. The task stays open.**
+
+**Scenario 6 (T041) passed on the third attempt, 2026-09-13: `m3-level_027_tutorial-e3-1789323431499`, PASS 2/2.**
+Two boots in one runner call, so both used the identical rebuilt archive. The whole chain ran through the editor:
+an intent, an in-memory edit, a save whose plan was checked against the bytes actually written, a replacement-only
+patch, and a launch with the prediction stated before the game started. Both runs show the sunflower hanging high
+above its normal spot with its twin unchanged; the two runs differ only in the windmill blade angle and the clouds.
+
+Cost: four boots for a two-boot task. Two were lost, one to the launch timeout defect described above and one to an
+accidental window close. The defect is fixed; the window close is not the tool's fault but it is why the record is
+written by the runner's `finally`, and why killing the process still loses it.
+
+**What the first two attempts cost, kept because it is the reason the launch is polled.**
+
+**Scenario 6 (T041), first attempt: two boots spent, no judged record.**
 
 Boot 1, `m3-level_027_tutorial-e3-1789322456771`. The editor's own chain ran: `sunflower_Template(1)` at
 `0x3495E4` moved straight up, y 9.962 to 16, one variable and nothing else touched; the save reported VALID with
