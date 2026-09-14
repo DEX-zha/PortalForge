@@ -3,7 +3,7 @@
 // coords.mjs, which are unit tested; this file only connects them to the DOM and to the API.
 import { createScene } from './scene.mjs';
 import { layerIndex, showAll, hideAll, toggle, visibleSet } from './layers.mjs';
-import { orderHits, pickNext } from './select.mjs';
+import { orderHits, pickNext, shouldPick, commitTarget } from './select.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
 import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
@@ -80,9 +80,10 @@ async function main() {
   }
   state.scene.onGizmo({
     live: v => updateFields(v),
-    commit: async v => {
-      if (!state.selection) return;
-      const intent = { kind: 'transform', target: state.selection.offset };
+    commit: async (v, start) => {
+      const target = commitTarget(start, state.selection);
+      if (target === null) return;
+      const intent = { kind: 'transform', target };
       if (state.mode === 'translate') intent.position = v.position;
       if (state.mode === 'rotate') intent.heading = v.heading;
       if (state.mode === 'scale') intent.scale = v.scale;
@@ -156,7 +157,9 @@ function renderLayers(index) {
 }
 
 async function onPick(ev) {
-  if (ev.button !== 0) return;
+  // The gizmo saw this pointerdown first. If it took it, this is a grab of a handle, not a click on the level.
+  const g = state.scene.gizmoState();
+  if (!shouldPick({ button: ev.button, gizmoAxis: g.axis, gizmoDragging: g.dragging })) return;
   const hits = orderHits(state.scene.hitsAt(ev.clientX, ev.clientY));
   const next = pickNext({ hits, pointer: { x: ev.clientX, y: ev.clientY }, previous: state.selection });
   state.selection = next;

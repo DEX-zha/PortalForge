@@ -190,6 +190,7 @@ export function createScene(canvas) {
   function readGizmo() {
     const o = state.outline;
     return {
+      offset: state.selected,             // the object this outline stands in for, captured with the transform
       position: mapping.toGame([o.position.x, o.position.y, o.position.z]).map(v => Math.round(v * 1000) / 1000),
       heading: Math.round(headingToGame(THREE.MathUtils.radToDeg(o.rotation.y)) * 10) / 10,
       scale: Math.round(scaleToGame(o.scale.x) * 10) / 10,
@@ -206,6 +207,8 @@ export function createScene(canvas) {
   }
 
   const onGizmo = ({ live, commit }) => { onLive = live; onCommit = commit; };
+  // What the gizmo is doing right now, so the pick handler can stand aside while a handle is under the pointer.
+  const gizmoState = () => ({ axis: gizmo.axis ?? null, dragging: !!gizmo.dragging });
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -227,6 +230,7 @@ export function createScene(canvas) {
   }
 
   function select(offset) {
+    if (gizmo.dragging) return;
     state.selected = offset;
     const p = offset === null ? null : state.byOffset.get(offset);
     if (!p) { state.outline.visible = false; gizmo.detach(); return; }
@@ -292,5 +296,5 @@ export function createScene(canvas) {
     controls.update();
   }
 
-  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, diagnostics, state };
+  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, diagnostics, state };
 }

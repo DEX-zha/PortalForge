@@ -47,3 +47,20 @@ test('select: an empty hit list clears the selection rather than keeping a stale
   const previous = { offset: 3, index: 0, pointer: { x: 1, y: 1 } };
   assert.equal(pickNext({ hits: [], pointer: { x: 1, y: 1 }, previous }), null);
 });
+
+// A grab of a gizmo handle is not a click on the level, and a drag edits the object it started on.
+import { shouldPick, commitTarget } from '../src/view/select.mjs';
+
+test('select: grabbing a gizmo handle is not a pick, so a drag can never re-select what it is dragging over', () => {
+  assert.equal(shouldPick({ button: 0 }), true);
+  assert.equal(shouldPick({ button: 0, gizmoAxis: 'Y' }), false, 'the pointer is on a handle');
+  assert.equal(shouldPick({ button: 0, gizmoDragging: true }), false, 'a drag is under way');
+  assert.equal(shouldPick({ button: 2 }), false, 'right button pans the camera');
+  assert.equal(shouldPick({}), true, 'defaults describe an idle gizmo and the primary button');
+});
+
+test('select: a drag commits to the object it started on, even if the selection changed underneath it', () => {
+  assert.equal(commitTarget({ offset: 0x3495e4 }, { offset: 0x34aa7c }), 0x3495e4);
+  assert.equal(commitTarget(null, { offset: 0x34aa7c }), 0x34aa7c, 'with no drag start the selection stands');
+  assert.equal(commitTarget({}, null), null);
+});

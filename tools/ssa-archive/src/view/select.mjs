@@ -28,3 +28,20 @@ export function pickNext({ hits, pointer, previous = null }) {
   const hit = hits[index];
   return { offset: hit.offset, index, pointer: { x: pointer.x, y: pointer.y }, total: hits.length };
 }
+
+// Whether a pointerdown on the canvas is a pick at all. The transform gizmo listens on the same canvas and gets
+// the event first, so by the time the pick handler runs a grab of a gizmo handle already shows as `dragging` with
+// an `axis` under the pointer. Treating that grab as a click re-selected whatever proxy sat under the handle and
+// teleported the outline to it, and the drag then committed the outline's position to THAT object. From the
+// outside: "I moved A and B jumped", four different objects sharing one x,z. Only the primary button, with the
+// gizmo idle, is a pick.
+export function shouldPick({ button = 0, gizmoAxis = null, gizmoDragging = false } = {}) {
+  return button === 0 && gizmoAxis === null && !gizmoDragging;
+}
+
+// Which object a gizmo drag edits: the one the drag STARTED on, never the current selection. The two are the same
+// in every healthy interaction, and when they differ the current selection is the bug, not the target.
+export function commitTarget(dragStart, selection) {
+  if (dragStart && Number.isInteger(dragStart.offset)) return dragStart.offset;
+  return selection ? selection.offset : null;
+}
