@@ -29,13 +29,15 @@ export function createScene(canvas) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.12;
 
+  // The one material real meshes share: grey, lit, both faces. Colour stays with the proxies, where it encodes risk.
+  const meshMaterial = new THREE.MeshLambertMaterial({ color: 0x9a978f, side: THREE.DoubleSide });
   scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x1b2430, 2.6));
   const key = new THREE.DirectionalLight(0xffffff, 1.1);
   key.position.set(1, 2, 1);
   scene.add(key);
   let grid = null;   // sized to the level once its extent is known
 
-  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, entries: [], selected: null, outline: null, size: { w: 0, h: 0 }, drawn: 0, box: null, proxy: 1, grid: null };
+  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, models: [], meshBounds: new Map(), entries: [], selected: null, outline: null, outlineBox: null, size: { w: 0, h: 0 }, drawn: 0, meshed: 0, box: null, proxy: 1, grid: null };
 
   // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
   // reported as zero before layout settles, and a zero-sized drawing buffer renders one flat colour across the
@@ -66,12 +68,18 @@ export function createScene(canvas) {
   renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
 
   // Build the instanced meshes once per level. `grades` maps an offset to its worst safety severity.
-  function build(placements, grades) {
-    for (const m of [state.boxes, state.markers, state.outline]) if (m) { scene.remove(m); m.geometry?.dispose?.(); m.material?.dispose?.(); }
+  // `meshes` maps a model offset to its decoded geometry (feature 004); placements whose model has one are drawn
+  // as that geometry, grey, at their transform. The others keep the proxy: a cube for a model the decoder does
+  // not reach, a hollow marker for a placement with no model. What is missing stays visible as missing.
+  function build(placements, grades, meshes = new Map()) {
+    for (const m of [state.boxes, state.markers, state.outline, ...state.models.map(x => x.mesh)]) if (m) { scene.remove(m); m.geometry?.dispose?.(); if (m.material !== meshMaterial) m.material?.dispose?.(); }
+    state.models = []; state.meshBounds = new Map();
     state.placements = placements;
     state.byOffset = new Map(placements.map(p => [p.offset, p]));
 
-    const withModel = placements.filter(p => p.model && p.model.offset !== null);
+    const hasMesh = p => p.model && p.model.offset !== null && meshes.has(p.model.offset);
+    const withMesh = placements.filter(hasMesh);
+    const withModel = placements.filter(p => p.model && p.model.offset !== null && !hasMesh(p));
     const markers = placements.filter(p => !p.model || p.model.offset === null);
 
     // Extent first: it sets the proxy size, the grid and the camera, so every level reads at the same scale.
@@ -89,6 +97,26 @@ export function createScene(canvas) {
     place(state.boxes, withModel, grades, false);
     place(state.markers, markers, grades, true);
 
+    // One instanced mesh per model, one instance per placement of it. Grey, lit, both sides: the strips carry
+    // no consistent winding and there are no materials yet.
+    const byModel = new Map();
+    for (const p of withMesh) { if (!byModel.has(p.model.offset)) byModel.set(p.model.offset, []); byModel.get(p.model.offset).push(p); }
+    for (const [model, list] of byModel) {
+      const m = meshes.get(model);
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.positions), 3));
+      geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
+      geometry.computeVertexNormals();
+      const mesh = new THREE.InstancedMesh(geometry, meshMaterial, list.length);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false;
+      scene.add(mesh);
+      list.forEach((p, i) => { state.entries.push({ mesh, index: i, offset: p.offset }); setMatrix(dummy, p, true); mesh.setMatrixAt(i, dummy.matrix); });
+      mesh.count = list.length; mesh.instanceMatrix.needsUpdate = true;
+      state.models.push({ model, mesh, count: list.length });
+      if (m.bounds) state.meshBounds.set(model, m.bounds);
+    }
+    state.meshed = withMesh.length;
+
     // A measured ground, so an object's height reads as height rather than as a position on a black field.
     if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose?.(); }
     const centre = extent.isEmpty() ? new THREE.Vector3() : extent.getCenter(new THREE.Vector3());
@@ -98,8 +126,11 @@ export function createScene(canvas) {
     scene.add(grid);
     state.grid = { span, step };
 
-    const g = new THREE.BoxGeometry(state.proxy * 1.3, state.proxy * 1.3, state.proxy * 1.3);
-    state.outline = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: SELECTED_COLOUR, wireframe: true }));
+    // The outline is what the gizmo holds, so it carries exactly the placement's transform; the visible wire
+    // box is its child, sized to the model's bounds when there is a mesh and to the proxy otherwise.
+    state.outline = new THREE.Group();
+    state.outlineBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: SELECTED_COLOUR, wireframe: true }));
+    state.outline.add(state.outlineBox);
     state.outline.visible = false;
     scene.add(state.outline);
     state.drawn = state.entries.length;
@@ -110,7 +141,7 @@ export function createScene(canvas) {
   // is a camera or sizing problem, and an empty picture with 0 drawn is a data problem.
   function diagnostics() {
     const b = state.box;
-    return { proxies: state.drawn, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
+    return { proxies: state.drawn, meshed: state.meshed, models: state.models.length, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
       canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0, proxy: Math.round(state.proxy * 10) / 10,
       bounds: b && !b.isEmpty() ? { min: b.min.toArray().map(v => Math.round(v)), max: b.max.toArray().map(v => Math.round(v)) } : null,
       camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)),
@@ -159,8 +190,7 @@ export function createScene(canvas) {
       setMatrix(dummy, p, offsets.has(e.offset));
       e.mesh.setMatrixAt(e.index, dummy.matrix);
     }
-    state.boxes.instanceMatrix.needsUpdate = true;
-    state.markers.instanceMatrix.needsUpdate = true;
+    for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)]) if (m) m.instanceMatrix.needsUpdate = true;
     if (state.selected !== null && !offsets.has(state.selected)) select(null);
   }
 
@@ -219,7 +249,7 @@ export function createScene(canvas) {
     ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
     const out = [];
-    for (const mesh of [state.boxes, state.markers]) {
+    for (const mesh of [state.boxes, state.markers, ...state.models.map(x => x.mesh)]) {
       if (!mesh || !mesh.count) continue;
       for (const h of raycaster.intersectObject(mesh, false)) {
         const e = state.entries.find(x => x.mesh === mesh && x.index === h.instanceId);
@@ -238,6 +268,11 @@ export function createScene(canvas) {
     state.outline.position.set(x, y, z);
     state.outline.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
     state.outline.scale.setScalar(Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE));
+    const bb = p.model && p.model.offset !== null ? state.meshBounds.get(p.model.offset) : null;
+    if (bb) {
+      state.outlineBox.position.set((bb.min[0] + bb.max[0]) / 2, (bb.min[1] + bb.max[1]) / 2, (bb.min[2] + bb.max[2]) / 2);
+      state.outlineBox.scale.set(Math.max(bb.max[0] - bb.min[0], 0.05), Math.max(bb.max[1] - bb.min[1], 0.05), Math.max(bb.max[2] - bb.min[2], 0.05));
+    } else { state.outlineBox.position.set(0, 0, 0); state.outlineBox.scale.setScalar(state.proxy * 1.3); }
     state.outline.visible = true;
   }
 
@@ -280,7 +315,9 @@ export function createScene(canvas) {
     const p = state.selected === null ? null : state.byOffset.get(state.selected);
     if (!p) return frameAll();
     const c = new THREE.Vector3(...mapping.toView(p.position));
-    frameBox(new THREE.Box3().setFromCenterAndSize(c, new THREE.Vector3(1, 1, 1).multiplyScalar(state.proxy * 8)));
+    const bb = p.model && p.model.offset !== null ? state.meshBounds.get(p.model.offset) : null;
+    const span = bb ? Math.max(...[0, 1, 2].map(k => bb.max[k] - bb.min[k])) * Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE) * 3 : state.proxy * 8;
+    frameBox(new THREE.Box3().setFromCenterAndSize(c, new THREE.Vector3(1, 1, 1).multiplyScalar(span)));
   }
 
   // A top-down view, used by quickstart scenario 2 to check the layout against an in-game screenshot.

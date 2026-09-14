@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sessionSummary, findPlacement, applyEdit, undo, redo, planReplace, interchangeable } from './session.mjs';
+import { meshesPayload } from './meshes.mjs';
 import { assessPlacement } from './safety.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState } from './save.mjs';
 
@@ -70,6 +71,8 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
     if (req.method !== 'GET') return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: `${req.method} is not accepted on ${pathname}` });
     if (pathname === '/api/session') return json(res, 200, sessionSummary(s));
     if (pathname === '/api/placements') return json(res, 200, { placements: s.placements, layers: s.layers });
+    // Real geometry, decoded once per session from the two geometry sections and cached (feature 004).
+    if (pathname === '/api/meshes') return json(res, 200, meshesPayload(s));
     // A run is polled, never awaited over HTTP: two boots outlast every client's header timeout.
     if (pathname === '/api/launch') return json(res, 200, launchState(s));
     const m = /^\/api\/placement\/(0x[0-9a-fA-F]+|\d+)$/.exec(pathname);

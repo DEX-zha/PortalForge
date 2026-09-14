@@ -37,11 +37,16 @@ async function main() {
   state.placements = data.placements;
   state.layers = data.layers;
 
+  // Real geometry (feature 004). A level without it still opens: every placement falls back to its proxy.
+  let meshes = new Map(), meshStats = null;
+  try { const m = await api('/api/meshes'); meshes = decodeMeshes(m); meshStats = m.stats; } catch (e) { note('meshes unavailable: ' + e.message); }
+
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
   // A tally rather than a run-on meta line: these are four different measurements, not one sentence.
   $('tally').innerHTML = [
     [session.placement_count, 'placed'],
     [session.counts.direct, 'with a model'],
+    [meshStats ? meshStats.with_mesh : 0, 'with a mesh'],
     [session.counts.absent, 'markers'],
     [session.layer_count, 'layers'],
   ].map(([n, label]) => `<span><b>${n}</b> ${label}</span>`).join('')
@@ -60,7 +65,7 @@ async function main() {
   for (const p of state.placements) grades.set(p.offset, gradeOf(p));
 
   state.scene = createScene($('c'));
-  state.scene.build(state.placements, grades);
+  state.scene.build(state.placements, grades, meshes);
 
   const index = layerIndex(state.placements);
   state.visible = showAll(index);
@@ -118,7 +123,7 @@ function showDiagnostics() {
   const tick = () => {
     const d = state.scene.diagnostics();
     const small = d.canvas.w < 40 || d.canvas.h < 40;
-    $('diag').textContent = d.proxies + ' drawn, canvas ' + d.canvas.w + '\u00d7' + d.canvas.h
+    $('diag').textContent = d.proxies + ' drawn (' + d.meshed + ' as meshes), canvas ' + d.canvas.w + '\u00d7' + d.canvas.h
       + ', buffer ' + d.pixels + 'px, proxy ' + d.proxy + 'u, camera ' + d.distanceText;
     $('diag').classList.toggle('bad', small || !d.proxies);
 
@@ -140,6 +145,18 @@ function showDiagnostics() {
 let shown = false, bad = 0;
 
 function apply() { state.scene.setVisible(visibleSet(state.placements, state.visible)); }
+
+// Base64 little-endian typed arrays back into Float32Array / Uint32Array. Both ends are little-endian machines;
+// the server writes the arrays' native bytes and the browser reads them as its own.
+function decodeMeshes(payload) {
+  const bytes = b64 => { const s = atob(b64); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; };
+  const out = new Map();
+  for (const m of payload.models ?? []) {
+    const p = bytes(m.positions), ix = bytes(m.indices);
+    out.set(m.model, { ...m, positions: new Float32Array(p.buffer, p.byteOffset, p.byteLength / 4), indices: new Uint32Array(ix.buffer, ix.byteOffset, ix.byteLength / 4) });
+  }
+  return out;
+}
 
 function renderLayers(index) {
   const byName = new Map(state.layers.map(l => [l.name, l]));
