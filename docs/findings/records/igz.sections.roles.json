@@ -1,0 +1,20 @@
+{
+  "id": "igz.sections.roles",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "container",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "IGZ v5 level: nine sections with stable tags; tag 0 (index 0) header and type table; tag 8 (index 1) object records; tag 15 (index 2) string data; tag 25 (index 3) Havok 7.1 physics (hkpPhysicsData, collision); tag 31 (index 4) CMPR/DXT1 textures, 32-aligned; tag 44 (index 5) draw-unit descriptors (see igz.geometry.descriptor-table); tag 51 (index 6) vertex blocks and GX display lists (igz.geometry.block-layout); tag 65 (index 7) Havok animation (hkaSplineCompressedAnimation); tag 0 (index 8) FMOD FSB4 sound banks",
+  "structure": "Tutorial level.bld: sizes 0x4a980, 0x40c840, 0x337fc, 0x17dc0, 0xa4f8a0, 0x5ca3c, 0xa05040, 0x1399a0, 0x2f2e70. Mining and every other level of the disc carry the same nine tags in the same order.",
+  "location": {
+    "offset": "section table at 0x10: {offset, size, alignment, tag} x 9",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 144
+  },
+  "meaning": "What each section is for, so that no pointer is followed into the wrong kind of data. Section 8 is audio to the last byte (214 FSB4 banks covering 100% of it on the tutorial): a render node's +0x20 reference into it is a sound, not geometry. Section 4 opens with repeating CMPR blocks (two RGB565 words then four index bytes; the weed's texture reference lands on a green block) and is textures. Sections 3 and 7 begin with the Havok tag and class names. The geometry the editor needs lives in sections 5 and 6 only, and no edit of a placement touches either.",
+  "evidence": [
+    { "probe": "scratch section census 2026-09-14: FSB4 magic scan of section 8, Havok class-name strings of sections 3 and 7, CMPR block signature at the head of section 4, entropy and s16 profile per section", "summary": "section 8: 214 FSB4 banks, 3 092 064 of 3 092 080 bytes, no gap; sections 3 and 7: 'Havok-7.1.0-r1', hkpPhysicsData / hkaSplineCompressedAnimation; section 4 head: 5bc45b83 aaaaaaaa repeated (CMPR); section 6: 68% of 16-bit words below 4096, opcode 0x98 chains" },
+    { "probe": "tools/ssa-archive/src/igz/gxmesh.mjs on the tutorial and on Mining", "summary": "descriptors found under tag 44 and blocks under tag 51 in both files; every block of both files decoded in sequence" }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "igz.geometry.position-quantisation",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "visible-geometry",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "position = s16 * 2^-frac, frac being the first word of the block's 32-byte fraction header (the GX vertex attribute table shift); normals s8 with frac 6 (64 = 1.0, unit length verified), texture coordinates s16 with frac 14 (16384 = 1.0). World chunks use frac 6 in world space; placed props use 7..10 in the model's local space (a 1-unit coin: 10; a 6-unit sunflower: 10; a 10-unit windmill blade set: 10)",
+  "structure": "Tutorial: frac 6 x1589, 7 x19, 8 x16, 9 x9, 10 x631. Mining: 6 x641, 9 x2, 10 x282.",
+  "location": {
+    "offset": "fraction header at the 32-aligned position after a block's arrays; tutorial block 0 {6,14,0,0}, block #1586 {10,6,14,14}, block #1859 {10,6,14,14,14,0,0,0}",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 32
+  },
+  "meaning": "How the stored integers become coordinates. The check is against the owner's declared bounds ({4, 1, min xyz, max xyz} attribute of the node record): with the header's fraction, world chunk #2 dequantises to x -220.17..-218.64 against a declared box of -220.17..-218.64, a 0.01-unit error; per model, 209 of 209 tutorial models and 131 of 131 Mining models with declared bounds have every vertex inside them at 5%. A fixed fraction guessed from the extent would not do: the two kinds differ, and the props differ among themselves.",
+  "evidence": [
+    { "probe": "scratch gxwalk3.mjs: best fixed fraction per block against the owner bounds, before the header was read", "summary": "2^-6 on 1548 world blocks with a median overshoot of 0.15% of the extent; the props then gave 2^-7..2^-10, and the header's first word matches the best fraction on every block checked" },
+    { "probe": "tests/igz-gxmesh.test.mjs: 'every placed model of the tutorial owns a mesh that lies inside its declared bounds'", "summary": "passes on 210 models; the sunflower's 736 vertices lie within -1.52..2.25, -0.05..6.28, -1.57..2.40" },
+    { "probe": "edit preview --meshes --eye 96,18,20 --target 86,13,46 against the Dolphin control screenshot m1-level_027_tutorial-reencode-1789234236226-control-46-tutorial-skylander.png", "summary": "the decoded windmill blades, windmill, two sunflowers and floating island appear in the arrangement of the game's opening shot; a boot-judged prediction has not been run, which is what keeps this LIKELY" }
+  ]
+}

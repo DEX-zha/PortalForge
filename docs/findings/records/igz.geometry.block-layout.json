@@ -1,0 +1,20 @@
+{
+  "id": "igz.geometry.block-layout",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "visible-geometry",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "section tag 51: after 32 zero bytes, one block per descriptor in descriptor order, every piece 32-aligned RELATIVE TO THE SECTION START (the section itself is not 32-aligned in the file). Interleaved kind (world chunks): {00 9F count(u16)} then count * stride bytes, position s16 x3 at +0. Separate kind (placed props): array 0 = position s16 x3 [+ normal s8 x3 + pad] of sizes[0] bytes per vertex, then one array per remaining size, no prefix. Then a 32-byte header of GX fraction bits, position first, one word per attribute (six words for a five-attribute mesh). Then 0x00 NOP and the display list: triangle strips {0x98|vat, count(u16), count * attrs * idxSize}, NOP separated, zero padded; idxSize 1 or 2 bytes, not a function of the vertex count (234 vertices with 16-bit indices seen); every attribute of a vertex uses the same index",
+  "structure": "Tutorial: 1586 interleaved blocks (world) and 678 separate-array blocks (props), 416 025 vertices, 526 834 triangles, 34 000+ strips; other primitives (0x90 list, 0xa0 fan, 0xa8/0xb0 lines) occur a handful of times. Mining: 925 blocks, 315 057 vertices.",
+  "location": {
+    "offset": "tutorial section 6 at 0xf4f258; block 0 vertices at +0x24 (60 x 12 bytes), VAT header at +0x300 {6,14,0,0}, display list at +0x321 (9f 00 0b ...); block #1586 (a coin, 229 vertices) arrays at +0x5c0420 [10][4][4], VAT +0x5c1460 {10,6,14,14}",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 10506304
+  },
+  "meaning": "The renderable geometry of a level, decodable without any name and without a runtime map. The walk is self-checking: a display list is accepted only if every index addresses a vertex of its own block and the list ends exactly where the next descriptor's block begins (its arrays laid from there end on a fraction header). That check is what disambiguates the index width, and what stops a next block whose raw bytes begin with an opcode-looking value (0xB2 was seen) from passing for one more strip. The first byte of a strip's 32-aligned start is always 0x00.",
+  "evidence": [
+    { "probe": "scratch gxwalk3.mjs / gxmesh.mjs: sequential walk with both index widths tried and the next-block landing as the acceptance test", "summary": "tutorial 2264/2264 blocks in sequence, section consumed to its end; Mining 925/925; disc 112/112 levels, 204 821/204 821 units after the opcode-range guard" },
+    { "probe": "byte dumps at block boundaries: +0x2e0..+0x380 (block 0 end, header, first strips), +0x5d6ec0..+0x5d7300 (block #1595 arrays: 30 x 10, 30 x 4, 30 x 4, 30 x 4, then {10,6,14,0})", "summary": "the 00 9F count prefix of interleaved blocks, the absence of any prefix on separate arrays, the 32-byte fraction header, and the NOP-separated strips are all visible in the raw bytes" }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "igz.geometry.model-ownership",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "references",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "descriptor +0x44 -> a field inside a node record (t8 +0xb8..+0x110 or t12 +0x60/+0x74/+0xac on the tutorial); the node's parents are the records holding a runtime pointer to its header, or, when there is none, into its body; climbing parents reaches the model record (+0x14 of the model -> node list -> +0x20 -> node -> +0x74.. -> child nodes -> +0x10c -> t12 children -> +0x74 ...). A draw unit belongs to every model it reaches whose declared bounds contain its vertices",
+  "structure": "Tutorial: 210 models, 677 owned units, 46 shared between models (the 326-vertex sunflower head is reached by plant_sunflower_whole.mdl and flower_sunflower1.mdl and fits both), 1587 world units reached by no model or fitting none (a world chunk hangs off a material record nine props point at). Mining: 134/134 models, 279 owned. Disc: 18 473 of 18 554 placed models with a mesh; the 81 without are the credits and gryphon levels and one invisible marker model per level.",
+  "location": {
+    "offset": "sunflower: model 0x349734 -> +0x14 0x349764 (list) -> +0x20 0x3497a4 (node) -> +0x74/+0x78/+0x7c/+0x80/+0x8c -> t8 nodes 0x349834, 0x349bdc, 0x349eb8, 0x34a190, 0x34a67c -> +0x10c/+0x11c -> t12 children; descriptors #2146..#2152 point into those",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 4
+  },
+  "meaning": "How the editor knows which mesh to draw at a placement. Top-down walks leak: a model record's +0x18/+0x20 and a node's +0x84..+0x90 point into other nodes (materials, states), and a shared t12 reached through them owns world geometry. Bottom-up, header references first, plus the bounds test, gives 209/209 tutorial models inside their box. The reference index uses the runtime fixup map when there is one and structural header-landing pointers otherwise; on the tutorial the two give the same assignment for all 210 models, so no level needs a boot to get its meshes. Skinned characters (Mabu, Chompy, hats) are placed models too and do get a mesh here; what they lack is a skeleton, which is out of scope.",
+  "evidence": [
+    { "probe": "scratch paths.mjs: parent chains from descriptor owners to model records, with the field and the refcount at each step, for the coin, the barrel, the sunflower and the weed", "summary": "legit chains go model +0x14 -> t65 +0x20 -> t3 +0x74.. -> t8 +0x10c -> t12 +0x74 (all single-owner); leaks go through model +0x18/+0x20 and t8 +0x3c/+0x8c/+0x90 into far records, and through t8 +0xd8 into a t12 with refcount 9" },
+    { "probe": "tests/igz-gxmesh.test.mjs: 'without a runtime map the assignment is the same' and 'the sunflower is seven draw units including a head shared with a second sunflower model'", "summary": "both pass; the weed is exactly one 112-vertex unit" },
+    { "probe": "scratch models2mesh.mjs renders: plant_sunflower_whole, plants_weed2_whole, Treasure_Coin_A, HayWagon2, WindmillBlades, barrel", "summary": "a sunflower with stem, head and leaves; a tuft of grass blades; a faceted oval coin; a two-wheeled cart; a three-blade propeller; recognisable at a glance" }
+  ]
+}

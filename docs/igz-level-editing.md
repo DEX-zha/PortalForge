@@ -315,3 +315,11 @@ a reason to boot, not a reason to refuse.
 Appending or inserting records shifts the count-bounded head walk or gets stomped by positional blob walks;
 growing the header table desyncs relocation; type-92 records are compiled scripts (singletons), never
 duplicate them. Full history: `docs/experiments/README.md` and the `igz.loader.*` findings.
+
+
+## Geometry
+
+The meshes a level draws are decoded from sections 5 and 6 by `tools/ssa-archive/src/igz/gxmesh.mjs` and drawn
+grey in the editor. The format, the ownership rule and the numbers on the whole disc are in
+`docs/igz-mesh-geometry.md`; the finding records are `igz.sections.roles`, `igz.geometry.descriptor-table`,
+`igz.geometry.block-layout`, `igz.geometry.position-quantisation` and `igz.geometry.model-ownership`.

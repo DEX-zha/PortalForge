@@ -1,0 +1,20 @@
+{
+  "id": "igz.geometry.descriptor-table",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "visible-geometry",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "section tag 44: one descriptor per draw unit, in file order; header {T, 1, count, 0x80000004, self-ptr, ...} where T is the per-file type index of the descriptor (0xf on the tutorial, read off the first entry at +0x04); +0x08 u32 vertex count; +0x34 u32 vertex stride; +0x44 u32 object-section offset of the owning node record (relocated by the game); +0x6c.. attribute list of triplets {tag<<24 | sub<<16, format, offset<<16} ended by 0x2c000000, tags 0x32 normal (s8 x3), 0x33 colour (2 bytes), 0x1d texcoord (s16 x2), 0x06 (4 bytes); after the LAST 0x2c000000 the record sizes of the separate arrays, e.g. {10,4,4}; an optional inner {T+1, 1, ...} block is a second material pass and owns no block",
+  "structure": "Tutorial: 2264 descriptors of 0x90..0x138 bytes (0x9c x1170, 0xb4 x477, 0xa8 x384 ...), strides 10..24; Mining: 925. The back-pointers land inside node records at fixed fields (+0xb8..+0xcc, +0x110 of the t8 nodes; +0x60/+0x74/+0xac of t12 nodes): 2264 on the tutorial, the words the loader rewrote in this section.",
+  "location": {
+    "offset": "tutorial section 5 at 0xef281c; first descriptor at +0x04; sunflower head #2146, weed #2153",
+    "file_pattern": "level/*.bld:level.bld (decoded)",
+    "length": 379452
+  },
+  "meaning": "The table that tells the GPU what each mesh piece is made of, and the only link from a mesh to the object that owns it. The vertex count and the array sizes are what the block walk of section 6 needs; the back-pointer is what ties a piece to a placed model (igz.geometry.model-ownership). The attribute offsets are non-zero only for the interleaved (world) kind; the separate-array kind lists its arrays by size after the end marker. The position is implicit and always first. The descriptor type index is per file, like every type index (igz.types.per-file-indices).",
+  "evidence": [
+    { "probe": "scratch field statistics over the 2264 tutorial descriptors (distinct values, monotonicity, alignment per word) and byte dumps of #0, #1, #5, #1586, #1590, #2146, #2153", "summary": "+0x08 and +0x28 carry the same count; +0x34 equals the sum of the attribute sizes implied by the offsets (12 = 6 + 2 + 4, 19 = 6 + 3 + 2 + 4 + 4); the trailing size list after the last end marker sums to the stride on 2264/2264" },
+    { "probe": "tools/ssa-archive/src/igz/gxmesh.mjs parseDescriptors + walkBlocks", "summary": "using count and sizes from the descriptor, every block of section 6 is found where the previous one ends, on the tutorial (2264) and on Mining (925), and on all 112 levels of the disc (204 821 units)" }
+  ]
+}
