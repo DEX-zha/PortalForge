@@ -121,20 +121,24 @@ way and does not wait for it**: two boots take about ten minutes, far longer tha
 response open. The first run of this feature lost its second boot and its experiment record exactly that way, so
 the shape is not a convenience, it is the fix.
 
-Request: `{ "prediction": "<what should be visible>", "figure": "<path>", "repeat": 1 }`.
+Request: `{ "mode": "test" | "play", "prediction": "<optional expected effect>", "figure": "<optional path>" }`.
 
 Response: `{ "launch": LaunchRecord }` with `running: true` and `experiment_id: null`, because the runner only
-produces the id when it has a record. Refuses with 409 `PREDICTION_REQUIRED` when the prediction is missing or
-empty, and with 409 `ALREADY_RUNNING` when one is already under way. Takes the session lock immediately, because
+produces the id when it has a record. New modes synthesize a prediction from the save plan if omitted.
+Refuses with 409 `ALREADY_RUNNING` when one is already under way or `STALE_PATCH` for edits made since patching. Takes the session lock immediately, because
 the game starts reading the patch at once.
 
-**Contract rule**: the editor never calls this endpoint on its own; it is always a researcher action.
+The user's Patch click may chain save, patch and launch when the visible automatic-launch checkbox is checked.
+`test` runs the tutorial macro then closes the owned game; `play` loads a figure and leaves control to the user
+until the game closes or `POST /api/launch/stop` aborts it. Explicit modes release the lock on completion/failure.
+Legacy requests without `mode` retain required prediction and explicit observation semantics.
 
 ### `GET /api/launch`
 
 The state of the current or last run: `{ "launch": LaunchRecord | null, "locked": boolean }`. While `running` is
 true the `experiment_id` is null; when the run ends it carries the id, or `error` if the runner failed. The
-promise driving the run never appears in the response.
+promise and abort controller never appear in the response. `progress` reports booting, macro step/total, playing,
+stopping and finished. `consumption.verified` proves replacement loading only, never a visual edit's effect.
 
 ### `POST /api/observe`
 
@@ -160,3 +164,38 @@ served, and no path outside those two directories is reachable.
 - No endpoint edits geometry, collision data or script contents, and none creates a placement without consuming an
   existing slot. Those are out of scope for this feature and absent from the interface, not merely disabled in the
   interface.
+
+The confirmed tutorial Drifting_Piece position edit also translates private type-148 waypoint xyz reached by
+the placement's +0xE4 list. It changes existing coordinates only, preserving instruction bytes and list shape.
+Save plans include these extra words as `attribute: "trajectory"`; undo/redo restores them byte-exactly.
+Unknown layouts and shared trajectories refuse the position edit.
+
+## Scenery rendering extension (2026-09-14)
+
+`GET /api/meshes` returns `{ stats, models, scenery, unresolved, scripted_previews, scene_roles }`. All arrays of positions/indices use the
+existing base64 little-endian Float32/Uint32 wire format. Models keep their placement-local coordinates.
+
+`scenery` is `{ space: "world", confidence: "LIKELY", editable: false, units, chunks }`. A chunk includes
+`descriptors` (source draw-unit ids), `units`, `vertex_count`, `triangle_count`, `positions`, `indices`,
+`bounds` (computed from its vertices) and `large_surface` (a reversible preview hint). World chunks must
+not receive a placement transform or be submitted as edit targets. Batches target 32,768 vertices; a single
+unit larger than this is kept intact. The candidate rule is unassigned interleaved units with fraction 6.
+Separate-array or other-fraction resources remain in `unresolved`, with descriptor, kind, fraction and reason.
+
+`stats.assigned_unique + stats.scenery + stats.unresolved == stats.draw_units`. `owned` remains a count of
+model-unit associations, which may double-count shared geometry. Legacy `world` is the unassigned count,
+equal to `scenery + unresolved`. `complete` and `stop` describe decoding, not scene fidelity or editability.
+Large surfaces use a size threshold of half the placements' extent, with a minimum of 32 world units; the
+view can draw them solid or wireframe independently of their semantic identity.
+
+`scripted_previews` adds read-only LIKELY tutorial bridge/dock and ID-10 cannon assemblies; each has
+owner, template, model, position, heading, scale, heading_offset, fixed_heading and scale_mode. Bridge yaw
+is the creator's yaw minus 90 degrees; cannon top follows creator yaw while the initial base yaw is fixed.
+The view preserves those rules during refresh and resolves preview picking to the owner. These previews
+do not add editable placements or affect save plans. See `docs/editor-scene-poses.md` for runtime scope.
+
+`scene_roles` contains tutorial-only `{ offset, role: "template_or_inactive", confidence: "LIKELY",
+editable: false, counterparts: [{offset,name}] }` display hints from the initially inactive/template flag.
+The view hides these stored objects by default under a reversible layer, without changing file visibility.
+`GET /api/placement/:offset` includes `script` diagnostics (clone resources, template users, animation presence,
+confirmed drifting-path support and scene_role). These describe static references, not a simulated script execution.

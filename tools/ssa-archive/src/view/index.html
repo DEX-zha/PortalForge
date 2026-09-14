@@ -24,13 +24,15 @@
      carries display:grid, which is how an empty full-screen overlay came to cover the whole page. */
   [hidden] { display: none !important; }
   html, body { height: 100%; }
-  body { margin: 0; height: 100vh; display: grid; grid-template-columns: 260px 1fr 380px; grid-template-rows: 44px 1fr;
+  body { margin: 0; height: 100vh; display: grid; grid-template-columns: 260px 1fr 380px; grid-template-rows: auto minmax(0, 1fr);
          background: var(--bg); color: var(--text); overflow: hidden;
          font: 13px/1.5 var(--sans); font-variant-numeric: tabular-nums; }
-  header { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 0 14px;
+  header { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 14px;
            border-bottom: 1px solid var(--line); background: var(--panel); overflow: hidden; }
   header b { font: 400 16px/1 var(--serif); letter-spacing: .01em; }
   header .dim { color: var(--dim); }
+  header button, header > b, #tally > span { white-space: nowrap; }
+  #tools { display: flex; gap: 4px; }
   aside, section { overflow-y: auto; background: var(--panel); }
   aside { border-right: 1px solid var(--line); }
   section { border-left: 1px solid var(--line); }
@@ -103,6 +105,21 @@
   <div id="layer-actions" style="display:flex;gap:6px;padding:0 12px 8px">
     <button id="all-on">All</button><button id="all-off">None</button>
   </div>
+  <label id="scenery-layer" class="layer" hidden title="Static scenery, read-only. Materials and runtime visibility are not reconstructed.">
+    <input id="scenery-visible" type="checkbox" checked>
+    <span class="n">Décor <span class="dim">· lecture seule</span></span>
+    <span id="scenery-count" class="c">0</span>
+  </label>
+  <div id="mesh-coverage" class="ev" style="padding:6px 12px 12px"></div>
+  <label id="scripted-layer" class="layer" hidden title="Ponts et canons à leur position initiale. Cliquez sur un aperçu pour sélectionner son générateur. Les animations et destructions ne sont pas simulées.">
+    <input id="scripted-visible" type="checkbox" checked><span class="n">Ponts et canons · aperçu</span>
+  </label>
+  <label id="resources-layer" class="layer" hidden title="Objets modèles et objets initialement désactivés, à leurs coordonnées de stockage. Les scripts peuvent les créer ou les activer ailleurs.">
+    <input id="resources-visible" type="checkbox"><span class="n">Modèles et objets désactivés</span><span id="resources-count" class="c">0</span>
+  </label>
+  <label class="layer" title="Les très grandes surfaces restent en filaire pour garder le niveau visible. Cochez pour les rendre pleines.">
+    <input id="large-surfaces-solid" type="checkbox"><span class="n">Grandes surfaces pleines</span>
+  </label>
   <div id="layers"></div>
 </aside>
 
@@ -116,8 +133,15 @@
   <h2>Save, patch, launch</h2>
   <div id="save-panel" style="padding:0 12px 10px">
     <div class="row"><span class="k">state</span><span class="v" id="save-state">no edit yet</span></div>
-    <div style="display:flex;gap:6px;margin:6px 0"><button id="save">Save</button><button id="do-patch">Patch</button><button id="do-launch">Launch</button></div>
-    <input id="prediction" placeholder="what should be visible after this change" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
+    <label for="launch-mode">Après le patch</label>
+    <select id="launch-mode" style="width:100%;margin:5px 0;padding:5px;background:#0d1218;color:var(--text)">
+      <option value="test">Test du tutoriel, puis fermer Dolphin</option>
+      <option value="play">Jeu classique, laisser Dolphin ouvert</option>
+    </select>
+    <label style="display:block"><input id="launch-after-patch" type="checkbox" checked> Lancer automatiquement après le patch</label>
+    <div class="ev">Le test charge le Skylander configuré, passe les menus et avance au début du tutoriel. Le jeu classique vous laisse les commandes.</div>
+    <div style="display:flex;gap:6px;margin:6px 0"><button id="save">Save</button><button id="do-patch">Patch</button><button id="do-launch">Lancer</button><button id="stop-launch" disabled>Arrêter</button></div>
+    <input id="prediction" placeholder="Résultat attendu (facultatif)" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
     <div class="ev" id="save-note" style="margin-top:6px"></div>
   </div>
   <h2>Selection</h2>

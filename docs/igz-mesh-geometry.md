@@ -129,12 +129,24 @@ kind, and one invisible marker model per level.
 
 ## What it looks like
 
+**Scenery integration (2026-09-14):** alongside placed models, the editor now serves unassigned interleaved
+units with fraction 6 as world-space scenery candidates: 1,584 units on the tutorial and 641 on Mining.
+The read-only Décor layer toggles them independently. They are batched with descriptor provenance and never
+enter placement picking or edit commands. Separate-array resources remain unresolved (3 on the tutorial,
+5 on Mining). `stats.world` remains the legacy unassigned count; the new `assigned_unique`, `scenery` and
+`unresolved` counts partition the decoded units without double-counting shared models.
+See the [missing-scenery audit and implementation](editor-missing-scenery-study.md).
+
+Very large surfaces default to wireframe because rendering sky domes and effects without their materials
+otherwise hides the editing area. The reversible “Grandes surfaces pleines” control restores solid rendering;
+this size-based preview treatment is not a classification of game objects or runtime visibility.
+
 `ssa-archive edit preview <level> --archive .. --entry 3 --meshes --eye 96,18,20 --target 86,13,46 --out x.png`
 renders the decoded meshes as wireframes at their placements from a point near the tutorial spawn. The blades
 sit above the windmill, the two sunflowers to its right, the floating island beyond: the arrangement of the
 Dolphin control screenshot `m1-level_027_tutorial-reencode-1789234236226-control-46-tutorial-skylander.png`.
-The editor draws the same meshes grey through `GET /api/meshes`, and keeps a cube proxy for any model the
-decoder does not reach.
+The editor draws placed meshes grey and scenery blue-grey through `GET /api/meshes`, and keeps a cube proxy
+for any model the decoder does not reach. `edit preview --meshes` also includes the scenery.
 
 ## What is not here
 

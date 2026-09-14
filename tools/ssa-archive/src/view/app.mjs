@@ -8,6 +8,7 @@ import { isBound } from './navigate.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
 import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
+import { decodeMeshPayload } from './mesh-data.mjs';
 
 const $ = id => document.getElementById(id);
 const api = async (path, body) => {
@@ -35,19 +36,35 @@ async function main() {
   } catch (e) { return fail(`The editor could not open this level. ${e.message}`); }
 
   state.hasRuntimeMap = session.has_runtime_map;
+  state.dirty = session.dirty;
+  state.undoDepth = session.undo_depth ?? 0;
+  state.redoDepth = session.redo_depth ?? 0;
+  state.saved = session.saved;
+  state.patched = session.patched;
+  state.running = session.launch_running;
+  state.locked = session.locked;
+  if (session.archive?.toLowerCase() !== 'level/level_027_tutorial.bld') {
+    $('launch-mode').value = 'play';
+    $('launch-mode').querySelector('[value="test"]').disabled = true;
+  }
   state.placements = data.placements;
   state.layers = data.layers;
 
   // Real geometry (feature 004). A level without it still opens: every placement falls back to its proxy.
-  let meshes = new Map(), meshStats = null;
-  try { const m = await api('/api/meshes'); meshes = decodeMeshes(m); meshStats = m.stats; } catch (e) { note('meshes unavailable: ' + e.message); }
+  let meshes = new Map(), scenery = null, meshStats = null, scripted = [];
+  try {
+    const m = await api('/api/meshes'), decoded = decodeMeshPayload(m);
+    meshes = decoded.models; scenery = decoded.scenery; meshStats = m.stats;
+    scripted = m.scripted_previews ?? [];
+    state.resources = new Set((m.scene_roles ?? []).map(r => r.offset));
+  } catch (e) { note('meshes unavailable: ' + e.message); }
 
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
   // A tally rather than a run-on meta line: these are four different measurements, not one sentence.
   $('tally').innerHTML = [
     [session.placement_count, 'placed'],
     [session.counts.direct, 'with a model'],
-    [meshStats ? meshStats.with_mesh : 0, 'with a mesh'],
+    [meshStats ? meshStats.with_mesh : 0, 'meshed models'],
     [session.counts.absent, 'markers'],
     [session.layer_count, 'layers'],
   ].map(([n, label]) => `<span><b>${n}</b> ${label}</span>`).join('')
@@ -66,20 +83,35 @@ async function main() {
   for (const p of state.placements) grades.set(p.offset, gradeOf(p));
 
   state.scene = createScene($('c'));
-  state.scene.build(state.placements, grades, meshes);
+  state.scene.build(state.placements, grades, meshes, scenery);
+  state.scene.setScriptedPreviews(scripted, meshes);
+  $('scripted-layer').hidden = !scripted.length;
+  $('scripted-visible').addEventListener('change', () => state.scene.setScriptedVisible($('scripted-visible').checked));
+  $('resources-layer').hidden = !state.resources?.size;
+  $('resources-count').textContent = state.resources?.size ?? 0;
+  $('resources-visible').addEventListener('change', apply);
+  $('scenery-layer').hidden = !scenery?.units;
+  $('scenery-count').textContent = scenery?.units ?? 0;
+  $('scenery-visible').checked = true;
+  $('scenery-visible').addEventListener('change', () => state.scene.setSceneryVisible($('scenery-visible').checked));
+  $('large-surfaces-solid').addEventListener('change', () => state.scene.setLargeSurfacesSolid($('large-surfaces-solid').checked));
+  $('mesh-coverage').textContent = meshStats
+    ? `${meshStats.draw_units}/${meshStats.descriptors} geometry blocks decoded · ${meshStats.assigned_unique ?? '?'} in models · ${meshStats.scenery ?? 0} scenery · ${meshStats.unresolved ?? meshStats.world ?? 0} unresolved`
+      + (meshStats.stop ? ` · Incomplete: ${meshStats.stop.why}` : '')
+    : 'Geometry unavailable; showing placement markers.';
 
   const index = layerIndex(state.placements);
   state.visible = showAll(index);
   renderLayers(index);
-  state.scene.setVisible(visibleSet(state.placements, state.visible));
+  apply();
 
   showDiagnostics();
   $('c').addEventListener('pointerdown', onPick);
   $('frame-all').addEventListener('click', () => state.scene.frameAll());
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
   $('wireframe').addEventListener('click', () => toggleWireframe());
-  $('all-on').addEventListener('click', () => { state.visible = showAll(index); renderLayers(index); apply(); });
-  $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(index); apply(); });
+  $('all-on').addEventListener('click', () => { state.visible = showAll(index); renderLayers(index); apply(); $('scenery-visible').checked = true; state.scene.setSceneryVisible(true); });
+  $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(index); apply(); $('scenery-visible').checked = false; state.scene.setSceneryVisible(false); });
 
   // Gizmos and typed entry produce the SAME intent, so the two ways of editing cannot drift apart (T034 to T036).
   for (const [id, mode] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
@@ -102,10 +134,26 @@ async function main() {
   $('save').addEventListener('click', doSave);
   $('do-patch').addEventListener('click', doPatch);
   $('do-launch').addEventListener('click', doLaunch);
+  $('stop-launch').addEventListener('click', async () => {
+    try { await api('/api/launch/stop', {}); note('Fermeture du Dolphin de recherche…'); }
+    catch (e) { note(e.message); }
+  });
   $('prediction').addEventListener('input', refreshSaveState);
   $('inspector').addEventListener('change', onTyped);
   $('inspector').addEventListener('click', onDuplicateClick);
+  $('inspector').addEventListener('click', async e => {
+    const button = e.target.closest('[data-counterpart]');
+    if (!button) return;
+    const offset = Number(button.dataset.counterpart);
+    const p = state.placements.find(p => p.offset === offset); if (!p) return;
+    for (const layer of p.layers) state.visible.add(layer);
+    renderLayers(index); apply();
+    state.selection = { offset, index: 0, total: 1 };
+    state.scene.select(offset); state.scene.frameSelection();
+    await reselect();
+  });
   refreshSaveState();
+  if (state.running) pollLaunch();
 
   window.addEventListener('keydown', e => {
     if (typingIn(e.target)) return;                    // a position field must never fly the camera
@@ -136,7 +184,7 @@ function showDiagnostics() {
     const d = state.scene.diagnostics();
     const small = d.canvas.w < 40 || d.canvas.h < 40;
     $('diag').textContent = d.proxies + ' drawn (' + d.meshed + ' as meshes), canvas ' + d.canvas.w + '\u00d7' + d.canvas.h
-      + ', buffer ' + d.pixels + 'px, proxy ' + d.proxy + 'u, camera ' + d.distanceText;
+      + ', ' + d.scenery + ' scenery blocks, camera ' + d.distanceText;
     $('diag').classList.toggle('bad', small || !d.proxies);
 
     // A collapsed viewport used to look exactly like an empty level. Say which one it is, in words, on top of
@@ -156,7 +204,11 @@ function showDiagnostics() {
 }
 let shown = false, bad = 0;
 
-function apply() { state.scene.setVisible(visibleSet(state.placements, state.visible)); }
+function apply() {
+  const offsets = visibleSet(state.placements, state.visible);
+  if (!$('resources-visible').checked) for (const offset of state.resources ?? []) offsets.delete(offset);
+  state.scene.setVisible(offsets);
+}
 
 // Free flight and see-through (feature 004). A level holds models big enough to swallow the camera: a cloud
 // layer, a landmass, a water dome. Inside one, orbiting around a target that is also inside it cannot get out,
@@ -168,18 +220,6 @@ function toggleWireframe(on) {
   const now = state.scene.setWireframe(on === undefined ? !state.scene.state.wireframe : on);
   $('wireframe').classList.toggle('on', now);
   return now;
-}
-
-// Base64 little-endian typed arrays back into Float32Array / Uint32Array. Both ends are little-endian machines;
-// the server writes the arrays' native bytes and the browser reads them as its own.
-function decodeMeshes(payload) {
-  const bytes = b64 => { const s = atob(b64); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; };
-  const out = new Map();
-  for (const m of payload.models ?? []) {
-    const p = bytes(m.positions), ix = bytes(m.indices);
-    out.set(m.model, { ...m, positions: new Float32Array(p.buffer, p.byteOffset, p.byteLength / 4), indices: new Uint32Array(ix.buffer, ix.byteOffset, ix.byteLength / 4) });
-  }
-  return out;
 }
 
 function renderLayers(index) {
@@ -209,7 +249,7 @@ async function onPick(ev) {
   if (!next) { $('inspector').innerHTML = renderPlacement(null); return; }
   try {
     const b = await api(`/api/placement/${next.offset}`);
-    $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap })
+    $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script })
       + (next.total > 1 ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>` : '');
   } catch (e) { $('inspector').innerHTML = `<div class="empty">${e.message}</div>`; }
 }
@@ -272,6 +312,8 @@ function afterChange(b) {
     updateFields({ position: p.position, heading: p.rotation.heading, scale: p.scale });
   }
   state.dirty = b.dirty;
+  state.saved = b.saved ?? state.saved;
+  state.patched = b.patched ?? null;
   state.undoDepth = b.undo_depth ?? state.undoDepth;
   state.redoDepth = b.redo_depth ?? state.redoDepth;
   refreshSaveState();
@@ -280,24 +322,30 @@ function afterChange(b) {
 async function reselect() {
   if (!state.selection) return;
   const b = await api('/api/placement/' + state.selection.offset);
-  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap });
+  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script });
 }
 
 const note = msg => { $('save-note').textContent = msg; };
 
 function refreshSaveState() {
+  const busy = state.busy || state.running || state.locked;
   $('dirty').textContent = state.dirty ? state.undoDepth + ' unsaved edit' + (state.undoDepth > 1 ? 's' : '') : '';
   $('dirty').classList.toggle('on', !!state.dirty);
-  $('save').disabled = !state.dirty;
-  $('do-patch').disabled = !state.saved;
-  $('do-launch').disabled = !state.patched || !$('prediction').value.trim();
+  $('save').disabled = busy || !state.dirty;
+  $('do-patch').disabled = busy || (!state.saved && !state.dirty);
+  $('do-launch').disabled = busy || !state.patched || state.dirty;
+  $('stop-launch').disabled = !state.running;
+  $('launch-mode').disabled = !!busy;
+  $('undo').disabled = busy || !state.undoDepth;
+  $('redo').disabled = busy || !state.redoDepth;
   $('save-state').textContent = state.dirty ? 'unsaved changes'
-    : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
+    : state.running ? 'Dolphin en cours' : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
 }
 
 async function doSave() {
   try {
     const b = await api('/api/save', {});
+    if (!b.written) throw new Error(b.plan.failures.map(f => f.reason).join('; '));
     state.saved = b.written; state.patched = null; state.dirty = b.dirty;
     note('Written to ' + b.written + '. ' + b.plan.changes.length + ' field' + (b.plan.changes.length === 1 ? '' : 's') + ' changed, nothing outside them.');
   } catch (e) { state.saved = null; note('refused: ' + e.message); }
@@ -305,34 +353,52 @@ async function doSave() {
 }
 
 async function doPatch() {
-  try { const b = await api('/api/patch', {}); state.patched = b.patch.dir; note('patch built in ' + b.patch.dir); }
-  catch (e) { note('refused: ' + e.message); }
-  refreshSaveState();
+  state.busy = true; refreshSaveState();
+  try {
+    if (state.dirty || !state.saved) {
+      const saved = await api('/api/save', {});
+      if (!saved.written) throw new Error(saved.plan.failures.map(f => f.reason).join('; '));
+      state.saved = saved.written; state.dirty = saved.dirty; state.patched = null;
+    }
+    note('Reconstruction et vérification de l’archive…');
+    const b = await api('/api/patch', {}); state.patched = b.patch;
+    note('Patch vérifié, prêt pour Dolphin.');
+    if ($('launch-after-patch').checked) await doLaunch();
+  } catch (e) { note('Échec : ' + e.message); }
+  finally { state.busy = false; refreshSaveState(); }
 }
 
 async function doLaunch() {
   const prediction = $('prediction').value.trim();
-  if (!prediction) return note('state what should be visible before launching: an experiment without a prediction cannot be judged');
   try {
-    await api('/api/launch', { prediction });
-    note('the game is starting; this window does not wait for it');
+    await api('/api/launch', { prediction, mode: $('launch-mode').value });
+    state.running = true; state.locked = true;
+    note('Dolphin démarre avec le patch courant…');
     pollLaunch();
   } catch (e) { note('refused: ' + e.message); }
   refreshSaveState();
 }
 
-// The run is polled, never awaited: a boot outlasts any request. The lock stays held until an observation.
+// Poll across reloads; the owned game releases the lock when it has actually stopped.
 async function pollLaunch() {
   const started = Date.now();
   const tick = async () => {
     let b;
-    try { b = await api('/api/launch'); } catch { return; }
+    try { b = await api('/api/launch'); } catch { return setTimeout(tick, 5000); }
+    state.running = !!b.launch?.running; state.locked = b.locked;
+    refreshSaveState();
     if (b.launch?.running) {
-      note('running for ' + Math.round((Date.now() - started) / 1000) + 's; the patch is locked while it reads');
+      const p = b.launch.progress ?? {};
+      const phase = { booting: 'Démarrage de Dolphin', macro: `Macro du tutoriel : étape ${p.step ?? 0}/${p.steps ?? '?'}`,
+        playing: 'Jeu classique : vous avez les commandes', stopping: 'Fermeture de Dolphin', finished: 'Fin du test, fermeture de Dolphin' }[p.phase] ?? 'Préparation de Dolphin';
+      note(phase + ' · ' + Math.round((Date.now() - started) / 1000) + ' s'
+        + (p.consumption?.verified ? ' · Archive modifiée chargée.' : ''));
       return setTimeout(tick, 5000);
     }
-    note(b.launch?.error ? 'the run failed: ' + b.launch.error
-      : 'run ' + b.launch?.experiment_id + ' finished; record what you saw to release the lock');
+    note(b.launch?.error ? 'Échec du lancement : ' + b.launch.error
+      : (b.launch?.status === 'STOPPED' ? 'Dolphin arrêté.' : b.launch?.mode === 'test' ? 'Macro terminée, Dolphin fermé.' : 'Partie fermée.')
+        + (b.launch?.consumption?.verified ? ' Chargement du patch confirmé.' : '')
+        + (b.launch?.screenshots?.length ? ` ${b.launch.screenshots.length} captures conservées dans .local/dolphin-evidence/.` : ''));
     refreshSaveState();
   };
   tick();

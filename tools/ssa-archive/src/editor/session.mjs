@@ -18,6 +18,7 @@ import { assessPlacement, worst, SEVERITY } from './safety.mjs';
 import { gateStatus } from '../experiments/run-game.mjs';
 import { scriptTable } from '../igz/script.mjs';
 import { replacePlacement } from './placements.mjs';
+import { translatedPathWords } from './trajectory.mjs';
 
 const UNLAYERED = '(unlayered)';
 const WRAPPER_EMBED = 0x48;
@@ -120,7 +121,9 @@ export const sessionSummary = s => ({
   id: s.id, file: s.file, archive: s.archive, entry: s.entry, opened: s.opened,
   original_sha256: s.original_sha256, has_runtime_map: s.has_runtime_map,
   detection: s.detection, counts: s.counts, placement_count: s.placements.length,
-  layer_count: s.layers.length, dirty: s.dirty, locked: s.locked, undo_depth: s.edits.length,
+  layer_count: s.layers.length, dirty: s.dirty, locked: s.locked, undo_depth: s.edits.length, redo_depth: s.undone.length,
+  saved: s.lastSave ? { file: s.lastSave.file, sha256: s.lastSave.sha256 } : null, patched: s.lastPatch ?? null,
+  launch_running: !!s.lastLaunch?.running,
 });
 
 export const findPlacement = (s, offset) => s.placements.find(p => p.offset === offset) ?? null;
@@ -185,6 +188,7 @@ function refreshRecord(session, placement) {
 }
 
 export function applyEdit(session, intent) {
+  if (session.locked) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before editing');
   if (intent.kind === 'replace') return applyReplace(session, intent);
   if (intent.kind !== 'transform') fail('UNSUPPORTED_INTENT', `${intent.kind} is not a supported intent; this editor applies transform and replace`);
   const placement = findPlacement(session, intent.target);
@@ -196,14 +200,16 @@ export function applyEdit(session, intent) {
   if (!asked.length) fail('NOTHING_TO_CHANGE', 'nothing to change: give a position, a heading or a scale');
   if (intent.position && (!Array.isArray(intent.position) || intent.position.length !== 3 || intent.position.some(v => !Number.isFinite(v)))) fail('BAD_VALUE', 'a position needs three finite numbers');
   for (const k of asked) { const c = canEdit(placement, k); if (!c.ok) fail(c.error, c.reason); }
+  const dependent_words = asked.includes('position') ? translatedPathWords(session, placement, intent.position) : [];
 
   const before = Object.fromEntries(asked.map(k => [k, READERS[k](session.buffer, placement.offset)]));
   const before_raw = Object.fromEntries(asked.map(k => [k, rawOf(session.buffer, placement.offset, k)]));
   for (const k of asked) WRITERS[k](session.buffer, placement.offset, intent[k]);
   const after = Object.fromEntries(asked.map(k => [k, READERS[k](session.buffer, placement.offset)]));
   const after_raw = Object.fromEntries(asked.map(k => [k, rawOf(session.buffer, placement.offset, k)]));
+  writeWords(session.buffer, dependent_words, 'after');
 
-  session.edits.push({ kind: 'transform', target: placement.offset, attributes: asked, before, after, before_raw, after_raw, at: new Date().toISOString() });
+  session.edits.push({ kind: 'transform', target: placement.offset, attributes: asked, before, after, before_raw, after_raw, dependent_words, at: new Date().toISOString() });
   session.undone.length = 0;
   refreshRecord(session, placement);
   session.dirty = true;
@@ -243,6 +249,9 @@ const writeWords = (buf, words, side) => { for (const w of words) buf.writeUInt3
 // Re-resolving is the honest way to refresh after a replacement: the slot now holds a different object, and
 // guessing which of its attributes changed would be inventing knowledge the resolver already has.
 function reresolve(session) {
+  delete session._scriptDiagnostics;
+  delete session._sceneRoles;
+  delete session._meshes;
   const res = resolveAll(session.buffer, session.graph, session.fixups);
   session.placements = res.rows;
   session.layers = deriveLayers(res.rows, { hasRuntimeMap: session.has_runtime_map });
@@ -314,6 +323,7 @@ export function applyReplace(session, intent) {
 }
 
 export function undo(session) {
+  if (session.locked) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before editing');
   const edit = session.edits.pop();
   if (!edit) return null;
   const placement = restore(session, edit, 'before');
@@ -329,10 +339,12 @@ function restore(session, edit, side) {
     reresolve(session);
     return findPlacement(session, edit.target);
   }
+  writeWords(session.buffer, edit.dependent_words ?? [], side);
   return applyRaw(session, edit.target, side === 'before' ? edit.before_raw : edit.after_raw);
 }
 
 export function redo(session) {
+  if (session.locked) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before editing');
   const edit = session.undone.pop();
   if (!edit) return null;
   const placement = restore(session, edit, 'after');
@@ -353,6 +365,7 @@ export function authorisedWords(session) {
   for (const e of session.edits) {
     if (e.kind === 'replace') { for (const w of e.words) out.add(w.offset); continue; }
     for (const a of e.attributes) for (const w of wordsOf(e.target, a)) out.add(w);
+    for (const w of e.dependent_words ?? []) out.add(w.offset);
   }
   return out;
 }

@@ -44,12 +44,13 @@ test('inspector: a scripted prop shows its model, its script, its layers and the
   assert.match(html, /data-edit="scale"[^>]*value="100"/);
 });
 
-test('inspector: a marker says it is not a visible prop, and shows no model', { skip: !haveSamples && 'local samples absent' }, () => {
+test('inspector: an absent direct model does not rule out a scripted spawner', { skip: !haveSamples && 'local samples absent' }, () => {
   const { res, at } = tutorial();
   const marker = res.rows.find(r => r.model.status === 'absent' && /CS_PortalEntry01/.test(r.name ?? ''));
   const html = renderPlacement(marker, assessPlacement(marker, { hasRuntimeMap: true }), []);
   assert.match(html, /CS_PortalEntry01/);
-  assert.match(html, /marker, not a visible prop/);
+  assert.match(html, /Aucun modèle direct/);
+  assert.match(html, /générateur/);
   assert.match(html, /MARKER_NO_MODEL/);
   assert.doesNotMatch(html, /\.mdl/, 'no model path is invented for a marker');
 });

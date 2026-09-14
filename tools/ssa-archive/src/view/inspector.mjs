@@ -22,11 +22,11 @@ function row(key, value, evidence) {
   return `<div class="row"><span class="k">${esc(key)}</span><span class="v">${value}${ev}</span></div>`;
 }
 
-export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = true } = {}) {
+export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = true, script = null } = {}) {
   if (!p) return '<div class="empty">Nothing selected. Click a proxy in the view.</div>';
   const model = p.model.path
     ? `${esc(base(p.model.path))}<div class="ev">${esc(p.model.path)}</div>`
-    : `<span class="k">none: this is a marker, not a visible prop</span>`;
+    : `<span class="k">Aucun modèle direct ; peut être un repère ou un générateur d’objets.</span>`;
   const behaviour = p.behavior
     ? `${esc(base(p.behavior.path))}<div class="ev">${esc(p.behavior.path)}</div>`
     : '<span class="k">none</span>';
@@ -46,6 +46,15 @@ export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = 
     row('scale', `<input class="num" data-edit="scale" value="${p.scale}"> <span class="k">(100 = 1.0)</span>`),
     row('model', model, p.evidence.model),
     row('behaviour', behaviour, p.evidence.behavior),
+    script?.clones?.length ? row('Objets créés par script', script.clones.map(c => `${esc(c.name)}<div class="ev">${esc(base(c.model) ?? 'sans modèle direct')}</div>`).join('<br>')
+      + '<div class="rule medium">Les aperçus de ponts et canons représentent leur pose initiale. Les animations et changements pendant le jeu ne sont pas simulés.</div>') : '',
+    script?.scene_role ? '<div class="rule medium">Modèle ou objet initialement désactivé : cette position peut être un emplacement de stockage, sans sol associé.</div>'
+      + (script.scene_role.counterparts ?? []).map(c => `<button data-counterpart="${c.offset}">Voir ${esc(c.name)} dans le niveau</button>`).join('') : '',
+    script?.template_for?.length ? '<div class="rule medium">Objet utilisé comme modèle par '
+      + script.template_for.map(s => esc(base(s.path))).join(', ')
+      + '. Les copies créées en jeu peuvent apparaître ailleurs que la position enregistrée ici.</div>' : '',
+    script?.trajectory?.supported ? `<div class="rule info">Le déplacement translate aussi les ${script.trajectory.points.length} points de trajectoire de cet objet. Son animation est conservée.</div>`
+      : script?.animated ? '<div class="rule medium">Ce script contient des déplacements ou animations. Une position enregistrée peut ensuite être recalculée pendant le jeu.</div>' : '',
     row('layers', p.layers.length ? esc(p.layers.join(', ')) : '<span class="k">(unlayered)</span>', p.evidence.layers),
     row('shared state', shared),
     row('resolution', esc(p.model.status) + (p.model.field !== null ? ` <span class="k">via +${hex(p.model.field)}</span>` : '')),

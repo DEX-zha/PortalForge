@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 import { sessionSummary, findPlacement, applyEdit, undo, redo, planReplace, interchangeable } from './session.mjs';
 import { meshesPayload } from './meshes.mjs';
 import { assessPlacement } from './safety.mjs';
-import { buildSavePlan, save, patch, launch, observe, launchState } from './save.mjs';
+import { scriptDiagnostics } from './script-diagnostics.mjs';
+import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
@@ -82,6 +83,7 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
       if (!placement) return json(res, 404, { error: 'NO_SUCH_PLACEMENT', reason: `no placement at 0x${offset.toString(16)} in this level` });
       return json(res, 200, {
         placement,
+        script: scriptDiagnostics(s, placement),
         safety: assessPlacement(placement, { hasRuntimeMap: s.has_runtime_map }),
         replace_targets: replaceTargets(s, placement),
       });
@@ -101,7 +103,8 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
   async function post(req, res, pathname, s) {
     let body;
     try { body = await readJson(req); } catch (e) { return json(res, 400, { error: e.error ?? 'BAD_BODY', reason: e.message }); }
-    const state = extra => ({ dirty: s.dirty, undo_depth: s.edits.length, redo_depth: s.undone.length, locked: s.locked, ...extra });
+    const state = extra => ({ dirty: s.dirty, undo_depth: s.edits.length, redo_depth: s.undone.length, locked: s.locked,
+      saved: s.lastSave ? { file: s.lastSave.file, sha256: s.lastSave.sha256 } : null, patched: s.lastPatch ?? null, ...extra });
     try {
       if (pathname === '/api/edit') return json(res, 200, state(applyEdit(s, body)));
       if (pathname === '/api/undo') { const r = undo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_UNDO', reason: 'no edit left to undo' }); }
@@ -113,6 +116,7 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
       if (pathname === '/api/save') { const r = save(s, { out: body.out ?? null }); return json(res, r.written ? 200 : 409, state({ plan: r.plan, written: r.written })); }
       if (pathname === '/api/patch') return json(res, 200, state(patch(s, { deps })));
       if (pathname === '/api/launch') return json(res, 200, state(await launch(s, { ...body, deps })));
+      if (pathname === '/api/launch/stop') return json(res, 200, state(stopLaunch(s)));
       if (pathname === '/api/observe') return json(res, 200, state(observe(s, { ...body, deps })));
       return notFound(res, pathname);
     } catch (e) {

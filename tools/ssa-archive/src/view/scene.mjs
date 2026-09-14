@@ -14,9 +14,11 @@ import { mapping, scaleToView, scaleToGame, headingToGame } from './coords.mjs';
 // headless preview command renders exactly what this scene renders rather than an approximation of it.
 import {
   MARKER_RATIO, MIN_INSTANCE_SCALE, FOV, VIEW_DIR, TRIM, GROUND, GRID_MAJOR, GRID_MINOR,
-  GRADE_COLOUR, MARKER_COLOUR, SELECTED_COLOUR, extentOf, proxySize, bulkBox, viewAxes, fitDistance, fitBox, gridOf,
+  GRADE_COLOUR, MARKER_COLOUR, SELECTED_COLOUR, extentOf, proxySize, bulkBox, viewAxes, fitDistance, fitBox, gridOf, largeSurfaceLimit,
 } from './framing.mjs';
 import { step as flyStep, speedFor } from './navigate.mjs';
+import { createScenery, disposeScenery } from './scenery.mjs';
+import { scriptedPose } from './scripted-pose.mjs';
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -32,6 +34,8 @@ export function createScene(canvas) {
 
   // The one material real meshes share: grey, lit, both faces. Colour stays with the proxies, where it encodes risk.
   const meshMaterial = new THREE.MeshLambertMaterial({ color: 0x9a978f, side: THREE.DoubleSide });
+  const sceneryMaterial = new THREE.MeshLambertMaterial({ color: 0x73818a, side: THREE.DoubleSide });
+  const largeMaterial = new THREE.MeshLambertMaterial({ color: 0x57616a, side: THREE.DoubleSide, wireframe: true, depthWrite: false });
   scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x1b2430, 2.6));
   const key = new THREE.DirectionalLight(0xffffff, 1.1);
   key.position.set(1, 2, 1);
@@ -39,6 +43,7 @@ export function createScene(canvas) {
   let grid = null;   // sized to the level once its extent is known
 
   const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, models: [], meshBounds: new Map(), entries: [], selected: null, outline: null, outlineBox: null, size: { w: 0, h: 0 }, drawn: 0, meshed: 0, box: null, proxy: 1, reach: 100, grid: null,
+    scenery: null, sceneryVisible: true, largeSurfacesSolid: false,
     wireframe: false, fly: { held: new Set(), fast: false, slow: false } };
 
   // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
@@ -93,6 +98,9 @@ export function createScene(canvas) {
   function setWireframe(on) {
     state.wireframe = !!on;
     meshMaterial.wireframe = state.wireframe;
+    sceneryMaterial.wireframe = state.wireframe;
+    largeMaterial.wireframe = state.wireframe || !state.largeSurfacesSolid;
+    largeMaterial.depthWrite = !largeMaterial.wireframe;
     if (state.boxes) state.boxes.material.wireframe = state.wireframe;
     return state.wireframe;
   }
@@ -101,8 +109,12 @@ export function createScene(canvas) {
   // `meshes` maps a model offset to its decoded geometry (feature 004); placements whose model has one are drawn
   // as that geometry, grey, at their transform. The others keep the proxy: a cube for a model the decoder does
   // not reach, a hollow marker for a placement with no model. What is missing stays visible as missing.
-  function build(placements, grades, meshes = new Map()) {
-    for (const m of [state.boxes, state.markers, state.outline, ...state.models.map(x => x.mesh)]) if (m) { scene.remove(m); m.geometry?.dispose?.(); if (m.material !== meshMaterial) m.material?.dispose?.(); }
+  function build(placements, grades, meshes = new Map(), scenery = null) {
+    disposeScenery(state.scenery);
+    state.scenery = createScenery(scenery, sceneryMaterial, largeMaterial);
+    state.scenery.visible = state.sceneryVisible;
+    scene.add(state.scenery);
+    for (const m of [state.boxes, state.markers, state.outline, ...state.models.map(x => x.mesh)]) if (m) { scene.remove(m); m.geometry?.dispose?.(); if (m.material !== meshMaterial && m.material !== largeMaterial) m.material?.dispose?.(); }
     state.models = []; state.meshBounds = new Map();
     state.placements = placements;
     state.byOffset = new Map(placements.map(p => [p.offset, p]));
@@ -138,7 +150,10 @@ export function createScene(canvas) {
       geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.positions), 3));
       geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
       geometry.computeVertexNormals();
-      const mesh = new THREE.InstancedMesh(geometry, meshMaterial, list.length);
+      geometry.computeBoundingBox();
+      const size = geometry.boundingBox.getSize(new THREE.Vector3());
+      const oversized = Math.max(size.x, size.y, size.z) * Math.max(...list.map(p => scaleToView(p.scale) || 1)) > largeSurfaceLimit(reach);
+      const mesh = new THREE.InstancedMesh(geometry, oversized ? largeMaterial : meshMaterial, list.length);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false;
       scene.add(mesh);
       list.forEach((p, i) => { state.entries.push({ mesh, index: i, offset: p.offset }); setMatrix(dummy, p, true); mesh.setMatrixAt(i, dummy.matrix); });
@@ -174,6 +189,7 @@ export function createScene(canvas) {
   function diagnostics() {
     const b = state.box;
     return { proxies: state.drawn, meshed: state.meshed, models: state.models.length, boxes: state.boxes?.count ?? 0, markers: state.markers?.count ?? 0,
+      scenery: state.sceneryVisible ? state.scenery?.userData.units ?? 0 : 0,
       canvas: state.size, pixels: renderer.getContext()?.drawingBufferWidth ?? 0, proxy: Math.round(state.proxy * 10) / 10,
       bounds: b && !b.isEmpty() ? { min: b.min.toArray().map(v => Math.round(v)), max: b.max.toArray().map(v => Math.round(v)) } : null,
       camera: camera.position.toArray().map(v => Math.round(v)), target: controls.target.toArray().map(v => Math.round(v)),
@@ -209,14 +225,19 @@ export function createScene(canvas) {
     const p = state.byOffset.get(offset);
     const e = state.entries.find(x => x.offset === offset);
     if (!p || !e) return;
-    setMatrix(dummy, p, true);
+    setMatrix(dummy, p, !state.visibleOffsets || state.visibleOffsets.has(offset));
     e.mesh.setMatrixAt(e.index, dummy.matrix);
     e.mesh.instanceMatrix.needsUpdate = true;
+    for (const child of scriptedGroup.children.filter(c => c.userData.owner === offset)) {
+      applyScriptedPose(child, p);
+    }
   }
 
   // Layer visibility: an instance is hidden by collapsing it to zero scale, which keeps the instance indices
   // stable so picking never has to be rebuilt.
   function setVisible(offsets) {
+    state.visibleOffsets = offsets;
+    for (const child of scriptedGroup.children) child.visible = offsets.has(child.userData.owner);
     for (const e of state.entries) {
       const p = state.byOffset.get(e.offset);
       setMatrix(dummy, p, offsets.has(e.offset));
@@ -224,6 +245,16 @@ export function createScene(canvas) {
     }
     for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)]) if (m) m.instanceMatrix.needsUpdate = true;
     if (state.selected !== null && !offsets.has(state.selected)) select(null);
+  }
+
+  function setSceneryVisible(visible) {
+    state.sceneryVisible = !!visible;
+    if (state.scenery) state.scenery.visible = state.sceneryVisible;
+  }
+
+  function setLargeSurfacesSolid(solid) {
+    state.largeSurfacesSolid = !!solid;
+    setWireframe(state.wireframe);
   }
 
 
@@ -288,6 +319,10 @@ export function createScene(canvas) {
         if (e) out.push({ offset: e.offset, distance: h.distance });
       }
     }
+    if (scriptedGroup.visible) for (const child of scriptedGroup.children) {
+      if (!child.visible) continue;
+      for (const h of raycaster.intersectObject(child, false)) out.push({ offset: child.userData.owner, distance: h.distance });
+    }
     return out;
   }
 
@@ -328,6 +363,8 @@ export function createScene(canvas) {
   }
 
   function frameAll() {
+    // Frame the playable placements, not the enclosing sky/backdrop geometry now present in scenery.
+    // Otherwise a distant world surface would push the camera away from the actual editing area.
     const box = new THREE.Box3();
     const points = state.placements.map(p => new THREE.Vector3(...mapping.toView(p.position)));
     for (const v of points) box.expandByPoint(v);
@@ -346,6 +383,13 @@ export function createScene(canvas) {
   function frameSelection() {
     const p = state.selected === null ? null : state.byOffset.get(state.selected);
     if (!p) return frameAll();
+    const generated = scriptedGroup.children.filter(c => c.userData.owner === p.offset && c.visible);
+    if (generated.length && scriptedGroup.visible) {
+      const box = new THREE.Box3();
+      generated.forEach(c => box.expandByObject(c));
+      frameBox(box.expandByScalar(state.proxy * 2));
+      return;
+    }
     const c = new THREE.Vector3(...mapping.toView(p.position));
     const bb = p.model && p.model.offset !== null ? state.meshBounds.get(p.model.offset) : null;
     const span = bb ? Math.max(...[0, 1, 2].map(k => bb.max[k] - bb.min[k])) * Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE) * 3 : state.proxy * 8;
@@ -365,5 +409,26 @@ export function createScene(canvas) {
     controls.update();
   }
 
-  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, setFly, setWireframe, diagnostics, state };
+  const scriptedGroup = new THREE.Group(); scene.add(scriptedGroup);
+  function applyScriptedPose(mesh, owner) {
+    const pose = scriptedPose(mesh.userData.preview, owner);
+    mesh.position.set(...mapping.toView(pose.position));
+    mesh.rotation.y = THREE.MathUtils.degToRad(pose.heading);
+    mesh.scale.setScalar(scaleToView(pose.scale));
+  }
+  function setScriptedPreviews(previews, meshes) {
+    for (const child of [...scriptedGroup.children]) { scriptedGroup.remove(child); child.geometry.dispose(); child.material.dispose(); }
+    for (const p of previews) {
+      const data = meshes.get(p.model); if (!data) continue;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(data.positions), 3));
+      geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(data.indices), 1)); geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: 0x8d9ba3, side: THREE.DoubleSide }));
+      mesh.userData.owner = p.owner; mesh.userData.preview = p;
+      applyScriptedPose(mesh, state.byOffset.get(p.owner));
+      scriptedGroup.add(mesh);
+    }
+  }
+  function setScriptedVisible(visible) { scriptedGroup.visible = visible; }
+  return { build, setVisible, setSceneryVisible, setScriptedPreviews, setScriptedVisible, setLargeSurfacesSolid, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, setFly, setWireframe, diagnostics, state };
 }

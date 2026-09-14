@@ -1,0 +1,38 @@
+{
+  "id": "igz.geometry.editor-coverage",
+  "updated": "2026-09-14",
+  "editable": false,
+  "category": "visible-geometry",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "decoded draw-unit coverage versus placed-model API coverage; read-only audit",
+  "structure": "Tutorial: 2264 decoded units, 677 unique units assigned to placed models, 1587 omitted (1584 interleaved and 3 separate). Mining: 925 decoded, 279 assigned, 646 omitted (641 interleaved and 5 separate). Across 76 local *-all level workspaces: 126920 descriptors decoded, 94647 units omitted, including 94183 interleaved units.",
+  "location": {
+    "file_pattern": "level/*.bld:level.bld (decoded); tools/ssa-archive/src/editor/meshes.mjs",
+    "offset": "assignUnits -> byModel -> modelMeshes -> meshesPayload -> scene.build",
+    "length": 1
+  },
+  "meaning": "The baseline editor omitted decoded scenery because meshesPayload serialized only placed-model geometry. The 2026-09-14 fix now serves unassigned interleaved units with fraction 6 as read-only world scenery: 1584 tutorial units and 641 Mining units, disjoint from placed-model units. Separate-array resources remain unresolved (3 tutorial, 5 Mining), including UI and ore-processing resources whose placement is not established. The browser draws scenery in batches at identity transform, outside placement picking and edits, under a dedicated Decor toggle. Oversized world units and placed models default to wireframe, with a reversible solid option, because their missing materials otherwise make backgrounds opaque and hide the editing area; this is a size-based preview treatment, not a semantic classification. complete=true still describes decoding only; world is the legacy unassigned count. assigned_unique + scenery + unresolved accounts for all decoded units without counting shared-model associations twice. Runtime visibility, collisions and geometry editing are not established by these offline and browser checks.",
+  "evidence": [
+    {
+      "probe": "tools/ssa-archive/research-probes/probe-mesh-coverage.mjs; .local/mesh-coverage-study/corpus-after.jsonl",
+      "summary": "After implementation, the same 76 archives decode 126920 descriptors without stopping. The API serves 92705 additional world-scenery candidate units and leaves 1942 unresolved, including 1478 interleaved units whose fraction is not 6. The conservative candidate rule deliberately leaves their world transform unclaimed. Unique model units plus scenery plus unresolved partition every file. Full regression suite: 219 tests pass, no skips."
+    },
+    {
+      "probe": "tools/ssa-archive/research-probes/probe-mesh-coverage.mjs; .local/mesh-coverage-study/coverage.jsonl and tutorial-runtime.jsonl",
+      "summary": "Tutorial and Mining decode their entire geometry sections. Tutorial produces identical assigned/omitted counts with structural references and the existing ptr-scan3 runtime fixup map. The actual mesh payload has only stats and models keys. Tutorial has 778 model-unit associations but only 677 distinct assigned units; association counts must not be used as coverage. Input hashes are recorded in the reports."
+    },
+    {
+      "probe": "tools/ssa-archive/research-probes/probe-mesh-coverage.mjs over 76 .local/workspaces/*-all/entries/3-level.bld.decoded files; .local/mesh-coverage-study/corpus.jsonl",
+      "summary": "126920/126920 descriptors decoded without an early stop; 94647 decoded units absent from placed-model geometry, of which 94183 interleaved and 464 separate. This is the 76-file local sample, not a revalidation of the earlier session's 112-file census."
+    },
+    {
+      "probe": "tests/editor-scenery.test.mjs; .local/mesh-coverage-study/browser-check.mjs",
+      "summary": "Regression tests cover disjoint assignment, world coordinates, unresolved UI, index rebasing, disposal and placement-edit isolation. Actual WebGL checks on tutorial and Mining exercise scenery visibility, All/None, wireframe, selection of a real model and its movement without altering world geometry. Screenshots and result.json live in .local/mesh-coverage-study/browser-tutorial-bld/ and browser-mining-bld/. No new in-game run; finding remains LIKELY and not editable."
+    },
+    {
+      "probe": ".local/mesh-coverage-study/compare.mjs; placed-only.png and with-world-candidates.png",
+      "summary": "Same tutorial data and camera (eye 96,18,20; target 86,13,46): adding only unassigned interleaved units at identity transform restores island terrain and the windmill building in the diagnostic wireframe. This is an offline preview, not a new Dolphin run or an editor implementation."
+    }
+  ]
+}

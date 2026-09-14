@@ -1,0 +1,17 @@
+{
+  "id": "level.tutorial.scripted-preview-poses",
+  "updated": "2026-09-15",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Tutorial startup actors versus stored placements; read-only preview",
+  "structure": "Bridge_Spawner model yaw = creator yaw - 90 degrees; ID-10 PushBlock_Template creates cannon top and base at creator position; placement +0x54 bit 0 denotes template/initially inactive candidates",
+  "location": {"file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)", "offset": "Dock 1776460; First_Bridge 1875316; cannon controller 2302624; treasure resource 4124024 and placement 1823456", "length": 4},
+  "meaning": "The previous bridge preview incorrectly copied the creator yaw. Runtime model matrices show 314/316 degrees for creators at 44/46 degrees. Cannon top/base are cloned at controller coordinates, not their stored resource positions; the first cannon has top yaw 156 and base yaw 0. Apply the common script assembly to three ID-10 tutorial controllers, with later-sector poses inferred rather than observed. Hide initially inactive/template candidates in a reversible display layer, not by changing visibility in the game. The Ancient Shell resource is off-terrain, while its active namesake stands on decoded world unit 737 at Y 4.968. No geometry, collision, script instruction, or new editable flag is introduced. Runtime activation and animation remain unsimulated.",
+  "evidence": [
+    {"experiment_id": "scene-pose-1789424358122", "summary": "Research Dolphin reached the playable tutorial with the existing patched archive; MEM1/MEM2 snapshots retained locally and owned process stopped normally. Actor resource/creator pointers and model matrices distinguish generated bridge/cannon poses from their controllers. Detailed addresses and transforms: docs/editor-scene-poses.md; local ram-pose.json."},
+    {"probe": ".local/mesh-coverage-study/terrain-pose.mjs", "summary": "Vertical triangle intersection under actual Ancient Shell placement (-70.448,0.667) hits world unit 737, WoodPlank_01_MAT, at Y 4.968. No terrain lies near the stored resource at (33.007,-41.955). Resource has only .lvl container reference and +0x54 bit 0; active namesake has Loot/script references and clear bit."},
+    {"probe": "tools/ssa-archive/tests/editor-scene-poses.test.mjs", "summary": "Pose regression against measured bridge and first cannon transforms, resource counterpart distinction, no mutation of source bytes, quarter-turn preserved through owner refresh, no tutorial visibility rules on unrelated levels."}
+  ]
+}

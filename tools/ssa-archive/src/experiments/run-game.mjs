@@ -28,6 +28,7 @@ export class GameSession {
   }
   text(r) { return r.content.filter(x => x.type === 'text').map(x => x.text); }
   async call(name, args = {}) {
+    if (name !== 'dolphin_stop') this.signal?.throwIfAborted();
     const r = await this.client.callTool({ name, arguments: args });
     if (r.isError) throw new Error(`${name}: ${this.text(r).join(' ')}`);
     return r;
@@ -54,7 +55,10 @@ export class GameSession {
     this.pid = launched.pid; this.startedAt = new Date().toISOString();
     if (!launched.args.includes(path.resolve(target))) throw new Error(`${label}: launch did not use ${target}`);
     let connected = false;
-    for (let i = 0; i < 40 && !connected; i++) { await sleep(1500); try { await this.call('dolphin_ping'); connected = true; } catch { /* booting */ } }
+    for (let i = 0; i < 40 && !connected; i++) {
+      this.signal?.throwIfAborted(); await sleep(1500);
+      try { await this.call('dolphin_ping'); connected = true; } catch { this.signal?.throwIfAborted(); /* booting */ }
+    }
     if (!connected) throw new Error(`${label}: live bridge did not respond after launch`);
     const id = this.text(await this.call('dolphin_read_range', { address: 0x80000000, length: 6 }))[0];
     if (!/SSPP52/.test(id) && !/53 53 50 50 35 32|535350503532/i.test(id)) throw new Error(`${label}: unexpected game identity ${id}`);
@@ -120,7 +124,7 @@ export class GameSession {
   async loadFigure(file, slot = 1, attempts = 3) {
     for (let i = 1; ; i++) {
       try { return await this.json('dolphin_load_figure', { file, slot }); }
-      catch (e) { if (i >= attempts) throw e; this.log(`figure load attempt ${i} failed: ${e.message.split('\n')[0]}; retrying`); await sleep(6000); }
+      catch (e) { this.signal?.throwIfAborted(); if (i >= attempts) throw e; this.log(`figure load attempt ${i} failed: ${e.message.split('\n')[0]}; retrying`); await sleep(6000); }
     }
   }
   async saveState(slot) { return this.json('dolphin_save_state', { slot }); }
@@ -152,7 +156,7 @@ export class GameSession {
   async runScriptSafe(steps, options) {
     const trace = [];
     const original = this.log;
-    try { return await this.runScript(steps, { ...options, onStep: t => trace.push(t) }); }
+    try { return await this.runScript(steps, { ...options, onStep: t => { trace.push(t); options?.onStep?.(t); } }); }
     catch (e) { e.trace = trace; throw e; }
     finally { this.log = original; }
   }

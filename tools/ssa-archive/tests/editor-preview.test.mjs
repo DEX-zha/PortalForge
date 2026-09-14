@@ -84,6 +84,20 @@ test('a layer with nothing in it is refused by name, not rendered as an empty pi
   assert.throws(() => renderPreview(s, { out: null, layer: 'NoSuchLayer' }), e => e.error === 'NOTHING_TO_DRAW');
 });
 
+test('mesh preview includes world scenery without adding fake editable placements', { skip: !haveSamples && 'local samples absent' }, () => {
+  const s = open(TUTORIAL), original = Buffer.from(s.buffer);
+  const opts = { meshes: true, width: 320, height: 240, eye: [96, 18, 20], target: [86, 13, 46] };
+  const props = renderPreview(s, { ...opts, scenery: false });
+  const world = renderPreview(s, opts);
+  assert.equal(world.scenery_units, 1584);
+  assert.equal(props.scenery_units, 0);
+  assert.equal(world.placements, props.placements);
+  assert.equal(world.meshed, props.meshed);
+  assert.deepEqual(world.camera, props.camera);
+  assert.ok(!world.image.data.equals(props.image.data), 'terrain must change the actual image');
+  assert.deepEqual(s.buffer, original);
+});
+
 test('the camera ends up in front of the level, never inside it or behind it', { skip: !haveSamples && 'local samples absent' }, () => {
   const r = renderPreview(open(TUTORIAL), { out: null, width: 1100, height: 780 });
   assert.ok(r.distance > r.extent * 0.3, 'the camera is too close to see the level');

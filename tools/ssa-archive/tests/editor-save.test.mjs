@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { syntheticLevel } from './helpers/synthetic-level.mjs';
 import { openSession, applyEdit } from '../src/editor/session.mjs';
-import { buildSavePlan, save, patch, launch, observe, launchState } from '../src/editor/save.mjs';
+import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from '../src/editor/save.mjs';
 
 // Feature 003 T026 and T027. The save is the only place a file is produced, and it produces one only when the
 // plan it made beforehand matches the bytes it is about to write. Patch and launch sit behind that, and behind
@@ -20,6 +20,29 @@ function session() {
   return s;
 }
 const out = s => path.join(s.outDir, 'edited.bld.decoded');
+
+test('patch and launch refuse stale saved bytes, including edits made after a patch', async () => {
+  const s=session(),target=s.placements[0].offset;
+  const deps={build:()=>({dir:s.outDir,replacements:[]}),run:async()=>({id:'done'})};
+  applyEdit(s,{kind:'transform',target,heading:90});save(s,{out:out(s)});patch(s,{deps});
+  applyEdit(s,{kind:'transform',target,heading:45});
+  assert.throws(()=>patch(s,{deps}),e=>e.error==='UNSAVED_CHANGES');
+  await assert.rejects(launch(s,{mode:'test',deps}),e=>e.error==='STALE_PATCH');
+  save(s,{out:out(s)});assert.equal(s.lastPatch,null);
+});
+
+test('automatic launch generates a prediction and releases the lock after owned Dolphin closes', async () => {
+  const s=session();applyEdit(s,{kind:'transform',target:s.placements[0].offset,heading:90});save(s,{out:out(s)});
+  const deps={build:()=>({dir:s.outDir,replacements:[]}),run:async({signal,onProgress,patch:p})=>{assert.ok(signal);assert.equal(p.dir,s.outDir);onProgress({phase:'macro',step:1});return{id:'auto',consumption:{verified:true}};}};
+  patch(s,{deps});await launch(s,{mode:'test',deps,wait:true});
+  assert.equal(s.locked,false);assert.equal(s.lastLaunch.consumption.verified,true);assert.ok(s.lastLaunch.prediction);
+});
+
+test('stop requests cancellation of the editor-owned run',async()=>{
+ const s=session();applyEdit(s,{kind:'transform',target:s.placements[0].offset,heading:90});save(s,{out:out(s)});
+ const deps={build:()=>({dir:s.outDir,replacements:[]}),run:({signal})=>new Promise(resolve=>signal.addEventListener('abort',()=>resolve({id:'stopped'}),{once:true}))};
+ patch(s,{deps});await launch(s,{mode:'play',deps});stopLaunch(s);await s.lastLaunch.promise;assert.equal(s.locked,false);
+});
 
 test('save: a valid plan reports what changed, changes nothing else, and keeps the file length', () => {
   const s = session();

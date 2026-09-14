@@ -281,6 +281,14 @@ purpose, and a test written after the fact does not become a test written before
 
 ## Notes
 
+### Follow-up: missing static scenery (2026-09-14)
+
+- [x] T060 Reproduce the decoded-versus-rendered coverage gap, with tutorial/Mining and local corpus evidence in `docs/editor-missing-scenery-study.md`.
+- [x] T061 Add regression tests before implementation in `tests/editor-scenery.test.mjs`: no duplicate descriptors, exclude UI/local-space resources, preserve coordinates and placement edits.
+- [x] T062 Extend `src/editor/meshes.mjs` and the API contract with batched, read-only world scenery and explicit unresolved/unique-assignment counters.
+- [x] T063 Add world rendering, a Décor toggle and large-surface preview control in `src/view/`; include scenery in `src/editor/preview.mjs`.
+- [x] T064 Verify real WebGL rendering on tutorial and Mining, including selection, movement, toggles and rebuild disposal; record local evidence and run the regression suite.
+
 - [P] marks different files with no unfinished dependency
 - Every task names the file it touches, so it can be executed without further context
 - Tests are written before the implementation they cover, as the constitution requires

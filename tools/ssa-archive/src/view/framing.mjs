@@ -136,3 +136,6 @@ export function gradeOf(p) {
   if (p.behavior) return 'medium';
   return 'info';
 }
+// Broad surfaces (sky domes, water effects, etc.) otherwise hide the editing area without their materials.
+// This is a reversible preview treatment by measured size, never a semantic terrain classification.
+export const largeSurfaceLimit = reach => Math.max(32, reach / 2);

@@ -14,6 +14,7 @@ import { FIELDS } from '../igz/model-resolve.mjs';
 
 const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.error = error; e.exitCode = 1; throw e; };
 const hexAt = (buf, at) => buf.subarray(at, at + 4).toString('hex');
+const hash = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
 // What this save changes, and what it must not. Built from the edit history, then checked word by word against
 // the working buffer, so an unexplained byte is a refusal rather than a surprise in the game.
@@ -41,6 +42,9 @@ export function buildSavePlan(session) {
       words.forEach((w, i) => changes.push({ target: e.target, attribute: a, field: `+0x${(w - e.target).toString(16)}`,
         old: olds[i], new: values[i], old_hex: original ? hexAt(original, w) : null, new_hex: hexAt(session.buffer, w) }));
     }
+    for (const w of e.dependent_words ?? []) changes.push({ target: e.target, attribute: 'trajectory', field: `+0x${(w.offset - e.target).toString(16)}`,
+      old: original ? original.readFloatBE(w.offset) : null, new: session.buffer.readFloatBE(w.offset),
+      old_hex: original ? hexAt(original, w.offset) : null, new_hex: hexAt(session.buffer, w.offset) });
   }
 
   let outside = 0;
@@ -86,8 +90,10 @@ function* allowedWordsFor(offset, attribute) {
 }
 
 export function save(session, { out = null } = {}) {
+  if (session.locked) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before saving another patch');
   const plan = buildSavePlan(session);
   const target = path.resolve(out ?? session.file.replace(/(\.decoded)?$/, '.edited$1'));
+  if (target.toLowerCase() === path.resolve(session.file).toLowerCase()) fail('SOURCE_OVERWRITE', 'save to a separate file to preserve the opened source');
   if (plan.status !== 'VALID') return { plan, written: null };
 
   // An output path that cannot be written is a refusal with a reason, not an internal error: the researcher
@@ -113,6 +119,7 @@ export function save(session, { out = null } = {}) {
   }
 
   session.dirty = false;
+  session.lastPatch = null;
   session.lastSave = { file: target, plan, sha256: crypto.createHash('sha256').update(written).digest('hex'), at: new Date().toISOString() };
   return { plan, written: target };
 }
@@ -120,6 +127,7 @@ export function save(session, { out = null } = {}) {
 export function patch(session, { deps = {} } = {}) {
   if (!session.lastSave) fail('NOTHING_SAVED', 'there is no valid save to build a patch from');
   if (session.locked) fail('SESSION_LOCKED', `a launched run may still be reading ${session.lock?.patch_dir}; record what you saw before rebuilding it`);
+  if (hash(session.buffer) !== session.lastSave.sha256 || !fs.existsSync(session.lastSave.file) || hash(fs.readFileSync(session.lastSave.file)) !== session.lastSave.sha256) fail('UNSAVED_CHANGES', 'save the current edits before building their patch');
   const build = deps.build ?? defaultBuild;
   const experimentId = `edit-${path.basename(session.file, path.extname(session.file))}-${Date.now()}`;
   const result = build({
@@ -128,8 +136,8 @@ export function patch(session, { deps = {} } = {}) {
     entry: session.entry,
     session,
   });
-  session.lastPatch = { dir: result.dir, replacements: result.replacements ?? [], experiment_id: experimentId,
-    rebuilt_sha256: result.rebuilt_sha256 ?? null, at: new Date().toISOString() };
+  session.lastPatch = { ...result, dir: result.dir, replacements: result.replacements ?? [], experiment_id: experimentId,
+    save_sha256: session.lastSave.sha256, rebuilt_sha256: result.rebuilt_sha256 ?? null, at: new Date().toISOString() };
   return { patch: session.lastPatch };
 }
 
@@ -140,23 +148,33 @@ function defaultBuild() {
 // A launch is started, not awaited. Two boots take about ten minutes, far longer than any HTTP client will hold a
 // response open, so the request returns as soon as the run is under way and the caller polls `launchState`.
 // The lock is taken at the start, because the game begins reading the patch immediately.
-export async function launch(session, { prediction = '', figure = null, repeat = 1, deps = {}, wait = false } = {}) {
-  if (!String(prediction).trim()) fail('PREDICTION_REQUIRED', 'state what should be visible before the game starts: an experiment without a prediction cannot be judged');
+export async function launch(session, { prediction = '', figure = null, repeat = 1, mode = null, deps = {}, wait = false } = {}) {
+  if (mode !== null && !['test', 'play'].includes(mode)) fail('BAD_MODE', 'choose test or play');
+  if (!mode && !String(prediction).trim()) fail('PREDICTION_REQUIRED', 'state what should be visible before the game starts: an experiment without a prediction cannot be judged');
   if (!session.lastPatch) fail('NOTHING_PATCHED', 'build a patch before launching');
   if (session.lastLaunch?.running) fail('ALREADY_RUNNING', 'a run is already under way; wait for it to finish');
+  if (hash(session.buffer) !== session.lastPatch.save_sha256) fail('STALE_PATCH', 'the patch predates these edits: save and rebuild it first');
+  for (const r of session.lastPatch.replacements) {
+    if (r.sha256 && (!fs.existsSync(path.resolve(session.lastPatch.dir, r.file)) || hash(fs.readFileSync(path.resolve(session.lastPatch.dir, r.file))) !== r.sha256)) fail('STALE_PATCH', 'a replacement file changed after the patch was built');
+  }
+  prediction = String(prediction).trim() || session.lastSave.plan.changes.map(c => `0x${c.target.toString(16)} ${c.attribute} ${c.field}: ${c.old_hex} -> ${c.new_hex}`).join('; ') || 'Verify the saved level in game';
   const run = deps.run ?? (() => fail('NOT_WIRED', 'the experiment runner is supplied by the CLI layer; call launch() with deps.run'));
 
-  session.lastLaunch = { experiment_id: null, prediction: String(prediction).trim(), figure, repeat,
+  session.lastLaunch = { experiment_id: null, prediction, figure, repeat, mode: mode ?? 'test',
     patch_dir: session.lastPatch.dir, observed: null, matched: null, running: true, error: null,
     started: new Date().toISOString(), at: new Date().toISOString() };
   session.lock = { patch_dir: session.lastPatch.dir, since: new Date().toISOString() };
   session.locked = true;
+  const controller = new AbortController(), selectedPatch = session.lastPatch;
+  const current = session.lastLaunch;
+  current.controller = controller;
 
   const started = Promise.resolve()
-    .then(() => run({ session, prediction, figure, repeat, patch: session.lastPatch }))
-    .then(record => { session.lastLaunch.experiment_id = record?.id ?? null; session.lastLaunch.status = record?.status ?? null; return record; })
+    .then(() => run({ session, prediction, figure, repeat, mode: mode ?? 'test', patch: selectedPatch, signal: controller.signal,
+      onProgress: progress => Object.assign(current, { progress }) }))
+    .then(record => { current.experiment_id = record?.id ?? null; current.status = record?.status ?? null; current.consumption = record?.consumption ?? null; current.screenshots = record?.screenshots ?? []; return record; })
     .catch(e => { session.lastLaunch.error = e.message; return null; })
-    .finally(() => { session.lastLaunch.running = false; session.lastLaunch.finished = new Date().toISOString(); });
+    .finally(() => { current.running = false; current.finished = new Date().toISOString(); if (mode) { session.locked = false; session.lock = null; } });
   session.lastLaunch.promise = started;
 
   if (wait) await started;
@@ -167,8 +185,14 @@ export async function launch(session, { prediction = '', figure = null, repeat =
 export function launchState(session) {
   const l = session.lastLaunch;
   if (!l) return { launch: null, locked: session.locked };
-  const { promise, ...rest } = l;
+  const { promise, controller, ...rest } = l;
   return { launch: rest, locked: session.locked };
+}
+
+export function stopLaunch(session) {
+  if (!session.lastLaunch?.running) fail('NOTHING_RUNNING', 'no editor-owned game is running');
+  session.lastLaunch.controller.abort();
+  return launchState(session);
 }
 
 export function observe(session, { experiment_id, observed, matched, deps = {} } = {}) {

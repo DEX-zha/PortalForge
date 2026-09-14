@@ -9,6 +9,8 @@ import { diffArchives } from './iga/diff.mjs';
 import { verifyBuffer } from './iga/verify.mjs';
 import { readManifest } from './workspace/manifest.mjs';
 import { buildPatchWorkspace } from './patch/riivolution.mjs';
+import { buildEditorPatch } from './editor/patch-build.mjs';
+import { runEditorGame } from './editor/dolphin-run.mjs';
 
 class CliError extends Error { constructor(message, exitCode = 3) { super(message); this.exitCode = exitCode; } }
 const need = (v, name) => { if (v === undefined || v === null || v === '') throw new CliError(`Missing --${name}`, 3); return v; };
@@ -27,26 +29,11 @@ export function editorDeps(session, o) {
       if (!game) throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), { error: 'NO_GAME' });
       const outDir = o['patch-out'] ?? path.resolve(root(), '.local/patches', experimentId);
       const samples = path.resolve(root(), '.local/samples/DATA/files');
-      const withOriginal = replacements.map(r => {
-        const original = path.join(samples, ...String(r.disc_path).split('/'));
-        return { ...r, original: fs.existsSync(original) ? original : undefined };
-      });
-      const ws = buildPatchWorkspace({ experimentId, game, replacements: withOriginal, outDir, force: true });
-      return { dir: ws.dir ?? outDir, replacements: withOriginal, rebuilt_sha256: ws.rebuilt_sha256 ?? null };
+      const original = path.join(samples, ...String(session.archive).split('/'));
+      if (!fs.existsSync(original)) throw new Error('Original archive sample is missing: ' + original);
+      return buildEditorPatch({ experimentId, game, replacements, outDir, original, session });
     },
-    run: async ({ prediction, figure, repeat }) => {
-      const { runM3 } = await import('./experiments/m3-duplicate.mjs');
-      const planFile = path.join(path.dirname(session.lastSave.file), 'editor-save-plan.json');
-      fs.writeFileSync(planFile, JSON.stringify({
-        source: { object_offset: session.edits[0]?.target ?? 0, type_name: 'placement', finding_id: 'igz.placement.type104-record' },
-        changes: session.lastSave.plan.changes, insert_at: 0, updates: [], new_id: 0,
-        validation: { status: session.lastSave.plan.status, failures: session.lastSave.plan.failures },
-      }, null, 2));
-      return runM3({
-        archive: session.archive, entry: session.entry, planFile, clonedFile: session.lastSave.file,
-        predict: prediction, repeat: repeat ?? 1, figure: figure ?? o.figure ?? null, skipControl: true,
-      });
-    },
+    run: args => runEditorGame({ ...args, archive: session.archive, figure: args.figure ?? o.figure ?? null }),
   };
 }
 const gameFromConfigSafe = () => { try { return JSON.parse(fs.readFileSync(path.resolve(root(), '.local/dolphin-config.json'), 'utf8')).game; } catch { return null; } };

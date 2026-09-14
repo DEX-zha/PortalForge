@@ -35,7 +35,7 @@ export function assessPlacement(placement, { hasRuntimeMap = false } = {}) {
       message: `${placement.name} has a behaviour script at +0xA8 (${placement.behavior.path.replace(/^.*\//, '')}); it may depend on level context. Windmill blades moved fine over two boots, a push block froze twice: boot once before trusting it.` });
   }
   if (placement.model.status === 'absent') rules.push({ id: 'MARKER_NO_MODEL', severity: 'info', finding: 'igz.placement.type104-record',
-    message: `${placement.name} resolves no model: it is a marker (camera, cutscene, sound, trigger). Moving it changes a cutscene, not a visible prop.` });
+    message: `${placement.name} resolves no direct model. It may be a marker, trigger or scripted spawner; a script can still create visible objects from it.` });
   if (placement.model.status === 'ambiguous') rules.push({ id: 'AMBIGUOUS_MODEL', severity: 'high', finding: 'igz.placement.type104-record',
     message: `${placement.name} reaches ${placement.model_candidates.length} model records and none at +0xDC; which one it shows is unknown.` });
   if (placement.model.status === 'indirect') rules.push({ id: 'INDIRECT_MODEL', severity: 'info', finding: 'igz.placement.type104-record',
