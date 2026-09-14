@@ -92,8 +92,11 @@ export function walkBlocks(buf, graph, descriptors) {
     for (;;) {
       while (p < END && buf[p] === 0) p++;
       if (p >= END || !OPS.has(buf[p] & 0xf8)) break;
-      // The next block can open with {00 9F count} at a 32-boundary and pass for one more strip; stop there.
-      if (strips.length && next && buf[p] === 0x9f && buf[p - 1] === 0 && (p - 1 - S6) % 32 === 0 && buf.readUInt16BE(p + 1) === next.count && fitsNext(next, p - 1)) break;
+      // The next block can pass for one more strip: an interleaved one opens with {00 9F count}, and the raw vertex
+      // data of a separate-array one can begin with a byte in the opcode range (0xB2 was seen). Both start at a
+      // 32-boundary after a zero byte, and from there the next descriptor's arrays end exactly on a VAT header;
+      // nothing inside a display list satisfies that.
+      if (strips.length && next && buf[p - 1] === 0 && (p - 1 - S6) % 32 === 0 && fitsNext(next, p - 1)) break;
       const cnt = buf.readUInt16BE(p + 1);
       if (!cnt || cnt > 8192) break;
       const q = p + 3 + cnt * k; if (q > END) break;
