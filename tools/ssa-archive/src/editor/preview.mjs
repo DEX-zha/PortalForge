@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import { encode } from '../evidence/png.mjs';
 import { mapping, scaleToView } from '../view/coords.mjs';
+import { modelMeshes } from './meshes.mjs';
 import {
   MARKER_RATIO, MIN_INSTANCE_SCALE, GROUND, GRID_MAJOR, GRID_MINOR, GRADE_COLOUR, MARKER_COLOUR,
   extentOf, proxySize, bulkBox, viewAxes, fitDistance, gridOf, projector, gradeOf,
@@ -15,7 +16,10 @@ import {
 
 const rgb = n => [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 
-export function renderPreview(session, { out, width = 1100, height = 780, layer = null } = {}) {
+// `meshes` draws the decoded geometry of every placement that has one, in wireframe, at the placement's
+// transform; `eye` and `target` (game coordinates) replace the level framing with a chosen viewpoint, which is
+// how a rendering is compared against a screenshot of the running game.
+export function renderPreview(session, { out, width = 1100, height = 780, layer = null, meshes = false, eye: eyeOpt = null, target: targetOpt = null } = {}) {
   const chosen = layer
     ? session.placements.filter(p => (p.layers ?? []).includes(layer))
     : session.placements;
@@ -28,9 +32,10 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
   const centre = [0, 1, 2].map(i => (bulk.lo[i] + bulk.hi[i]) / 2);
   const aspect = width / height;
   const distance = fitDistance(points, centre, { aspect });
-  const axes = viewAxes();
-  const eye = centre.map((c, i) => c + axes.z[i] * distance);
-  const project = projector({ eye, w: width, h: height });
+  let dir = null, eye, target = centre;
+  if (eyeOpt && targetOpt) { eye = mapping.toView(eyeOpt); target = mapping.toView(targetOpt); dir = [0, 1, 2].map(i => eye[i] - target[i]); }
+  else { const axes = viewAxes(); eye = centre.map((c, i) => c + axes.z[i] * distance); }
+  const project = dir ? projector({ eye, w: width, h: height, dir }) : projector({ eye, w: width, h: height });
 
   const img = { w: width, h: height, ch: 3, data: Buffer.alloc(width * height * 3) };
   const ground = rgb(GROUND);
@@ -59,8 +64,27 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
 
   // Proxies, painted far to near. A placement with no model is drawn smaller and in the marker colour, which is
   // the same distinction the scene draws as a wireframe octahedron.
+  const geometry = meshes ? modelMeshes(session).models : new Map();
+  const hasMesh = p => p.model?.offset != null && geometry.has(p.model.offset);
+  let meshed = 0, edges = 0;
+  if (meshes) {
+    const wire = [0xb8, 0xb3, 0xa8];
+    for (const p of chosen) {
+      if (!hasMesh(p)) continue;
+      const m = geometry.get(p.model.offset), s = Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE);
+      const h = p.rotation.heading * Math.PI / 180, ch = Math.cos(h), sh = Math.sin(h), [px, py, pz] = mapping.toView(p.position);
+      // model local -> world: scale, then rotate about the vertical axis, then translate, as the scene does
+      const world = new Float32Array(m.positions.length);
+      for (let i = 0; i < m.vertex_count; i++) { const x = m.positions[3 * i] * s, y = m.positions[3 * i + 1] * s, z = m.positions[3 * i + 2] * s; world[3 * i] = px + x * ch + z * sh; world[3 * i + 1] = py + y; world[3 * i + 2] = pz - x * sh + z * ch; }
+      const scr = new Array(m.vertex_count); for (let i = 0; i < m.vertex_count; i++) scr[i] = project([world[3 * i], world[3 * i + 1], world[3 * i + 2]]);
+      const seg = (a, b) => { const P = scr[a], Q = scr[b]; if (!P || !Q) return; const n = Math.max(Math.abs(Q.x - P.x), Math.abs(Q.y - P.y)) | 0; if (n > 4000) return; for (let i = 0; i <= n; i++) put(P.x + (Q.x - P.x) * i / (n || 1), P.y + (Q.y - P.y) * i / (n || 1), wire); edges++; };
+      for (let t = 0; t < m.indices.length; t += 3) { seg(m.indices[t], m.indices[t + 1]); seg(m.indices[t + 1], m.indices[t + 2]); seg(m.indices[t + 2], m.indices[t]); }
+      meshed++;
+    }
+  }
   const drawn = chosen
-    .map((p, i) => ({ p, screen: project(points[i]) }))
+    .filter(p => !hasMesh(p))
+    .map(p => ({ p, screen: project(mapping.toView(p.position)) }))
     .filter(d => d.screen)
     .sort((a, b) => b.screen.depth - a.screen.depth);
   const sizes = [];
@@ -88,6 +112,7 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
     image: img,
     placements: chosen.length,
     drawn: drawn.length,
+    meshed, edges,
     on_screen: onScreen.length,
     extent: Math.round(reach),
     proxy_units: Math.round(proxy * 100) / 100,
@@ -108,7 +133,7 @@ export const LEGIBLE_PX = 6;
 export function formatPreview(r) {
   const pct = r.drawn ? Math.round(r.on_screen / r.drawn * 100) : 0;
   return [
-    `${r.placements} placements, ${r.drawn} in front of the camera, ${pct}% inside the picture`,
+    `${r.placements} placements, ${r.drawn} proxies in front of the camera, ${pct}% inside the picture` + (r.meshed ? `, ${r.meshed} drawn as real meshes` : ''),
     `extent ${r.extent} units, proxy ${r.proxy_units} units`,
     `proxy on screen: ${r.proxy_px_median} px median, ${r.proxy_px_min} to ${r.proxy_px_max}`
       + (r.proxy_px_median < LEGIBLE_PX ? '  <-- below the legible floor, the view will look empty' : ''),

@@ -460,8 +460,11 @@ export const commands = {
         width: o.width ? Number(o.width) : 1100,
         height: o.height ? Number(o.height) : 780,
         layer: o.layer ?? null,
+        meshes: !!o.meshes,
+        eye: o.eye ? String(o.eye).split(',').map(Number) : null,
+        target: o.target ? String(o.target).split(',').map(Number) : null,
       });
-      return { result: r, exitCode: r.proxy_px_median < LEGIBLE_PX ? 1 : 0, text: formatPreview(r) };
+      return { result: r, exitCode: (!o.meshes && r.proxy_px_median < LEGIBLE_PX) ? 1 : 0, text: formatPreview(r) };
     }
     const level = E.openLevel(file, path.resolve(need(oneFixup(o.fixups), 'fixups')));
     const nums = s => s.split(',').map(Number);
