@@ -4,6 +4,7 @@
 import { createScene } from './scene.mjs';
 import { layerIndex, showAll, hideAll, toggle, visibleSet } from './layers.mjs';
 import { orderHits, pickNext, shouldPick, commitTarget } from './select.mjs';
+import { isBound } from './navigate.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
 import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
@@ -76,6 +77,7 @@ async function main() {
   $('c').addEventListener('pointerdown', onPick);
   $('frame-all').addEventListener('click', () => state.scene.frameAll());
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
+  $('wireframe').addEventListener('click', () => toggleWireframe());
   $('all-on').addEventListener('click', () => { state.visible = showAll(index); renderLayers(index); apply(); });
   $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(index); apply(); });
 
@@ -106,14 +108,24 @@ async function main() {
   refreshSaveState();
 
   window.addEventListener('keydown', e => {
+    if (typingIn(e.target)) return;                    // a position field must never fly the camera
+    flying.fast = e.shiftKey; flying.slow = e.altKey;
+    if (isBound(e.key)) { e.preventDefault(); flying.held.add(e.key); state.scene.setFly(flying); return; }
     if (e.key === 'f') state.scene.frameSelection();
     if (e.key === 'F') state.scene.frameAll();
     if (e.key === 't') state.scene.topDown();          // quickstart scenario 2
+    if (e.key === 'v' || e.key === 'V') toggleWireframe();
     if (e.key === 'w') setMode('translate');
     if (e.key === 'e') setMode('rotate');
     if (e.key === 'r') setMode('scale');
     if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendPost(e.shiftKey ? '/api/redo' : '/api/undo'); }
   });
+  window.addEventListener('keyup', e => {
+    flying.fast = e.shiftKey; flying.slow = e.altKey;
+    if (flying.held.delete(e.key)) state.scene.setFly(flying);
+  });
+  // A key released while the window was not focused is never seen, and the camera would drift for ever.
+  window.addEventListener('blur', () => { flying.held.clear(); state.scene.setFly(flying); });
 }
 
 
@@ -145,6 +157,18 @@ function showDiagnostics() {
 let shown = false, bad = 0;
 
 function apply() { state.scene.setVisible(visibleSet(state.placements, state.visible)); }
+
+// Free flight and see-through (feature 004). A level holds models big enough to swallow the camera: a cloud
+// layer, a landmass, a water dome. Inside one, orbiting around a target that is also inside it cannot get out,
+// and the picture is an unreadable grey. The arrows fly out of it; V makes the inside of a mesh legible.
+const flying = { held: new Set(), fast: false, slow: false };
+const typingIn = el => !!el?.closest?.('input, textarea, select');
+
+function toggleWireframe(on) {
+  const now = state.scene.setWireframe(on === undefined ? !state.scene.state.wireframe : on);
+  $('wireframe').classList.toggle('on', now);
+  return now;
+}
 
 // Base64 little-endian typed arrays back into Float32Array / Uint32Array. Both ends are little-endian machines;
 // the server writes the arrays' native bytes and the browser reads them as its own.

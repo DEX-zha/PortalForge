@@ -43,7 +43,8 @@
      viewport and every message inside it. */
   #canvas-wrap { position: relative; min-height: 240px; min-width: 0; overflow: hidden; }
   canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-  #hint { position: absolute; left: 12px; bottom: 10px; color: var(--dim); font-size: 12px; pointer-events: none; }
+  #hint { position: absolute; left: 12px; bottom: 10px; color: var(--dim); font-size: 12px; pointer-events: none;
+          line-height: 1.6; }
   #diag { color: var(--dim); font-size: 11px; white-space: nowrap; }
   #diag.bad { color: var(--high); }
   #tally { display: flex; gap: 14px; align-items: baseline; color: var(--dim); }
@@ -91,6 +92,7 @@
   <span id="tools"><button id="gizmo-move">Move</button><button id="gizmo-rotate">Rotate</button><button id="gizmo-scale">Scale</button><button id="gizmo-off">Off</button></span>
   <button id="frame-all">Frame level</button>
   <button id="frame-sel">Frame selection</button>
+  <button id="wireframe" title="see through the meshes (V)">Wireframe</button>
   <button id="undo">Undo</button><button id="redo">Redo</button>
   <span id="dirty" class="dim"></span>
   <span class="dim" id="evidence-note" title="where the values in this session come from"></span>
@@ -106,7 +108,7 @@
 
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
-  <div id="hint">drag to orbit, right-drag to pan, wheel to zoom. Click a proxy; click again to reach what is behind it.</div>
+  <div id="hint">Arrows fly, Page Up and Page Down rise and fall, Shift hurries, Alt creeps. V sees through the meshes.<br>Drag to orbit, right-drag to pan, wheel to zoom. Click an object; click again to reach what is behind it.</div>
   <div id="error" hidden></div>
 </div>
 

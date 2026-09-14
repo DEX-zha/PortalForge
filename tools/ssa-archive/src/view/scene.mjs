@@ -16,6 +16,7 @@ import {
   MARKER_RATIO, MIN_INSTANCE_SCALE, FOV, VIEW_DIR, TRIM, GROUND, GRID_MAJOR, GRID_MINOR,
   GRADE_COLOUR, MARKER_COLOUR, SELECTED_COLOUR, extentOf, proxySize, bulkBox, viewAxes, fitDistance, fitBox, gridOf,
 } from './framing.mjs';
+import { step as flyStep, speedFor } from './navigate.mjs';
 
 export function createScene(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -37,7 +38,8 @@ export function createScene(canvas) {
   scene.add(key);
   let grid = null;   // sized to the level once its extent is known
 
-  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, models: [], meshBounds: new Map(), entries: [], selected: null, outline: null, outlineBox: null, size: { w: 0, h: 0 }, drawn: 0, meshed: 0, box: null, proxy: 1, grid: null };
+  const state = { placements: [], byOffset: new Map(), boxes: null, markers: null, models: [], meshBounds: new Map(), entries: [], selected: null, outline: null, outlineBox: null, size: { w: 0, h: 0 }, drawn: 0, meshed: 0, box: null, proxy: 1, reach: 100, grid: null,
+    wireframe: false, fly: { held: new Set(), fast: false, slow: false } };
 
   // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
   // reported as zero before layout settles, and a zero-sized drawing buffer renders one flat colour across the
@@ -65,7 +67,35 @@ export function createScene(canvas) {
   const untilSized = () => { resize(); if (state.size?.w > 1 && state.size?.h > 1) return; if (settle++ < 120) requestAnimationFrame(untilSized); };
   untilSized();
 
-  renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+  // Free flight (feature 004). The camera and its orbit target move together, so releasing the keys leaves
+  // orbiting working from wherever the flight stopped. A model can be big enough to swallow the camera and
+  // orbiting alone cannot get out of one.
+  let lastFrame = performance.now();
+  renderer.setAnimationLoop(() => {
+    const now = performance.now(), dt = (now - lastFrame) / 1000; lastFrame = now;
+    if (state.fly.held.size) {
+      camera.updateMatrixWorld();
+      const forward = camera.getWorldDirection(new THREE.Vector3());
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+      const d = flyStep({ held: state.fly.held, dt, speed: speedFor(state.reach, state.fly),
+        forward: forward.toArray(), right: right.toArray(), up: [0, 1, 0] });
+      if (d[0] || d[1] || d[2]) { const v = new THREE.Vector3(...d); camera.position.add(v); controls.target.add(v); }
+    }
+    controls.update();
+    renderer.render(scene, camera);
+  });
+
+  // Which movement keys are held, pushed in by the view. The scene keeps no key handlers of its own: the page
+  // owns the keyboard, because it also owns the text fields that must never fly the camera.
+  const setFly = ({ held = new Set(), fast = false, slow = false } = {}) => { state.fly = { held, fast, slow }; };
+
+  // See-through, for when the camera is inside a mesh. Markers and the selection outline are already wireframe.
+  function setWireframe(on) {
+    state.wireframe = !!on;
+    meshMaterial.wireframe = state.wireframe;
+    if (state.boxes) state.boxes.material.wireframe = state.wireframe;
+    return state.wireframe;
+  }
 
   // Build the instanced meshes once per level. `grades` maps an offset to its worst safety severity.
   // `meshes` maps a model offset to its decoded geometry (feature 004); placements whose model has one are drawn
@@ -86,6 +116,7 @@ export function createScene(canvas) {
     const { lo, hi, reach } = extentOf(placements.map(p => mapping.toView(p.position)));
     const extent = new THREE.Box3(new THREE.Vector3(...lo), new THREE.Vector3(...hi));
     state.proxy = proxySize(reach);
+    state.reach = reach;
 
     state.boxes = new THREE.InstancedMesh(new THREE.BoxGeometry(state.proxy, state.proxy, state.proxy),
       new THREE.MeshLambertMaterial(), Math.max(withModel.length, 1));
@@ -134,6 +165,7 @@ export function createScene(canvas) {
     state.outline.visible = false;
     scene.add(state.outline);
     state.drawn = state.entries.length;
+    setWireframe(state.wireframe);   // a rebuild keeps whatever the person was looking at
     frameAll();
   }
 
@@ -333,5 +365,5 @@ export function createScene(canvas) {
     controls.update();
   }
 
-  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, diagnostics, state };
+  return { build, setVisible, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, setFly, setWireframe, diagnostics, state };
 }
