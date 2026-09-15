@@ -289,6 +289,17 @@ purpose, and a test written after the fact does not become a test written before
 - [x] T063 Add world rendering, a Décor toggle and large-surface preview control in `src/view/`; include scenery in `src/editor/preview.mjs`.
 - [x] T064 Verify real WebGL rendering on tutorial and Mining, including selection, movement, toggles and rebuild disposal; record local evidence and run the regression suite.
 
+### Follow-up: scripted movement (2026-09-15)
+
+- [x] T065 Reproduce a Barrel placement translation in two boots of the same patch; distinguish loaded bytes, actor transforms and visible results in `docs/editor-scripted-movement.md`.
+- [x] T066 Write failing tests for explicit clone-anchor navigation, resource versus active placement diagnosis, shared model independence and inspector guidance.
+- [x] T067 Extend `src/editor/script-diagnostics.mjs` and the inspector with candidate creator links and scoped movement explanations; preserve existing writers.
+- [x] T068 Verify actual browser selection/edit/undo through the new navigation, run both local test suites, and update the running editor while preserving user edits and undo history.
+
+### Follow-up: editor launch denied (2026-09-15)
+
+- [x] T069 Test and explain process-creation failures before MCP/Dolphin launch; preserve failure evidence and saved patches. Restart the editor outside the restricted execution environment with its current history, then validate an actual launch of the user's latest patch through the editor API.
+
 - [P] marks different files with no unfinished dependency
 - Every task names the file it touches, so it can be executed without further context
 - Tests are written before the implementation they cover, as the constitution requires

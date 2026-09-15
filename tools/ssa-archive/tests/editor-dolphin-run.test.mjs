@@ -31,6 +31,18 @@ test('a macro failure still stops its owned game and writes evidence',async()=>{
  assert.ok(f.calls.some(c=>c[0]==='stop'));assert.ok(fs.readdirSync(f.dir).some(n=>n.endsWith('.json')));
 });
 
+test('a denied MCP process reports how to restart the editor and preserves failure evidence without launching Dolphin',async()=>{
+ const f=fixture();f.fake.pid=null;
+ f.fake.connect=async()=>{throw Object.assign(new Error('spawn EPERM'),{code:'EPERM'});};
+ await assert.rejects(runEditorGame({...f,mode:'test',archive:'level/Level_027_Tutorial.bld',gameFactory:()=>f.fake,evidenceDir:f.dir}),e=>{
+  assert.equal(e.code,'EPERM');assert.match(e.message,/serveur MCP/);assert.match(e.message,/terminal Windows/);assert.match(e.message,/spawn EPERM/);return true;
+ });
+ assert.deepEqual(f.calls,[['close']]);
+ const record=JSON.parse(fs.readFileSync(path.join(f.dir,fs.readdirSync(f.dir).find(n=>n.endsWith('.json')))));
+ assert.equal(record.status,'FAILED');assert.equal(record.error_code,'EPERM');assert.equal(record.failed_stage,'mcp-connect');
+ assert.equal(record.consumption.verified,false);assert.equal(record.visual_effect,'UNJUDGED');
+});
+
 test('an abort before launch returns its PID still closes the subsequently owned process',async()=>{
  const f=fixture(),controller=new AbortController();f.fake.pid=null;
  f.fake.launch=async()=>{controller.abort();f.fake.pid=42;controller.signal.throwIfAborted();};

@@ -124,6 +124,22 @@ layer visibility are pure functions in that directory precisely so they can be u
 
 ## Complexity Tracking
 
+### Launch permission repair (2026-09-15)
+
+The editor inherited the restricted process-creation context of its launcher. Restore the verified current history
+and restart the server with execution approval, then replay the latest patch via the editor API. In `dolphin-run.mjs`,
+track startup stages and provide an actionable error for denied spawning without changing process ownership or
+introducing an automatic escalation fallback. Test the failure before implementation and retain normal macro cleanup.
+
+### Scripted movement follow-up (2026-09-15)
+
+Reuse the read-only script catalogue and scene-role evidence. Decode only the bounded clone-anchor expression
+needed to distinguish `at me` from arbitrary variables; expose candidate creators with current positions in the
+inspector. Keep the established transform and private-trajectory writers unchanged. Cover resource navigation,
+conditional creators, malformed expressions, shared models and byte-exact undo/redo with regression tests before
+implementation. Validate the Barrel(6) control with two identical rebuilt-archive boots and record both the
+FileMon consumption evidence and the visible/runtime actor result. Preserve the user's running editor history.
+
 No constitution violation to justify. The one new runtime dependency, `three`, replaces what would otherwise be
 several thousand lines of hand-written WebGL and gizmo mathematics, and it is served locally rather than fetched.
 

@@ -41,6 +41,7 @@ export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = 
     `<div class="row"><span class="k">name</span><span class="v"><b>${esc(p.name ?? '(unnamed)')}</b></span></div>`,
     row('offset', `${hex(p.offset)}<div class="ev">slot ${hex(p.span)} bytes</div>`),
     // Typed entry and the gizmos produce the same intent, so a value can be read off a report and entered exactly.
+    renderMovement(script),
     row('position', [0, 1, 2].map(i => `<input class="num" data-edit="position" data-axis="${i}" value="${p.position[i]}">`).join(' ')),
     row('heading', `<input class="num" data-edit="heading" value="${p.rotation.heading}"> &deg;`),
     row('scale', `<input class="num" data-edit="scale" value="${p.scale}"> <span class="k">(100 = 1.0)</span>`),
@@ -49,12 +50,12 @@ export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = 
     script?.clones?.length ? row('Objets créés par script', script.clones.map(c => `${esc(c.name)}<div class="ev">${esc(base(c.model) ?? 'sans modèle direct')}</div>`).join('<br>')
       + '<div class="rule medium">Les aperçus de ponts et canons représentent leur pose initiale. Les animations et changements pendant le jeu ne sont pas simulés.</div>') : '',
     script?.scene_role ? '<div class="rule medium">Modèle ou objet initialement désactivé : cette position peut être un emplacement de stockage, sans sol associé.</div>'
-      + (script.scene_role.counterparts ?? []).map(c => `<button data-counterpart="${c.offset}">Voir ${esc(c.name)} dans le niveau</button>`).join('') : '',
+      + (script.movement ? '' : (script.scene_role.counterparts ?? []).map(c => `<button data-counterpart="${c.offset}">Voir ${esc(c.name)} dans le niveau</button>`).join('')) : '',
     script?.template_for?.length ? '<div class="rule medium">Objet utilisé comme modèle par '
       + script.template_for.map(s => esc(base(s.path))).join(', ')
       + '. Les copies créées en jeu peuvent apparaître ailleurs que la position enregistrée ici.</div>' : '',
     script?.trajectory?.supported ? `<div class="rule info">Le déplacement translate aussi les ${script.trajectory.points.length} points de trajectoire de cet objet. Son animation est conservée.</div>`
-      : script?.animated ? '<div class="rule medium">Ce script contient des déplacements ou animations. Une position enregistrée peut ensuite être recalculée pendant le jeu.</div>' : '',
+      : script?.animated ? '<div class="rule medium">Ce script contient des mouvements. Ils peuvent concerner des copies ou des débris ; leur présence seule ne prouve pas que la position de cet objet est réécrite.</div>' : '',
     row('layers', p.layers.length ? esc(p.layers.join(', ')) : '<span class="k">(unlayered)</span>', p.evidence.layers),
     row('shared state', shared),
     row('resolution', esc(p.model.status) + (p.model.field !== null ? ` <span class="k">via +${hex(p.model.field)}</span>` : '')),
@@ -68,6 +69,23 @@ export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = 
     `<h2>Layout evidence</h2>`,
     `<div class="ev" style="padding:0 12px 12px">${esc(p.evidence.layout)}</div>`,
   ].join('');
+}
+
+function renderMovement(script) {
+  const m = script?.movement;
+  if (!m) return '';
+  const text = {
+    resource: 'Ressource ou objet initialement désactivé. Sa position enregistrée ne donne pas nécessairement celle des objets visibles. '
+      + (m.targets?.length ? 'Sélectionnez un placement ci-dessous avant de le déplacer.' : 'Aucun placement correspondant ni créateur à position directe identifié pour cette ressource.'),
+    trajectory: 'Position et trajectoire : les points privés suivent automatiquement le déplacement.',
+    unsupported_trajectory: 'Trajectoire non prise en charge : le déplacement est refusé pour éviter une animation restée à son ancienne position.',
+    initial_position: m.scripted ? 'Position initiale du placement. Son effet visuel reste à vérifier en jeu pour cet objet et cette destination.' : 'Position propre à ce placement.',
+  }[m.kind];
+  const targets = (m.targets ?? []).map(p => `<button data-counterpart="${p.offset}">${p.relation === 'creator' ? 'Voir le créateur possible' : 'Voir le placement'} : ${esc(p.name)} · ${p.position.map(v => esc(v)).join(', ')}</button>`).join('');
+  return '<div class="movement-info"><div class="k">Déplacement en jeu</div><p>' + esc(text) + '</p>'
+    + (m.model_shared ? '<div class="ev">Modèle partagé, position propre à ce placement : déplacer cet objet ne déplace pas les autres utilisateurs du modèle.</div>' : '')
+    + (m.targets?.some(p => p.conditional) ? '<div class="ev">Création conditionnelle : le script utilise ce créateur comme position, mais sa branche peut ne pas être exécutée. Ce lien sélectionne un objet sans modifier les données.</div>' : '')
+    + (targets ? `<details class="movement-targets" open><summary>Placements à sélectionner (${m.targets.length})</summary><div>${targets}</div></details>` : '') + '</div>';
 }
 
 export function renderRule(r) {

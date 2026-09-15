@@ -62,6 +62,12 @@
   .row { display: flex; justify-content: space-between; gap: 10px; padding: 3px 12px; }
   .row .k { color: var(--dim); }
   .row .v { text-align: right; word-break: break-all; }
+  .movement-info { padding: 6px 12px; text-align: left; word-break: normal; }
+  .movement-info > .k { color: var(--dim); }
+  .movement-info p { margin: 5px 0; }
+  .movement-targets { margin-top: 8px; text-align: left; word-break: normal; }
+  .movement-targets > div { display: grid; gap: 4px; max-height: 160px; overflow-y: auto; margin-top: 5px; }
+  .movement-targets button { text-align: left; overflow-wrap: anywhere; }
   .ev { font-size: 11px; color: var(--dim); }
   .ev.runtime { color: var(--proven); }
   .rule { margin: 6px 12px; padding: 7px 9px; border-left: 3px solid var(--line); background: #1a212a; border-radius: 0 3px 3px 0; }

@@ -64,6 +64,14 @@ that cannot produce a conforming record returns 500 with the offending offset ra
 
 One placement, plus the safety rules that apply to it and the duplication targets available for it.
 
+The optional `script` diagnostic includes `movement`: `{ kind, targets, scripted, model_shared,
+confidence, editable: false }`. `kind` is `resource`, `trajectory`, `unsupported_trajectory` or
+`initial_position`. Each target contains `{ offset, name, position, relation, conditional }`, with relation
+`counterpart` or `creator`. Positions are current session coordinates. Creator links require an explicit
+clone-at-owner expression and remain conditional; supported startup recipes exclude incompatible creators.
+This is navigation metadata, not edit permission, a simulation result or a guarantee of a visible change.
+`clones` and `template_for` may carry `at_owner`; the existing fields remain available.
+
 ```json
 {
   "placement": { /* Placement v1 */ },

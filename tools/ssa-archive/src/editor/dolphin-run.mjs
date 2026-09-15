@@ -22,6 +22,7 @@ export async function runEditorGame({ patch, archive, mode = 'test', figure = nu
   const record = { id, kind: 'EDITOR_PREVIEW', mode, started: new Date().toISOString(), patch: patch.descriptor,
     archive, figure, prediction, screenshots: [], trace: [], consumption: { verified: false }, visual_effect: 'UNJUDGED' };
   const game = gameFactory(); game.signal = signal;
+  let stage = 'mcp-connect';
   let stopped;
   // An abort can arrive while launch is still returning its PID. Do not cache a no-op
   // stop: finally must close the owned process once launch has finished assigning it.
@@ -35,8 +36,10 @@ export async function runEditorGame({ patch, archive, mode = 'test', figure = nu
   };
   try {
     signal?.throwIfAborted(); await game.connect();
+    stage = 'dolphin-launch';
     onProgress({ phase: 'booting' }); await game.launch(patch.descriptor, id);
     record.pid = game.pid;
+    stage = mode === 'test' ? 'macro' : 'playing';
     if (mode === 'test') {
       const steps = readScript(defaultScript);
       record.trace = await game.runScriptSafe(steps, { figure, labelPrefix: id,
@@ -59,6 +62,14 @@ export async function runEditorGame({ patch, archive, mode = 'test', figure = nu
     onProgress({ phase: 'finished', consumption: record.consumption, screenshots: record.screenshots });
     return record;
   } catch (e) {
+    record.failed_stage = stage;
+    record.error_code = e.code ?? null;
+    if (['mcp-connect', 'dolphin-launch'].includes(stage) && /\bspawn\b.*\b(?:EPERM|EACCES)\b/i.test(e.message)) {
+      const original = e.message;
+      const component = stage === 'mcp-connect' ? 'du serveur MCP' : 'de Dolphin';
+      e.message = `Démarrage ${component} refusé (${original}). Relancez le serveur de l’éditeur depuis un terminal Windows autorisé à créer des processus, puis relancez le test. Le patch sauvegardé est conservé.`;
+      record.original_error = original;
+    }
     record.status = signal?.aborted ? 'STOPPED' : 'FAILED'; record.error = e.message; record.trace = e.trace ?? record.trace;
     if (signal?.aborted) return record;
     throw e;

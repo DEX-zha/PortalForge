@@ -146,7 +146,8 @@ async function main() {
     if (!button) return;
     const offset = Number(button.dataset.counterpart);
     const p = state.placements.find(p => p.offset === offset); if (!p) return;
-    for (const layer of p.layers) state.visible.add(layer);
+    for (const layer of p.layers.length ? p.layers : ['(unlayered)']) state.visible.add(layer);
+    if (state.resources?.has(offset)) $('resources-visible').checked = true;
     renderLayers(index); apply();
     state.selection = { offset, index: 0, total: 1 };
     state.scene.select(offset); state.scene.frameSelection();

@@ -2,6 +2,16 @@
 
 Machine-readable experiment records are written by `ssa-archive experiment m1|m2` to `.local/dolphin-evidence/experiments/<id>.json` (schema `specs/001-ssa-level-research/contracts/experiment-record.schema.json`). They reference local game data and are not committed; this folder holds human-readable summaries and the reproduction procedure.
 
+## Scripted Barrel movement, 2026-09-15
+
+`barrel-placement-2026-09-15` records two identical positive boots (`barrel-control-1789474472958`,
+`barrel-control-1789475022808`) and the later resource-only comparison (`barrel-resource-1789475419544`).
+Moving Barrel(6) renders a barrel on the start island; moving the stored Barrel resource does not reproduce that
+effect in the single comparison. All three replacements were consumed and owned Dolphin processes stopped normally.
+The normalized local record validates against the experiment schema. Its mutation spans three adjacent f32be words;
+its control uses a different resource-only patch, not an untouched baseline. Follow
+[the exact positions, hashes and editor procedure](../editor-scripted-movement.md) to reproduce it.
+
 ## Reproducing any experiment from its record
 
 1. **Identity**: `inputs.game` must be the SSA dump `SSPP52` PAL revision 1 (`ssa-archive identify --game <wbfs>`).

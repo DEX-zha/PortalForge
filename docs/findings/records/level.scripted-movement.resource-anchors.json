@@ -1,0 +1,17 @@
+{
+  "id": "level.scripted-movement.resource-anchors",
+  "updated": "2026-09-15",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Read-only resource/creator navigation; no script VM evaluation",
+  "structure": "Clone +0x28 -> singleton type-114 expression containing token 0x8000005B (me), combined with explicit clone resources and tutorial scene roles",
+  "location": {"file_pattern": "level/Level_027_Tutorial.bld:level.bld (decoded)", "offset": "Barrel resource 3983352; bridge clone 1777500; me expression 1608892", "length": 4},
+  "meaning": "Stored resource coordinates may differ from visible actors. A single resource-only Barrel control loaded modified xyz but showed no barrel at the destination, unlike two successful Barrel(6) edits. The editor links inactive-resource candidates to active homonyms with matching model/script, and clone-at-me resources to possible creators. Known bridge/dock/cannon recipes filter incompatible IDs; other branches remain conditional. Motion opcodes may target clones or debris. Navigation does not authorize new script, reference or activation edits, nor prove every candidate is instantiated.",
+  "evidence": [
+    {"experiment_id": "barrel-resource-1789475419544", "summary": "Single comparison: only resource 3983352 xyz changed to (88,11.5,40). FileMon 15333 kB; triplet only at resource copies 0x8118883C/0x81188854 in captured MEM1; no barrel at the destination in playable captures. Archive SHA256 005f2086c9498c343d63c722d81cc9e51b36f6851be27515bb5bad9182141653. PID 22328 stopped normally. LIKELY, not a general inactivity result."},
+    {"probe": ".local/script-remediation/loot-study.mjs", "summary": "Barrel.ai displace expressions target cloned spinners/particles or references; LootSystem_Init.ai passes destructible groups to loot macros. No general position reset follows from those opcodes alone."},
+    {"probe": "tools/ssa-archive/tests/editor-movement-diagnostics.test.mjs", "summary": "Bounded singleton-me recognition rejects other tokens, invalid counts and truncation. Bridge resource links to First_Bridge but not the ID-1 Dock. Inspector does not claim motion opcodes reset every position."}
+  ]
+}

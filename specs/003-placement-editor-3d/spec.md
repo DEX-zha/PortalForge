@@ -259,6 +259,23 @@ result against the prediction recorded before the boot.
   when the same input produces it twice.
 - Game data, screenshots and memory dumps produced by the editor stay outside the repository.
 
+## Follow-up: scripted movement diagnosis (2026-09-15)
+
+The inspector must distinguish an initial placement position, a supported private trajectory, and a stored resource
+whose visible copies may use another object's position. From a resource, provide selection links to its active
+counterparts and to candidate creators only when the clone expression explicitly uses the creator as its anchor.
+Conditional creation remains labelled as such; navigation never silently redirects an edit. Shared model storage
+must not be described as shared placement coordinates. Script motion opcodes alone do not prove that a placement's
+position is reset. A visually validated case must state its scope rather than claiming support for all scripted props.
+No new editable script fields, flags, collision or gameplay operations are introduced.
+
+## Follow-up: launch permission failures (2026-09-15)
+
+When process creation is denied before MCP or Dolphin starts, report the failing component and explain that the
+editor server must run in a context permitted to create processes. Keep the saved patch and record the failed stage
+and original error. Do not retry through a shell or elevate automatically. A corrected server launch must preserve
+the user's current history and be verified through the same editor launch endpoint.
+
 ## Dependencies
 
 - The placement record contract and its validation, the model and layer resolution, and the safety rules, all of

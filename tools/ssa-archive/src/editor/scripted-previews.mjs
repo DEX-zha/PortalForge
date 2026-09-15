@@ -1,4 +1,5 @@
 import { scriptDiagnostics } from './script-diagnostics.mjs';
+import { startupParts } from './scripted-startup.mjs';
 
 // Startup poses compared with the actors' template/creator pointers and model
 // matrices in Dolphin (docs/editor-scene-poses.md). No general script execution.
@@ -14,19 +15,7 @@ export function scriptedPreviews(session) {
       scale: template.scale, scale_mode: 'template', confidence: 'LIKELY', editable: false });
   };
   for (const p of session.placements) {
-    if (session.buffer.readUInt32BE(p.offset) !== 104 || session.buffer.readUInt32BE(p.offset + 0x54) & 1) continue;
-    const id = session.buffer.readUInt32BE(p.offset + 0x20);
-    if (/\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(p.behavior?.path ?? '')) {
-      // The model actor is 90 degrees clockwise from its creator, not at the
-      // stored template transform and not at the creator's own heading.
-      if (id === 0) add(p, 'Template_Bridge_whole', -90);
-      if (id === 1) add(p, 'Template_Dock_whole', -90);
-    }
-    if (id === 10 && /\/Includes\/GameElement_PushBlock\/Scripts\/PushBlock_Template\.ai$/i.test(p.behavior?.path ?? '')
-      && session.placements.some(q => /\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(q.behavior?.path ?? ''))) {
-      add(p, 'Push_Canon_Art_Top');
-      add(p, 'Push_Canon_Art_Bottom', 0, 0);
-    }
+    for (const part of startupParts(session, p) ?? []) add(p, part.name, part.heading_offset, part.fixed_heading);
   }
   return previews;
 }
