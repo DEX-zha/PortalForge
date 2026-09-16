@@ -1,5 +1,5 @@
 // LZMA-chunked entries: decode (CONFIRMED by full decode of every entry of three .bld samples,
-// see docs/iga-v4.md) and re-encode for the single mutated entry of an M2 experiment.
+// see docs/format/iga-v4.md) and re-encode for the single mutated entry of an M2 experiment.
 //
 // Chunk layout (entry-relative offsets, 0x800 alignment, 0x8000-byte chunks):
 //   compressed chunk : [u16 BE compressed size][5-byte LZMA props 5d 00 80 00 00][stream]

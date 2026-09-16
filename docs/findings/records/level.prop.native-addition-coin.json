@@ -12,7 +12,7 @@
     "length": 248,
     "file_pattern": "SSA SSPP52 Rev1 / level/Level_027_Tutorial.bld"
   },
-  "meaning": "Confirmed visible additive creation of exact source3034548 1_Coper(1), model3036352 Treasure_Coin_A.mdl, script3034796 Placed_Loot_Spinning.ai retained. Factory0x80041984 runs at activation-update return0x80062b88 after its native observer list is populated and tutorial anchor is active. Source ID/script/range are unchanged; parameters and actor are independent. Initial XYZ/heading remain distinct from subsequent script movement or animation. At most two additions total, scale100, cold editor-owned launch. Native script and activation-distance lifecycle still apply: creation is not a guarantee of survival or persistence outside range. This confirms creation/rendering, not combat, collection, loot, arbitrary family parameters, level reload, collision or gameplay editing.",
+  "meaning": "Confirmed visible additive creation of exact source3034548 1_Coper(1), model3036352 Treasure_Coin_A.mdl, script3034796 Placed_Loot_Spinning.ai retained. Factory0x80041984 runs at activation-update return0x80062b88 after its native observer list is populated and tutorial anchor is active. Source ID/script/range are unchanged; parameters and actor are independent. Initial XYZ/heading remain distinct from subsequent script movement or animation. At most eight additions total, scale100, cold editor-owned launch. Native script and activation-distance lifecycle still apply: creation is not a guarantee of survival or persistence outside range. This confirms creation/rendering, not combat, collection, loot, arbitrary family parameters, level reload, collision or gameplay editing.",
   "evidence": [
     {
       "probe": "batch-1789561424640-943fbc8d-boot1",
@@ -25,6 +25,10 @@
     {
       "experiment_id": "native-coin-activation-two-boots-20260916",
       "summary": "Two identical cold boots of the editor compiler, native instance proof and visual review; creation separated from later script lifecycle."
+    },
+    {
+      "experiment_id": "native-eight-expanded-two-boots-20260916",
+      "summary": "Shared capacity raised to eight by a repeatable mixed batch; exact source constraints and native lifecycle retained."
     }
   ]
 }

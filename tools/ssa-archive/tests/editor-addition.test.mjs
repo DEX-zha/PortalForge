@@ -13,6 +13,14 @@ import { createHash } from 'node:crypto';
 import { sceneRoles } from '../src/editor/scene-roles.mjs';
 import { startupParts } from '../src/editor/scripted-startup.mjs';
 const hash = b => createHash('sha256').update(b).digest('hex');
+
+test('eight additions fit the shared Gecko budget for every static/scripted mixture',()=>{
+ for(let scripts=0;scripts<=8;scripts++){
+  const rows=Array.from({length:8},(_,i)=>({id:-i-1,source:i<scripts?2390540:3446244,model:i<scripts?1214412:3446580,script:i<scripts?2348068:null,position:[90+i,10,40],heading:0,scale:100}));
+  const compiled=compileNativePatch(rows);assert.equal(compiled.count,8);assert.ok(compiled.bytes<=3256);
+  assert.throws(()=>compileNativePatch([...rows,{...rows[0],id:-9}]),/1\.\.8/);
+ }
+});
 test('script lifecycle distinguishes earlier creation from final survival without relaxing static checks', async()=>{
   const scripted={id:-1,script:100},statik={id:-2};
   const earlier=[{verified:true,objects:[{id:-1},{id:-2}],capture:'early.png'}];
@@ -70,6 +78,17 @@ test('additions save beside unchanged IGZ; reopen, stale patch and tampered side
   save(s,{out:target}); const d=JSON.parse(fs.readFileSync(target+'.portalforge.json'));d.additions[0].heading=30;
   fs.writeFileSync(target+'.portalforge.json',JSON.stringify(d));assert.throws(()=>patch(s,{deps}),e=>e.error==='STALE_ADDITIONS');
   d.base_sha256='wrong';fs.writeFileSync(target+'.portalforge.json',JSON.stringify(d));assert.throws(()=>loadAdditionSidecar(restored),/does not match/);
+});
+
+test('full addition capacity survives save/reopen and complete undo/redo/reset without touching original bytes',t=>{
+ const {s,dir,add}=fixture(t),original=Buffer.from(s.buffer);
+ for(let i=0;i<NATIVE_LIMIT;i++)add([90+i,10,40-i]);
+ const snapshot=structuredClone(s.additions),file=path.join(dir,'full.decoded');save(s,{out:file});
+ const fresh=fixture(t).s;fresh.file=file;loadAdditionSidecar(fresh);assert.deepEqual(fresh.additions,snapshot);
+ for(let i=0;i<NATIVE_LIMIT;i++)undo(s);assert.equal(s.additions.length,0);
+ for(let i=0;i<NATIVE_LIMIT;i++)redo(s);assert.deepEqual(s.additions,snapshot);
+ resetScene(s);assert.equal(s.additions.length,0);assert.deepEqual(s.buffer,original);
+ for(let i=0;i<NATIVE_LIMIT;i++)redo(s);assert.deepEqual(s.additions,snapshot);
 });
 for (const [offset,model,modelPath,script,scriptPath] of [
   [3983352,2794492,'barrel.mdl',2739632,'Barrel.ai'],

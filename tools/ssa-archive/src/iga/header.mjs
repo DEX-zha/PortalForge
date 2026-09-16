@@ -67,7 +67,7 @@ export function encodeHashes(hashes) {
 export const entryTableOffset = count => HEADER_SIZE + HASH_SIZE * count;
 export const entryTableEnd = count => entryTableOffset(count) + ENTRY_SIZE * count;
 
-// Interpolation lookup words (CONFIRMED on 152 level archives + 7 samples, see docs/iga-v4.md):
+// Interpolation lookup words (CONFIRMED on 152 level archives + 7 samples, see docs/format/iga-v4.md):
 //   word 0x10 = floor(0xFFFFFFFF / count)                      -> estimated index = hash / word
 //   word 0x14 = max |i - min(count-1, floor(hash_i / word0x10))| -> maximum probe distance
 export const lookupScale = count => Math.floor(0xFFFFFFFF / count);

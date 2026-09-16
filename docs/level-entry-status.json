@@ -1,0 +1,34 @@
+{
+  "updated": "2026-09-16",
+  "game": "SSPP52 Rev1",
+  "levels": [
+    {
+      "archive": "level/Level_027_Tutorial.bld",
+      "status": "CONFIRMED",
+      "strategy": "clean-preload-checkpoint",
+      "finding": "level.entry.preload-checkpoint",
+      "proof": "tutorial-direct-current-patch-two-runs-20260916",
+      "modes": ["direct-test", "direct-play"],
+      "limits": [
+        "Tutorial-only replacement; matching virtual disc file table required",
+        "Prepare without native codes before loading the level",
+        "Bind state, game, runtime, bridge, figure, configuration and replacement layout",
+        "Fresh owned Dolphin process and current patch for every launch",
+        "Same-emulation level reload is not supported"
+      ]
+    },
+    {
+      "level": "Mining",
+      "archive": "level/Level_000_Mining.bld",
+      "status": "UNKNOWN",
+      "reason": "No pre-load transition and repeatable current-patch proof validated yet"
+    },
+    {
+      "level": "Other level families",
+      "status": "UNKNOWN",
+      "reason": "Each family requires its own transition, identity and current-patch proof"
+    }
+  ],
+  "fallback": "Explicit normal play selection; no silent direct-entry fallback",
+  "evidence_root": ".local/level-entry/"
+}

@@ -3,6 +3,7 @@ import { sceneRoles } from './scene-roles.mjs';
 import { interchangeable, planReplace, applyEdit } from './session.mjs';
 import { classifyAddition, groupCandidates } from './addition-compatibility.mjs';
 import { readFamilyReport } from './addition-probe.mjs';
+import {NATIVE_LIMIT} from './native-patch.mjs';
 
 const pending = new WeakMap();
 const fail = (error, reason) => { throw Object.assign(new Error(`${error}: ${reason}`), { error }); };
@@ -23,7 +24,7 @@ export function catalog(s) {
       addition, native_addition: !!p.native_addition };
   });
   const counts={};for(const e of entries)counts[e.addition.status]=(counts[e.addition.status]??0)+1;
-  return { addition_mode:'native', entries, compatibility:{counts,families:groupCandidates(s)} };
+  return { addition_mode:'native', addition_capacity:{used:s.additions?.length??0,limit:NATIVE_LIMIT}, entries, compatibility:{counts,families:groupCandidates(s)} };
 }
 
 export function prepareDrop(s, body) {

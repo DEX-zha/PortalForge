@@ -1,0 +1,38 @@
+{
+  "id": "level.entry.preload-checkpoint",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Tutorial pre-load entry",
+  "structure": "Clean pre-level savestate bound to the Riivolution virtual disc table",
+  "location": {
+    "offset": 2147483704,
+    "length": 8,
+    "file_pattern": "SSA SSPP52 Rev1 / Dolphin scripting-preview4 / Level_027_Tutorial"
+  },
+  "meaning": "Tutorial-only direct entry confirmed on two new Dolphin processes. Prepare before level load without Gecko on the same virtual disc layout; bind game/runtime/bridge/figure/configuration/layout and state hashes. Load figure before restoration, verify fresh/restored FST, reconnect Wii input, then trigger transition. Current archive consumption and changed placement transform proven after restore; fresh current native additions verified. Different archive contents at identical layout may reuse the checkpoint. Never reuse a resident tutorial or native-initialized checkpoint. Other levels, changed layouts and same-emulation reload are not covered.",
+  "evidence": [
+    {
+      "probe": "direct-production-1789588758037",
+      "summary": "Complete direct tutorial arrival, current modified archive and native instances verified; clean stop and profile/slot restoration."
+    },
+    {
+      "probe": "direct-production-1789588987701",
+      "summary": "Complete direct tutorial arrival, current modified archive and native instances verified; clean stop and profile/slot restoration."
+    },
+    {
+      "experiment_id": "tutorial-direct-current-patch-two-runs-20260916",
+      "summary": "Both complete tutorial arrivals reviewed: rendered scene, player HUD, foreground sunflower and extra Barrel, originals/bridge/Hugo preserved. Player movement steps completed. Modified placement transform read in native memory, distinct from the original checkpoint archive."
+    },
+    {
+      "experiment_id": "tutorial-direct-eight-production-preparation-20260916",
+      "summary": "Full production route: cache-miss preparation without native codes, new Dolphin process, current patch plus eight native additions, clean stops and restored profile/slot."
+    },
+    {
+      "experiment_id": "tutorial-optional-intro-skip-two-runs-20260916",
+      "summary": "Optional intro skip: wait for tutorial archive, wait15s, native Nunchuk C60frames, wait5s; two complete direct test runs with eight additions, rendered playable scene, clean stops and restored profile/slot. Default unchecked branch remains unchanged."
+    }
+  ]
+}

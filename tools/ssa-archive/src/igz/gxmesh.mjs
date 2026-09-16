@@ -3,7 +3,7 @@
 //
 // Established on the tutorial (2264 of 2264 draw units walked in sequence, 209 of 209 placed models' meshes inside
 // their declared bounds) and read off byte boundaries, not inferred from names -- type names in these files are
-// unreliable. The findings are documented in docs/igz-mesh-geometry.md.
+// unreliable. The findings are documented in docs/format/igz-mesh-geometry.md.
 //
 // SECTION 5 -- one descriptor per draw unit, in file order, each starting {0xf, 1}:
 //   +0x08  vertex count            +0x34  vertex stride (sum of the per-array record sizes)

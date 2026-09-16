@@ -23,7 +23,7 @@
       "summary": "the structural detector picks type 104 in the tutorial and agrees with the runtime fixup map on 673/673 placements, then picks exactly one candidate class in each of the four other files with no runner-up"
     },
     {
-      "probe": "ssa-archive corpus over all 76 level archives of the disc (docs/placement-corpus-all-levels.json)",
+      "probe": "ssa-archive corpus over all 76 level archives of the disc (docs/reports/placement-corpus-all-levels.json)",
       "summary": "the placement class is one of 23 different indices across the disc (76, 79, 86, 88, 91, 93, 94, 95, 96, 97, 98, 100, 101, 102, 103, 104, 105, 106, 108, 110, 111, 115 and 121), and the structural detector picks exactly one in 75 of the 76 files with NO second class scoring a single strict hit anywhere. The one file with no placement class is Title.bld, a menu scene with 173 header-table entries and no placed object at all."
     }
   ]

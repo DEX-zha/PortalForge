@@ -12,7 +12,7 @@
     "file_pattern": "SSA SSPP52 Rev1 / level/Level_027_Tutorial.bld",
     "length": 248
   },
-  "meaning": "Confirmed visible additive creation from exact source3983352 Barrel, model2794492 barrel.mdl, script2739632 Barrel.ai retained. Factory0x80041984 invoked at activation-update return0x80062b88 after native observers and the independently validated tutorial anchor are ready. No original placement is replaced and no IGZ insertion occurs. Editable scope: XYZ/heading at scale100, within the shared two-addition capacity, cold editor-owned launch only. Placement remains governed by its original script: creation does not guarantee survival through the macro. Destruction, loot and combat semantics are not independently validated; other Barrel placements/parameters, coins and enemies are not covered.",
+  "meaning": "Confirmed visible additive creation from exact source3983352 Barrel, model2794492 barrel.mdl, script2739632 Barrel.ai retained. Factory0x80041984 invoked at activation-update return0x80062b88 after native observers and the independently validated tutorial anchor are ready. No original placement is replaced and no IGZ insertion occurs. Editable scope: XYZ/heading at scale100, within the shared eight-addition capacity, cold editor-owned launch only. Placement remains governed by its original script: creation does not guarantee survival through the macro. Destruction, loot and combat semantics are not independently validated; other Barrel placements/parameters, coins and enemies are not covered.",
   "evidence": [
     {
       "probe": "batch-1789515929960-66501f94",
@@ -29,6 +29,10 @@
     {
       "experiment_id": "native-mixed-activation-two-boots-20260916",
       "summary": "Final mixed compiler: two identical cold boots, SHA256 1ff0eddd3577344bef5bf900564e7852c6f1532cf1ba12e4076252f60cab45ac, retained individual static/deferred scripted hooks. Barrel [90,10.5,48]/0 and sunflower [94.169,10.438,40.5]/285 simultaneously visible in both final52 captures; live distinct actors and initial transforms verified; clean stops and profile restoration."
+    },
+    {
+      "experiment_id": "native-eight-expanded-two-boots-20260916",
+      "summary": "Shared capacity raised to eight by a repeatable mixed batch; exact source constraints and native lifecycle retained."
     }
   ]
 }

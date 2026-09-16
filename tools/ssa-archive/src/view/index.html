@@ -162,11 +162,15 @@
     <div class="row"><span class="k">state</span><span class="v" id="save-state">no edit yet</span></div>
     <label for="launch-mode">After patching</label>
     <select id="launch-mode" style="width:100%;margin:5px 0;padding:5px;background:#0d1218;color:var(--text)">
+      <option value="direct-test" disabled>Direct level test, then close Dolphin</option>
+      <option value="direct-play" disabled>Direct level play, keep Dolphin open</option>
       <option value="test">Tutorial test, then close Dolphin</option>
       <option value="play">Normal play, keep Dolphin open</option>
     </select>
     <label style="display:block"><input id="launch-after-patch" type="checkbox" checked> Launch automatically after patching</label>
-    <div class="ev">The test loads the configured Skylander, skips menus and reaches the start of the tutorial. Normal play gives you control.</div>
+    <label style="display:block"><input id="skip-intro" type="checkbox" aria-describedby="skip-intro-note"> Skip opening cinematic</label>
+    <div class="ev" id="skip-intro-note">Optional for automated tutorial launches. Normal play uses manual controls.</div>
+    <div class="ev" id="entry-note">The tutorial test loads your Skylander and navigates the menus. Normal play gives you control.</div>
 
     <input id="prediction" placeholder="Expected result (optional)" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
     <div class="ev" id="save-note" style="margin-top:6px"></div>

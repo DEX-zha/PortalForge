@@ -13,7 +13,7 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
   const $ = id => document.getElementById(id), dialog = $('drop-dialog');
   let entries = [], dragging = null, draft = null, placement = null, epoch = 0, submitting = false;
   let pointerDrag = null, suppressClick = false;
-  let additionMode = false;
+  let additionMode = false, capacity = null;
   let selectedFolder = [], selectedOffset = null;
   let testing = false, pollTimer = null;
   const thumbnails = createThumbnails(scene);
@@ -23,7 +23,7 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
       .sort((a,b) => Number(!a.model)-Number(!b.model) || (a.name??'').localeCompare(b.name??'', 'en', { numeric: true }));
     const available=entries.filter(p=>p.addition?.available).length;
     const families=new Set(entries.filter(p=>p.addition?.testable).map(p=>p.addition.family)).size;
-    $('object-count').textContent = `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families`;
+    $('object-count').textContent = `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families` + (capacity?` · ${capacity.used}/${capacity.limit} added`:'');
     const fragment = document.createDocumentFragment();
     if (!rows.length) {
       const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No objects match this search.'; fragment.append(empty);
@@ -89,6 +89,7 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
   $('hierarchy-list').addEventListener('click',e=>{const b=e.target.closest('[data-hierarchy]');if(b&&!blocked())select(Number(b.dataset.hierarchy)).catch(e=>note(e.message));});
   async function reload() {
     const b = await api('/api/catalog'); additionMode = b.addition_mode === 'native';
+    capacity=b.addition_capacity??null;
     entries = b.entries.map(p => additionMode ? { ...p, available: !!p.addition?.available, reason: p.addition?.reason ?? null } : p);
     thumbnails.invalidate(); folders(); hierarchy(); render();
     updateTests(); if (!pollTimer) pollTests();

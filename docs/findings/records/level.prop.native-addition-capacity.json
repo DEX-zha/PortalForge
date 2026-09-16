@@ -1,0 +1,34 @@
+{
+  "id": "level.prop.native-addition-capacity",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Eight concurrent native additions",
+  "structure": "Guarded static/deferred native factory with handler-owned records",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler for Level_027_Tutorial"
+  },
+  "meaning": "Eight requested instances jointly verified with distinct actors and private state on two identical cold boots. Mixed static/scripted payload uses2344 of3256 reserved bytes. Same finite XYZ/heading, scale100 and tutorial SSPP52 Rev1 constraints. All-static, all-scripted and every mixed composition fit the reserved budget in compiler tests. Native lifecycle remains active; later removal does not invalidate earlier creation.",
+  "evidence": [
+    {
+      "probe": "eight-1789587878940",
+      "summary": "Eight distinct placements and actors observed together; visual review, clean stop, profile restored."
+    },
+    {
+      "probe": "eight-1789588179478",
+      "summary": "Eight distinct placements and actors observed together; visual review, clean stop, profile restored."
+    },
+    {
+      "experiment_id": "native-eight-expanded-two-boots-20260916",
+      "summary": "Captures31/34 reviewed in both runs: extra sunflower, weed, Barrel, two coins, two Nippers and a blue Clamper. Original flowers, bridge and Hugo remain; later movement and scripted removal recorded separately."
+    },
+    {
+      "experiment_id": "tutorial-direct-eight-production-preparation-20260916",
+      "summary": "Full production route: cache-miss preparation without native codes, new Dolphin process, current patch plus eight native additions, clean stops and restored profile/slot."
+    }
+  ]
+}

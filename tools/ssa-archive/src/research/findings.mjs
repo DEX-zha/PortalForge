@@ -117,7 +117,7 @@ export function render({ dir = recordsDir, outDir = findingsDir } = {}) {
     fs.writeFileSync(out, lines.join('\n') + '\n');
     written.push(out);
   }
-  // docs/iga-v4.md = hand-maintained intro + generated container and IGZ tables (T066: no drift).
+  // docs/format/iga-v4.md = hand-maintained intro + generated container and IGZ tables (T066: no drift).
   const introFile = path.join(path.dirname(outDir), 'iga-v4.intro.md');
   if (fs.existsSync(introFile)) {
     const parts = [fs.readFileSync(introFile, 'utf8').trimEnd(), ''];

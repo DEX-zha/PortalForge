@@ -2,8 +2,8 @@
 // decision: native-additions.mjs checks the finding and the source catalogue.
 // Gecko owns the code region; no IGZ insertion or guessed code cave is used.
 export const NATIVE_BASE = 0x80dbc020;
-// The handler can hold more records; the exposed limit follows the two-copy proof.
-export const NATIVE_LIMIT = 2;
+// Mixed eight-copy proof: level.prop.native-addition-capacity. Keep the byte guard.
+export const NATIVE_LIMIT = 8;
 export const NATIVE_MAGIC = 0x50464e41;
 export const NATIVE_STRIDE = 0x90;
 export const FACTORY_HASH = '8fcf8ff29324baff5246ef8dbf3dcab41c983941b8ac603b7554fff8bd2b42a3';

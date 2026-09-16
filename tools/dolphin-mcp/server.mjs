@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { bridgeCall, memoryRange, existingFile, buildDescriptor, launch, stop, ownedProcess, tailLog,
   official, felk, profile, evidence, delay, initializeProfile, uiControl, root } from './runtime.mjs';
 
-// Gate status is maintained by humans in docs/m0-status.json together with docs/dolphin-mcp.md.
+// Gate status is maintained by humans in docs/m0-status.json together with docs/mcp/dolphin-mcp.md.
 function gateStatus() {
   try { return JSON.parse(fs.readFileSync(path.join(root,'docs','m0-status.json'),'utf8')); }
   catch(e) { return {status:'NOT_VALIDATED',reason:'docs/m0-status.json unreadable: '+e.message}; }

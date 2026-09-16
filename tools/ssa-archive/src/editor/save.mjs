@@ -13,6 +13,7 @@ import { authorisedWords } from './session.mjs';
 import { FIELDS } from '../igz/model-resolve.mjs';
 import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
+import { validateSkipIntro } from './level-entry.mjs';
 
 const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.error = error; e.exitCode = 1; throw e; };
 const hexAt = (buf, at) => buf.subarray(at, at + 4).toString('hex');
@@ -171,8 +172,9 @@ function defaultBuild() {
 // A launch is started, not awaited. Two boots take about ten minutes, far longer than any HTTP client will hold a
 // response open, so the request returns as soon as the run is under way and the caller polls `launchState`.
 // The lock is taken at the start, because the game begins reading the patch immediately.
-export async function launch(session, { prediction = '', figure = null, repeat = 1, mode = null, deps = {}, wait = false } = {}) {
-  if (mode !== null && !['test', 'play'].includes(mode)) fail('BAD_MODE', 'choose test or play');
+export async function launch(session, { prediction = '', figure = null, repeat = 1, mode = null, skip_intro = false, deps = {}, wait = false } = {}) {
+  if (mode !== null && !['test', 'play', 'direct-test', 'direct-play'].includes(mode)) fail('BAD_MODE', 'choose test, play, direct-test or direct-play');
+  validateSkipIntro(session.archive,mode??'test',skip_intro);
   if (!mode && !String(prediction).trim()) fail('PREDICTION_REQUIRED', 'state what should be visible before the game starts: an experiment without a prediction cannot be judged');
   if (!session.lastPatch) fail('NOTHING_PATCHED', 'build a patch before launching');
   if (session.lastLaunch?.running) fail('ALREADY_RUNNING', 'a run is already under way; wait for it to finish');
@@ -186,7 +188,7 @@ export async function launch(session, { prediction = '', figure = null, repeat =
   prediction = String(prediction).trim() || session.lastSave.plan.changes.map(c => `0x${c.target.toString(16)} ${c.attribute} ${c.field}: ${c.old_hex} -> ${c.new_hex}`).join('; ') || 'Verify the saved level in game';
   const run = deps.run ?? (() => fail('NOT_WIRED', 'the experiment runner is supplied by the CLI layer; call launch() with deps.run'));
 
-  session.lastLaunch = { experiment_id: null, prediction, figure, repeat, mode: mode ?? 'test',
+  session.lastLaunch = { experiment_id: null, prediction, figure, repeat, mode: mode ?? 'test', skip_intro,
     patch_dir: session.lastPatch.dir, observed: null, matched: null, running: true, error: null,
     started: new Date().toISOString(), at: new Date().toISOString() };
   session.lock = { patch_dir: session.lastPatch.dir, since: new Date().toISOString() };
@@ -196,7 +198,7 @@ export async function launch(session, { prediction = '', figure = null, repeat =
   current.controller = controller;
 
   const started = Promise.resolve()
-    .then(() => run({ session, prediction, figure, repeat, mode: mode ?? 'test', patch: selectedPatch, signal: controller.signal,
+    .then(() => run({ session, prediction, figure, repeat, mode: mode ?? 'test', skip_intro, patch: selectedPatch, signal: controller.signal,
       onProgress: progress => Object.assign(current, { progress }) }))
     .then(record => { current.experiment_id = record?.id ?? null; current.status = record?.status ?? null; current.consumption = record?.consumption ?? null; current.screenshots = record?.screenshots ?? []; return record; })
     .catch(e => { session.lastLaunch.error = e.message; return null; })

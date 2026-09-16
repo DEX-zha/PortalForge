@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyAddition, groupCandidates } from '../src/editor/addition-compatibility.mjs';
-import { compileNativePatch, compileNativeProbe } from '../src/editor/native-patch.mjs';
+import { compileNativePatch, compileNativeProbe, NATIVE_LIMIT } from '../src/editor/native-patch.mjs';
 import { inspectProbe } from '../src/editor/addition-probe.mjs';
 import { GameSession } from '../src/experiments/run-game.mjs';
 const p=(offset=10,script=null)=>({offset,name:'Barrel',scale:100,model:{offset:200,path:'Objects/barrel.mdl',status:'direct'},behavior:script?{offset:300,path:script}:null,position:[0,0,0],rotation:{heading:0}});
@@ -56,5 +56,5 @@ test('mixed additions preserve each independently compiled native hook and share
  assert.equal(mixed.count,2);assert.ok(mixed.bytes<=3256);assert.equal((mixed.ini.match(/\[Gecko_Enabled\]/g)||[]).length,1);
  assert.equal(compileNativeProbe([barrel,flower]).ini,mixed.ini);
  assert.throws(()=>compileNativePatch([barrel,{...flower,id:barrel.id}]),/distinct/);
- assert.throws(()=>compileNativePatch([barrel,flower,{...flower,id:-3}]),/1\.\.2/);
+ assert.throws(()=>compileNativePatch([barrel,...Array.from({length:NATIVE_LIMIT},(_,i)=>({...flower,id:-i-3}))]),new RegExp('1\\.\\.'+NATIVE_LIMIT));
 });

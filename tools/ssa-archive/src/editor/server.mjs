@@ -18,6 +18,7 @@ import { classifyAddition, familyKey } from './addition-compatibility.mjs';
 import { runAdditionProbe, readFamilyReport, reportsDir } from './addition-probe.mjs';
 import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
+import {directEntryConfirmed,TUTORIAL} from './level-entry.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -84,6 +85,7 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
     if (req.method !== 'GET') return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: `${req.method} is not accepted on ${pathname}` });
     if (pathname === '/api/session') return json(res, 200, sessionSummary(s));
     if (pathname === '/api/catalog') return json(res, 200, catalog(s));
+    if (pathname === '/api/level-entry') return json(res,200,{supported:s.archive?.toLowerCase()===TUTORIAL&&directEntryConfirmed(),preparation:'A checkpoint is prepared once for each compatible disc layout. Changed level bytes are loaded after restoration.'});
     if (pathname === '/api/addition-validation') return json(res,200,validation ? {running:validation.running,progress:validation.progress,result:validation.result,error:validation.error}: {running:false});
     const reportMatch=/^\/api\/addition-report\/([a-f0-9]{64})(?:\/shot\/(\d+)\/(\d+))?$/.exec(pathname);
     if(reportMatch){

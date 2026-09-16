@@ -13,6 +13,7 @@ import { bindCatalog } from './catalog.mjs';
 import { bindWorkspace } from './workspace.mjs';
 
 const $ = id => document.getElementById(id);
+const SKIP_INTRO_KEY = 'portalforge.skipOpeningCinematic';
 const api = async (path, body) => {
   const r = body === undefined ? await fetch(path)
     : await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -46,6 +47,16 @@ async function main() {
   state.patched = session.patched;
   state.running = session.launch_running;
   state.locked = session.locked;
+  state.tutorial = session.archive?.toLowerCase() === 'level/level_027_tutorial.bld';
+  try { $('skip-intro').checked = localStorage.getItem(SKIP_INTRO_KEY) === 'true'; } catch { /* Preference storage may be disabled. */ }
+  $('skip-intro').addEventListener('change',()=>{try { localStorage.setItem(SKIP_INTRO_KEY,String($('skip-intro').checked)); } catch { /* Keep the current choice for this page. */ }});
+  $('launch-mode').addEventListener('change',refreshSaveState);
+  $('launch-mode').value='test';
+  try{
+    const entry=await api('/api/level-entry');
+    for(const option of $('launch-mode').querySelectorAll('[value^="direct-"]'))option.disabled=!entry.supported;
+    if(entry.supported){$('launch-mode').value='direct-test';$('entry-note').textContent='Direct entry skips the menus after one preparation run. A changed disc layout requires preparation again. Your current patch is loaded each time.';}
+  }catch{/* Existing launch modes remain available. */}
   if (session.archive?.toLowerCase() !== 'level/level_027_tutorial.bld') {
     $('launch-mode').value = 'play';
     $('launch-mode').querySelector('[value="test"]').disabled = true;
@@ -407,6 +418,7 @@ function refreshSaveState() {
   $('do-launch').disabled = busy || !state.patched || state.dirty;
   $('stop-launch').disabled = !state.running;
   $('launch-mode').disabled = !!busy;
+  $('skip-intro').disabled = !!busy || !state.tutorial || $('launch-mode').value === 'play';
   $('undo').disabled = busy || !state.undoDepth;
   $('redo').disabled = busy || !state.redoDepth;
   $('reset-scene').disabled = !!busy;
@@ -446,7 +458,8 @@ async function doPatch() {
 async function doLaunch() {
   const prediction = $('prediction').value.trim();
   try {
-    await api('/api/launch', { prediction, mode: $('launch-mode').value });
+    await api('/api/launch', { prediction, mode: $('launch-mode').value,
+      skip_intro: !!state.tutorial && $('launch-mode').value !== 'play' && $('skip-intro').checked });
     state.running = true; state.locked = true;
     note('Starting Dolphin with the current patch…');
     pollLaunch();
@@ -465,13 +478,14 @@ async function pollLaunch() {
     if (b.launch?.running) {
       const p = b.launch.progress ?? {};
       const phase = { booting: 'Starting Dolphin', macro: `Tutorial macro: step ${p.step ?? 0}/${p.steps ?? '?'}`,
+        'preparing-entry':`Preparing direct entry: step ${p.step??0}/${p.steps??23}`, 'restoring-entry':'Loading the level entry checkpoint',
         playing: 'Normal play: you have control', stopping: 'Closing Dolphin', finished: 'Test finished, closing Dolphin' }[p.phase] ?? 'Preparing Dolphin';
       note(phase + ' · ' + Math.round((Date.now() - started) / 1000) + ' s'
         + (p.consumption?.verified ? ' · Modified archive loaded.' : ''));
       return setTimeout(tick, 5000);
     }
     note(b.launch?.error ? 'Launch failed: ' + b.launch.error
-      : (b.launch?.status === 'STOPPED' ? 'Dolphin stopped.' : b.launch?.mode === 'test' ? 'Macro completed, Dolphin closed.' : 'Game closed.')
+      : (b.launch?.status === 'STOPPED' ? 'Dolphin stopped.' : ['test','direct-test'].includes(b.launch?.mode) ? 'Macro completed, Dolphin closed.' : 'Game closed.')
         + (b.launch?.consumption?.verified ? ' Patch consumption confirmed.' : '')
         + (b.launch?.screenshots?.length ? ` ${b.launch.screenshots.length} screenshots saved in .local/dolphin-evidence/.` : ''));
     refreshSaveState();

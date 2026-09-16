@@ -2,7 +2,7 @@ import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { startupParts } from './scripted-startup.mjs';
 
 // Startup poses compared with the actors' template/creator pointers and model
-// matrices in Dolphin (docs/editor-scene-poses.md). No general script execution.
+// matrices in Dolphin (docs/editor/scene-poses.md). No general script execution.
 export function scriptedPreviews(session) {
   const previews = [];
   const add = (owner, templateName, headingOffset = 0, fixedHeading = null) => {

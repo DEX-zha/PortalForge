@@ -7,6 +7,7 @@ import { openSession } from '../src/editor/session.mjs';
 import { startServer } from '../src/editor/server.mjs';
 import { save, patch } from '../src/editor/save.mjs';
 import { editorDeps } from '../src/cli-commands.mjs';
+import { directEntryConfirmed } from '../src/editor/level-entry.mjs';
 const out = path.resolve('.local/object-workflow/browser-' + Date.now()); fs.mkdirSync(out, { recursive: true });
 const file = path.join(out, 'level.decoded'); fs.copyFileSync('.local/workspaces/tutorial-bld/entries/3-level.bld.decoded', file);
 const session = openSession(file, { archive: 'level/Level_027_Tutorial.bld', entry: 3, fixups: JSON.parse(fs.readFileSync('.local/dolphin-evidence/ptr-scan3-fixups.json')) });
@@ -31,6 +32,26 @@ try {
   await send('Runtime.enable'); await send('Page.enable'); await send('Page.navigate', { url: server.url });
   await waitFor(`document.querySelectorAll('[data-object]').length === 673`);
   await waitFor(`document.querySelectorAll('.asset-preview img').length > 0`);
+  assert.equal(await evaluate(`document.getElementById('launch-mode').value`),directEntryConfirmed()?'direct-test':'test');
+  assert.equal(await evaluate(`document.querySelector('#launch-mode [value="direct-play"]').disabled`),!directEntryConfirmed());
+  const capacity=await evaluate(`(async()=>{const b=await(await fetch('/api/catalog')).json();return {capacity:b.addition_capacity,available:b.entries.filter(e=>e.addition.available).length};})()`);
+  assert.deepEqual(capacity,{capacity:{used:0,limit:8},available:9});
+  assert.equal(await evaluate(`document.getElementById('skip-intro').checked`),false,'opening is kept by default');
+  await evaluate(`document.getElementById('skip-intro').click()`);
+  await send('Page.reload');
+  await waitFor(`document.querySelectorAll('[data-object]').length === 673 && document.getElementById('skip-intro').checked`);
+  await evaluate(`window.skipRequests=[];window.originalFetch=window.fetch;window.fetch=async(url,options)=>{if(url==='/api/launch'&&options?.method==='POST'){window.skipRequests.push(JSON.parse(options.body));return new Response('{}',{headers:{'Content-Type':'application/json'}});}return window.originalFetch(url,options);};`);
+  for(const [mode,expected] of [['play',false],['test',true],['direct-play',true]]){
+    await evaluate(`document.getElementById('launch-mode').value=${JSON.stringify(mode)};document.getElementById('launch-mode').dispatchEvent(new Event('change'));`);
+    assert.equal(await evaluate(`document.getElementById('skip-intro').disabled`),mode==='play');
+    await evaluate(`document.getElementById('do-launch').disabled=false;document.getElementById('do-launch').click()`);
+    await waitFor(`window.skipRequests.at(-1)?.mode===${JSON.stringify(mode)} && document.getElementById('launch-mode').disabled===false`);
+    assert.equal(await evaluate(`window.skipRequests.at(-1).skip_intro`),expected,'effective option follows mode');
+  }
+  await evaluate(`document.getElementById('skip-intro').click();document.getElementById('do-launch').disabled=false;document.getElementById('do-launch').click()`);
+  await waitFor(`window.skipRequests.length===4 && !document.getElementById('launch-mode').disabled`);
+  assert.equal(await evaluate(`window.skipRequests.at(-1).skip_intro`),false,'unchecked choice reaches launch');
+  await evaluate(`window.fetch=window.originalFetch;document.getElementById('launch-mode').value=${JSON.stringify(directEntryConfirmed()?'direct-test':'test')};document.getElementById('launch-mode').dispatchEvent(new Event('change'));`);
   await shot('workspace-overview');
   const compatibility = await evaluate(`(async()=>{const b=await(await fetch('/api/catalog')).json();return {counts:b.compatibility.counts,families:b.compatibility.families.length,barrel:b.entries.find(p=>p.name==='Barrel').addition,coin:b.entries.find(p=>p.name==='1_Coper(1)').addition,chompy:b.entries.find(p=>p.name==='Enemy_ChompyNipper').addition};})()`);
   assert.ok(compatibility.families>1);assert.equal(compatibility.barrel.testable,true);assert.equal(compatibility.coin.testable,true);assert.equal(compatibility.chompy.testable,true);
@@ -69,7 +90,9 @@ try {
     return {folderCount:count,thumbnails,layout:true,resize:true};
   })()`);
   const before = Buffer.from(session.buffer);
-  const subject=process.argv.includes('--chompy')?{source:2390540,search:'Enemy_ChompyNipper',label:'chompy',script:2348068}
+  const subject=process.argv.includes('--clamper')?{source:2357236,search:'Enemy_ChompyClamper',label:'chompy',script:2348068}
+    :process.argv.includes('--weed')?{source:3452000,search:'weed_2_Template(8)',label:'weed',script:null}
+    :process.argv.includes('--chompy')?{source:2390540,search:'Enemy_ChompyNipper',label:'chompy',script:2348068}
     :process.argv.includes('--coin')?{source:3034548,search:'1_Coper',label:'coper',script:3034796}
     :process.argv.includes('--barrel')?{source:3983352,search:'Barrel',label:'barrel',script:2739632}
     :{source:3446244,search:'SUNFLOWER',label:'sunflower',script:null};
@@ -137,6 +160,18 @@ try {
   await shot('reset-complete');
   for(let i=1;i<=3;i++){await evaluate("document.getElementById('redo').click()");await waitFor("!document.getElementById('undo').disabled && document.getElementById('dirty').textContent.startsWith('"+i+" ')");}
   assert.deepEqual(session.additions,recipe);assert.deepEqual(errors,[]);
+  if(process.argv.includes('--eight')){
+    for(let count=3;count<=8;count++){
+      await drop({x:.35+(count%3)*.12,y:.50+(count%2)*.18});
+      await waitFor(`document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/8 added')`);
+      assert.equal(session.additions.length,count);
+    }
+    const full=structuredClone(session.additions);await drop();
+    await waitFor("document.getElementById('status-tip').textContent.includes('at most 8')");assert.deepEqual(session.additions,full);
+    await evaluate("document.getElementById('undo').click()");await waitFor("!document.querySelector('[data-hierarchy=\"-8\"]')");assert.equal(session.additions.length,7);
+    await evaluate("document.getElementById('redo').click()");await waitFor("document.querySelector('[data-hierarchy=\"-8\"]')");assert.deepEqual(session.additions,full);
+    await shot('eight-additions');
+  }
   const geometryChecks = await evaluate(`(async () => {
     const {createScene}=await import('/view/scene.mjs');
     const wrap=document.createElement('div');wrap.style.cssText='position:fixed;inset:100px auto auto 300px;width:512px;height:512px';
@@ -157,7 +192,7 @@ try {
   save(session, { out: path.join(out, 'level.edited.decoded') });
   const reopened=openSession(session.lastSave.file,{archive:session.archive,entry:3,fixups:session.fixups});
   assert.deepEqual(reopened.additions,session.additions);
-  assert.equal(reopened.placements.length,675);
+  assert.equal(reopened.placements.length,673+session.additions.length);
   assert.ok(reopened.additions.every(a=>(a.script??null)===subject.script));
   const built = process.argv.includes('--no-patch') ? null : patch(session, { deps: editorDeps(session, {}) }).patch;
   const result = { out, filterMs, hint, source, additions:session.additions, patch:built, geometryChecks,uiChecks,browser_errors:errors,checks:['673 original objects preserved','two mouse drops at distinct destinations','no victim','negative identity selection','rotation','scale disabled','undo removes additions','redo recreates additions','reset restores opened scene','saved sidecar preserved','real model thumbnails','accessible folder summaries','English interface'] };

@@ -44,6 +44,17 @@ test('stop requests cancellation of the editor-owned run',async()=>{
  patch(s,{deps});await launch(s,{mode:'play',deps});stopLaunch(s);await s.lastLaunch.promise;assert.equal(s.locked,false);
 });
 
+test('launch validates and forwards the optional intro skip without changing the patch',async()=>{
+ const s=session();s.archive='level/Level_027_Tutorial.bld';applyEdit(s,{kind:'transform',target:s.placements[0].offset,heading:90});save(s,{out:out(s)});
+ const received=[],deps={build:()=>({dir:s.outDir,replacements:[]}),run:async args=>{received.push(args);return {id:'skip-test'};}};
+ patch(s,{deps});const selected=s.lastPatch;
+ for(const skip_intro of [true,false]){await launch(s,{mode:'direct-test',skip_intro,deps,wait:true});assert.equal(received.at(-1).skip_intro,skip_intro);assert.equal(s.lastLaunch.skip_intro,skip_intro);assert.equal(s.lastPatch,selected);}
+ await assert.rejects(launch(s,{mode:'play',skip_intro:true,deps}),/automated tutorial/i);
+ await assert.rejects(launch(s,{mode:'test',skip_intro:'true',deps}),/boolean/i);
+ s.archive='level/Level_000_Mining.bld';await assert.rejects(launch(s,{mode:'test',skip_intro:true,deps}),/automated tutorial/i);
+ assert.equal(received.length,2);assert.equal(s.locked,false);
+});
+
 test('save: a valid plan reports what changed, changes nothing else, and keeps the file length', () => {
   const s = session();
   const target = s.placements[0].offset;

@@ -1,0 +1,30 @@
+{
+  "id": "level.prop.native-addition-expanded",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Additional exact tutorial sources",
+  "structure": "Guarded static/deferred native factory with handler-owned records",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler for Level_027_Tutorial"
+  },
+  "meaning": "Visible native copies confirmed for exact sources2347820 Enemy_ChompyNipper(1),2357236 Enemy_ChompyClamper,3040688 1_Coper(2),3451516 sunflower_Template(2),3452000 weed_2_Template(8). Model/script identities are retained; actors and mutable state are private. Two identical cold boots of a mixed eight-instance batch. Editable XYZ/heading, source scale100, tutorial SSPP52 Rev1. Other family members are not implicitly confirmed; creation/rendering does not validate all gameplay or distant persistence.",
+  "evidence": [
+    {
+      "probe": "eight-1789587878940",
+      "summary": "Eight distinct placements and actors observed together; visual review, clean stop, profile restored."
+    },
+    {
+      "probe": "eight-1789588179478",
+      "summary": "Eight distinct placements and actors observed together; visual review, clean stop, profile restored."
+    },
+    {
+      "experiment_id": "native-eight-expanded-two-boots-20260916",
+      "summary": "Captures31/34 reviewed in both runs: extra sunflower, weed, Barrel, two coins, two Nippers and a blue Clamper. Original flowers, bridge and Hugo remain; later movement and scripted removal recorded separately."
+    }
+  ]
+}

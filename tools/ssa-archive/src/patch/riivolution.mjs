@@ -1,6 +1,6 @@
 // Replacement-only Riivolution patch workspace (FR-009) and Dolphin game-mod descriptor.
 // The descriptor is produced by the MCP's buildDescriptor so every path uses forward slashes:
-// Dolphin splits the XML path on '/' only (docs/dolphin-mcp.md, research.md R9).
+// Dolphin splits the XML path on '/' only (docs/mcp/dolphin-mcp.md, research.md R9).
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
