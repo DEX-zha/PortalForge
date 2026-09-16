@@ -51,10 +51,15 @@ through Riivolution, exactly the way the retail game reads them.
 
 ![PortalForge editor](docs/images/editor-workspace.png)
 
-A Unity-like workspace: **Hierarchy** and layers on the left, the **Scene** in the middle with real decoded
-meshes and Move/Rotate/Scale gizmos, the **Inspector** on the right (position, model, behaviour script, layers,
-shared state, evidence and safety flags), and the **Project** browser at the bottom with categories and 3D
-thumbnails generated from the level's own geometry.
+A Unity-like workspace: **Hierarchy** and layers on the left, the **Scene** in the middle with the level's real
+decoded meshes and Move/Rotate/Scale gizmos, the **Inspector** on the right (position, model, behaviour script,
+layers, shared state, evidence and safety flags), and the **Project** browser at the bottom with categories and
+3D thumbnails generated from the level's own geometry.
+
+Each card in Project carries its verdict rather than a guess: **Add** for a source with a confirmed native
+recipe, **Needs test** for one that is structurally eligible but never booted, **Related source tested** when a
+sibling of the same family was the one actually proven. The counters read the same way — 673 objects,
+9 that can be added, 234 testable families, and the addition budget used out of 8.
 
 The toolbar chain is the whole workflow: **Save → Patch → Launch**. Launch owns its own Dolphin, runs the
 tutorial macro, captures every step and closes cleanly — or drops you straight into the level to play it yourself.
