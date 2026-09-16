@@ -181,6 +181,14 @@ practical reason: the material this project reasons over is game-derived — mem
 in-game captures — and it stays on the researcher's own hardware. The agents write code, documentation and
 experiment plans; the gates, the two-boot rule and the tests are what decide whether any of it is true.
 
+**A human drives the reverse engineering.** The agents are fast at writing code and at grinding through dumps,
+and consistently wrong about what a byte *means* until someone checks. The reverse-engineering and decoding
+reasoning — what a record actually is, which pointer is real, why a level froze rather than loaded — is human
+work, and so is the debugging: watching the Dolphin window, spotting that an "invisible" object was never the
+one being moved, rejecting an agent's plausible-but-wrong logic and correcting it before it becomes a finding.
+Several results in `docs/findings/` exist only because that review said "no, boot it again and look" — the two
+identical boots are the rule precisely because a machine's confidence is not evidence.
+
 ## Scope, and what this project is not
 
 PortalForge is an **amateur, non-commercial reverse-engineering project for research and preservation**. It is
