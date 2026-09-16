@@ -135,7 +135,7 @@ The read-only Décor layer toggles them independently. They are batched with des
 enter placement picking or edit commands. Separate-array resources remain unresolved (3 on the tutorial,
 5 on Mining). `stats.world` remains the legacy unassigned count; the new `assigned_unique`, `scenery` and
 `unresolved` counts partition the decoded units without double-counting shared models.
-See the [missing-scenery audit and implementation](editor-missing-scenery-study.md).
+See the [missing-scenery audit and implementation](../editor/missing-scenery-study.md).
 
 Very large surfaces default to wireframe because rendering sky domes and effects without their materials
 otherwise hides the editing area. The reversible “Grandes surfaces pleines” control restores solid rendering;

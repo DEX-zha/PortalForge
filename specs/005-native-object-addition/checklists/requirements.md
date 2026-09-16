@@ -1,13 +1,13 @@
-# Specification Quality Checklist: Ajout réel
+# Specification Quality Checklist: Real addition
 
-Revue de qualité de la spécification, pas preuve d'implémentation. 2026-09-16. [Spécification](../spec.md).
+A specification quality review, not proof of implementation. 2026-09-16. [Specification](../spec.md).
 
-- [x] Absence de détails d'implémentation dans les exigences produit.
-- [x] Valeur utilisateur et différence ajout/remplacement explicites.
-- [x] Formulation accessible et sections obligatoires remplies.
-- [x] Aucun besoin de clarification utilisateur restant ; choix « ajout réel » enregistré.
-- [x] Exigences testables et non ambiguës.
-- [x] Critères de succès mesurables et indépendants de l'implémentation.
-- [x] Scénarios d'acceptation et cas limites définis.
-- [x] Périmètre, hypothèses et dépendances explicités.
-- [x] Exigences reliées aux scénarios et résultats attendus.
+- [x] No implementation details in the product requirements.
+- [x] User value and the addition/replacement difference stated explicitly.
+- [x] Accessible wording and mandatory sections filled in.
+- [x] No remaining need for user clarification; the "real addition" choice is recorded.
+- [x] Testable and unambiguous requirements.
+- [x] Success criteria measurable and independent of the implementation.
+- [x] Acceptance scenarios and edge cases defined.
+- [x] Scope, assumptions and dependencies made explicit.
+- [x] Requirements linked to the scenarios and to the expected results.

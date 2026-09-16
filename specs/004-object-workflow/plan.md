@@ -1,23 +1,23 @@
-# Plan — workflow objets
+# Plan — object workflow
 
-2026-09-15. [Spec](spec.md). Trois lots documentés ; seul US1 à implémenter.
+2026-09-15. [Spec](spec.md). Three batches documented initially, US1 delivered. Extension requested on 2026-09-16: US3 prioritised for the tutorial, evidence and integration in specs/005-native-object-addition. Import and access to the other levels are still to be done.
 
-## Contexte et gates
+## Context and gates
 
-Node.js ESM, HTTP local, Three.js et DOM sans bundler. Tests node:test, navigateur WebGL et Dolphin dédié. Aucun paquet ajouté ; preuves dans .local/. M0–M3 PASS ; M4A/M4B/M5 UNKNOWN. US1 utilise uniquement les remplacements de même taille confirmés, avec emplacement choisi explicitement. Aucun nouveau writer de géométrie, collision ou script.
+Node.js ESM, local HTTP, Three.js and DOM without a bundler. node:test tests, a WebGL browser and a dedicated Dolphin. No package added; evidence in .local/. M0–M3 PASS; M4A/M4B/M5 UNKNOWN. US1 uses only the confirmed same-size replacements, with the slot chosen explicitly. No new geometry, collision or script writer.
 
-## Architecture et séquence
+## Architecture and sequence
 
-1. Spécifier, documenter recherche/contrats et générer les tâches.
-2. Tests dans tools/ssa-archive/tests/editor-catalog.test.mjs avant implémentation.
-3. src/editor/catalog.mjs : catalogue distinct de placement-v1, préparation immuable liée à une révision, confirmation via applyEdit. src/editor/server.mjs expose les routes ; session.mjs retourne les plans sans règle critique et signale les reconstructions nécessaires.
-4. src/view/catalog.mjs : filtre, sélection et dépôt. scene.mjs : intersection visible ou plan horizontal réglable, fantôme conservant orientation/échelle. index.html : panneau et confirmation explicite de la victime. app.mjs recharge placements et meshes après replace/undo/redo en préservant caméra/calques.
-5. Suites locales, navigateur, deux boots identiques avec preuve de consommation et résultat visuel. Préserver la session utilisateur lors du redémarrage.
-6. US2 futur : catalogue externe, diagnostic, réutilisation locale puis recherche import M4A/M4B/M5.
-7. US3 futur : entrée avant chargement, preuve d'identité et consommation, matrice par niveau.
+1. Specify, document research/contracts and generate the tasks.
+2. Tests in tools/ssa-archive/tests/editor-catalog.test.mjs before implementation.
+3. src/editor/catalog.mjs: a catalogue separate from placement-v1, an immutable preparation tied to a revision, confirmation through applyEdit. src/editor/server.mjs exposes the routes; session.mjs returns the plans without a critical rule and reports the rebuilds that are needed.
+4. src/view/catalog.mjs: filter, selection and drop. scene.mjs: visible intersection or adjustable horizontal plane, with a ghost keeping orientation/scale. index.html: panel and explicit confirmation of the victim. app.mjs reloads placements and meshes after replace/undo/redo while preserving camera/layers.
+5. Local suites, browser, two identical boots with proof of consumption and a visual result. Preserve the user's session when restarting.
+6. Future US2: external catalogue, diagnostic, local reuse, then M4A/M4B/M5 import research.
+7. US3: entry before loading, proof of identity and of consumption, per-level matrix. The tutorial uses a checkpoint without native codes, prepared on the current virtual disc, with an identical FST, then re-reads the patch after resuming. See docs/editor/direct-entry.md and docs/level-entry-status.json.
 
-Correction issue du contrôle visuel : src/editor/meshes.mjs conserve une bibliothèque des meshes du niveau avant remplacement. Les chemins modèles renommés utilisent la géométrie locale d'origine correspondante ; une association ambiguë reste un proxy. Tests dans tests/editor-meshes.test.mjs, incluant les autres utilisateurs d'un modèle partagé et undo/redo. Scénario navigateur reproductible dans tests/browser-catalog.mjs.
+Fix that came out of the visual check: src/editor/meshes.mjs keeps a library of the level's meshes from before the replacement. Renamed model paths use the corresponding original local geometry; an ambiguous association stays a proxy. Tests in tests/editor-meshes.test.mjs, including the other users of a shared model and undo/redo. Reproducible browser scenario in tests/browser-catalog.mjs.
 
 ## Validation
 
-Aucun octet avant confirmation ; refus script/inactif, sans runtime map, plan périmé ou session verrouillée ; une édition undo/redo exacte. Comparer entrée reconstruite/sauvegardée. Dolphin : FileMonitor ou RAM, copie visible, victime et effets partagés expliqués, jeu fonctionnel. Les lots futurs ont leurs propres gates ; leur documentation ne vaut pas livraison.
+No byte before confirmation; refusal for scripted/inactive sources, missing runtime map, stale plan or locked session; one exact undo/redo edit. Compare the rebuilt entry with the saved one. Dolphin: FileMonitor or RAM, visible copy, victim and shared effects explained, working game. The future batches have their own gates; documenting them is not delivering them.

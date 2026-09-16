@@ -32,7 +32,7 @@ Sources: header words of five local archives (`character/001_Gryphon.arc`, `char
 | entries | bytes | Entry data, each start aligned to 0x800 | CONFIRMED | `start % 0x800 == 0` for all 533 entries checked |
 | name table | u32[count] offsets then NUL-terminated strings | Names are full build paths (`c:/tfb/build/wii/...`) or plain names (`FRENCH.pak`, `level.bld`) | CONFIRMED | |
 
-Resolution plan for UNKNOWN rows: implement the reader, decode every chunk table by decompressing `.bld` entries with each candidate interpretation, and correlate 0x10/0x24/0x28 with entry counts, chunk counts and modes across all 153 level archives. Each resolved field moves to `docs/iga-v4.md` with its evidence.
+Resolution plan for UNKNOWN rows: implement the reader, decode every chunk table by decompressing `.bld` entries with each candidate interpretation, and correlate 0x10/0x24/0x28 with entry counts, chunk counts and modes across all 153 level archives. Each resolved field moves to `docs/format/iga-v4.md` with its evidence.
 
 ## R3. Compression
 
@@ -70,7 +70,7 @@ Resolution plan for UNKNOWN rows: implement the reader, decode every chunk table
 ## R9. Patch workflow
 
 - **Decision**: Patch workspaces contain only replacement files plus `riivolution/<experiment>.xml` and a Dolphin game-mod `launch.json`, generated through `buildDescriptor` from `tools/dolphin-mcp/runtime.mjs`, which writes forward-slash paths.
-- **Rationale (CONFIRMED)**: Dolphin's `SplitPath` splits the XML path only on `/` and `:`; backslash descriptor paths made the patch root `C:` and every relative external file silently missing. Fixed and unit-tested during M0; documented in `docs/dolphin-mcp.md`.
+- **Rationale (CONFIRMED)**: Dolphin's `SplitPath` splits the XML path only on `/` and `:`; backslash descriptor paths made the patch root `C:` and every relative external file silently missing. Fixed and unit-tested during M0; documented in `docs/mcp/dolphin-mcp.md`.
 - **Proof of consumption**: never the boot alone. For each patched file, compare the Dolphin file-monitor size line against the control run, or read a known changed value in memory.
 
 ## R10. In-game acceptance procedure
@@ -85,7 +85,7 @@ Resolution plan for UNKNOWN rows: implement the reader, decode every chunk table
 
 ## R12. Documentation and evidence format
 
-- **Decision**: `docs/iga-v4.md` and `docs/findings/*.md` use the field record `Offset / Type / Endian / Meaning / Evidence / Confidence` from the original description; machine-readable findings and experiments follow the JSON schemas in `contracts/`. UNKNOWN findings are never exposed by the CLI as editable properties (FR-013).
+- **Decision**: `docs/format/iga-v4.md` and `docs/findings/*.md` use the field record `Offset / Type / Endian / Meaning / Evidence / Confidence` from the original description; machine-readable findings and experiments follow the JSON schemas in `contracts/`. UNKNOWN findings are never exposed by the CLI as editable properties (FR-013).
 
 ## R13. Testing strategy
 

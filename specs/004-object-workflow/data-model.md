@@ -1,9 +1,9 @@
-# Modèle de données
+# Data model
 
-- CatalogEntry : offset local, nom, modèle, calques, catégorie, disponibilité/motif. Identité propre à la session ; homonymes conservés.
-- DropIntent : source, target, position XYZ finie ; orientation/échelle source ; aucun allow_scripted.
-- PreparedDrop : jeton aléatoire, révision octets/historique, intention figée, plan/règles. Une préparation par session, aucune mutation.
-- CommittedDrop : une édition replace ; undo/redo exacts ; jeton consommé après succès.
-- MeshLibrary : géométrie du même niveau associée aux modèles avant remplacement, immuable pendant les éditions de placement. Réutilisation locale par chemin non ambigu quand un record partagé est renommé ; décor conservé, aucun writer de géométrie.
-- Futur ImportManifest : provenance/hashes source-cible, dépendances connues/inconnues, mode réutilisation/import, gates/preuves.
-- Futur LevelEntryStrategy : niveau, jeu/runtime/configuration/patch/état et hashes, transition, preuves ; invalidation sur changement.
+- CatalogEntry: local offset, name, model, layers, category, availability/reason. Identity local to the session; homonyms are kept.
+- DropIntent: source, target, finite XYZ position; source orientation/scale; no allow_scripted.
+- PreparedDrop: random token, byte/history revision, frozen intent, plan/rules. One preparation per session, no mutation.
+- CommittedDrop: one replace edit; exact undo/redo; token consumed after success.
+- MeshLibrary: geometry from the same level associated with the models before the replacement, immutable during placement edits. Local reuse by unambiguous path when a shared record is renamed; scenery preserved, no geometry writer.
+- Future ImportManifest: source-target provenance/hashes, known/unknown dependencies, reuse/import mode, gates/evidence.
+- Future LevelEntryStrategy: level, game/runtime/configuration/patch/state and hashes, transition, evidence; invalidated on any change.

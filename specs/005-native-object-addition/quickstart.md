@@ -1,19 +1,21 @@
-# Utilisation et validation
+# Use and validation
 
-1. Ouvrir le tutoriel avec sa runtime map ; actualiser l'éditeur après mise à jour du serveur.
-2. Dans Project, rechercher `sunflower`, `Barrel`, `Enemy_ChompyNipper` ou `1_Coper(1)`. Les quatre sources exactes validées portent **Add** ; le filtre **Can add** les regroupe. Les autres entrées affichent leur diagnostic, détaillé dans l'inspecteur.
-3. Maintenir le clic sur la miniature ou le nom, déplacer vers la scène et relâcher. Le point suit la surface visible, ou le plan horizontal en l'absence de surface. Aucun choix d'objet à remplacer.
-4. La nouvelle entrée `(Copy 1)` se sélectionne dans la hiérarchie. Move et Orientation fonctionnent ; Scale reste100%. Deux copies maximum dans cette première recette.
-5. Save conserve le niveau et `<fichier>.portalforge.json`. Garder les deux fichiers ensemble. Patch construit l'archive et son accompagnement Gecko. Le bouton de lancement de l'éditeur installe automatiquement ce dernier pour la session Dolphin dédiée.
-6. Choisir le test automatique pour sélectionner la figurine, atteindre le tutoriel et fermer Dolphin, ou le jeu classique pour jouer manuellement. Après rechargement du niveau, arrêter puis relancer l'émulation pour recréer les ajouts.
-7. Undo/Redo affectent les copies distinctes ; Reset scene revient au niveau ouvert et conserve l'historique récupérable. Une réouverture d'un fichier enregistré restaure ses ajouts associés.
+1. Open the tutorial with its runtime map; refresh the editor after the server has been updated.
+2. In Project, pick **Can add**: nine exact validated sources, among them the Nipper and Clamper Chompies, two coins, the Barrel, two sunflowers and a weed. The other entries show their diagnostic, detailed in the inspector. See the list in [compatibility.md](compatibility.md).
+3. Press and hold on the thumbnail or the name, move towards the scene and release. The point follows the visible surface, or the horizontal plane when there is no surface. No object has to be chosen for replacement.
+4. The new entry `(Copy 1)` can be selected in the hierarchy. Move and Orientation work; Scale stays at 100 %. Eight copies at most, with the counter visible in Project. The ninth drop is refused without changing the scene.
+5. Save keeps the level and `<file>.portalforge.json`. Keep both files together. Patch builds the archive and its Gecko companion. The editor's launch button installs the latter automatically for the dedicated Dolphin session.
+6. Choose **Direct level test, then close Dolphin** or **Direct level play, keep Dolphin open** for the tutorial. An automatic preparation is needed the first time, after which the menus are skipped; the current patch is re-read at every launch. The plain modes stay available. After a level reload, stop and restart emulation to recreate the additions. See [the direct launch guide](../../docs/editor/direct-entry.md).
+7. Undo/Redo act on the distinct copies; Reset scene returns to the opened level and keeps the history recoverable. Reopening a saved file restores its associated additions.
 
-Le descripteur Riivolution seul ne suffit pas pour les ajouts : passer par le lanceur de l'éditeur. Périmètre : **SSPP52 Rev1, tutoriel, tournesol3446244, Barrel3983352, Chompy2390540 et pièce3034548, deux copies au total, position/orientation, scale100**. Les objets conservent leurs scripts et distances d'activation : ils peuvent bouger ou disparaître pendant le jeu. La collecte et le combat ne sont pas déclarés entièrement validés. Régénérer les anciens patches d'ajouts scriptés avec cette version de l'éditeur.
+In **Inspector → Playtest settings**, tick **Skip opening cinematic** to skip the tutorial's opening, or leave it unticked to keep it. The choice is remembered in the browser and unticked by default. Available in the three automated tutorial modes; disabled in **Normal play**. It also works with **Launch automatically after patching**, with no patch rebuild needed to change the choice.
 
-Pour tester une autre source, utiliser **Test selected** ou **Test next 2 types**. Deux boots automatiques, vérifications mémoire intermédiaires, captures et rapport local ; **Stop test** interrompt la campagne. Consulter [compatibility.md](compatibility.md) pour les états, les familles et les limites. Les autres membres d'une famille restent à valider individuellement.
+The Riivolution descriptor alone is not enough for the additions: go through the editor's launcher. Scope: **SSPP52 Rev1, tutorial, nine exact sources, eight copies in total, position/orientation, scale 100**. The objects keep their scripts and activation distances: they may move or disappear during play. Collection and combat are not declared fully validated. Regenerate old scripted-addition patches with this version of the editor.
 
-Contrôles : `npm test` dans `tools/ssa-archive` et `tools/dolphin-mcp`. Depuis la racine, `node tools/ssa-archive/tests/browser-catalog.mjs` vérifie les vrais gestes souris, dossiers clavier, hiérarchie, rotation, historique, sauvegarde et construction du patch dans un répertoire `.local/` isolé. Ce test nécessite les données locales du tutoriel et Edge ; il ne lance pas Dolphin.
+To test another source, use **Test selected** or **Test next 2 types**. Two automatic boots, intermediate memory checks, captures and a local report; **Stop test** interrupts the campaign. See [compatibility.md](compatibility.md) for the states, the families and the limits. The other members of a family still have to be validated individually.
 
-Deux boots du patch produit par ce scénario ont été validés : voir [validation.md](validation.md). Les données, captures et rapports détaillés restent locaux.
+Checks: `npm test` in `tools/ssa-archive` and `tools/dolphin-mcp`. From the root, `node tools/ssa-archive/tests/browser-catalog.mjs` checks the real mouse gestures, keyboard folders, hierarchy, rotation, history, save and patch building in an isolated `.local/` directory. This test needs the local tutorial data and Edge; it does not start Dolphin.
 
-Les options `--barrel`, `--chompy` et `--coin` de ce test navigateur sélectionnent la source, avec sauvegarde/réouverture du script et génération du patch.
+Two boots of the patch produced by that scenario were validated: see [validation.md](validation.md). The detailed data, captures and reports stay local.
+
+The `--barrel`, `--chompy`, `--coin`, `--clamper` and `--weed` options of that browser test select the source. `--eight` checks eight real drops, the refusal of the ninth, the history and the save/reopen of the patch.

@@ -69,7 +69,7 @@ Single Node.js package per [plan.md](plan.md): library and CLI in `tools/ssa-arc
 
 **Independent Test**: Connect an MCP client, launch the SSA dump in the dedicated profile, identify the game, send Wii Remote/Nunchuk input, capture a frame and logs, save and restore a state, then repeat the launch through a Riivolution descriptor
 
-- [X] T021 [US0] Install the Felk `scripting-preview4` runtime, bridge and 35-tool MCP server in `tools/dolphin-mcp/` and register it with Codex (evidence: `docs/dolphin-mcp.md`)
+- [X] T021 [US0] Install the Felk `scripting-preview4` runtime, bridge and 35-tool MCP server in `tools/dolphin-mcp/` and register it with Codex (evidence: `docs/mcp/dolphin-mcp.md`)
 - [X] T022 [US0] Validate launch, memory, Wii/Nunchuk input with observed release, Portal figure recognition, native state save/load in gameplay, pause/resume and clean stop (evidence: `.local/dolphin-evidence/live-test.json`, `calls.jsonl`, captures)
 - [X] T023 [US0] Prove Riivolution file replacement at engine level and record the gate in `docs/m0-status.json`: control boot serves `hbm/config.txt` at `0 kB`, patched boot at `61 kB` (evidence: `.local/dolphin-evidence/m0-proof.json`, `tools/dolphin-mcp/m0-proof.mjs`)
 
@@ -100,7 +100,7 @@ Single Node.js package per [plan.md](plan.md): library and CLI in `tools/ssa-arc
 - [X] T031 [US1] Extract the M1a fixtures with `node cli.mjs disc-extract` into `.local/samples/DATA/files/level/` for `Level_027_Tutorial.arc` and `Level_027_Tutorial.bld`, then run T027 and record the fixture results
 - [X] T032 [US1] Evaluate and pin the LZMA codec per research.md R7 in `tools/ssa-archive/package.json`: try `lzma-purejs` first and `lzma1` as fallback; acceptance is decoding every chunk of `.local/samples/DATA/files/character/001_Gryphon.bld` and re-encoding to a stream that decodes identically
 - [X] T033 [US1] Implement chunk decode in `tools/ssa-archive/src/iga/chunks.mjs`: 0x8000-byte chunks, 5-byte LZMA properties header validated as first byte `0x5D` with a dictionary size not exceeding the chunk size, chunk sizes as `u16` for version 4, chunks aligned to 0x800; set `confidence: "CONFIRMED"` on a chunk table only once its values are proven by a successful full-entry decode (research.md R3)
-- [X] T034 [US1] Resolve the UNKNOWN header words in `tools/ssa-archive/src/iga/header.mjs` by correlating word 0x10 bit patterns, word 0x24 and word 0x28 with entry counts, chunk counts and modes across all 153 `level/` archives; record each resolved field in `docs/iga-v4.md` with Offset, Type, Endian, Meaning, Evidence, Confidence (research.md R2)
+- [X] T034 [US1] Resolve the UNKNOWN header words in `tools/ssa-archive/src/iga/header.mjs` by correlating word 0x10 bit patterns, word 0x24 and word 0x28 with entry counts, chunk counts and modes across all 153 `level/` archives; record each resolved field in `docs/format/iga-v4.md` with Offset, Type, Endian, Meaning, Evidence, Confidence (research.md R2)
 - [X] T035 [US1] Add `--decode` support to `extract` in `tools/ssa-archive/cli.mjs`: write `decoded_file` only when chunk semantics are CONFIRMED, otherwise report `decoded: false` with the reason rather than guessing
 - [X] T036 [US1] Implement `tools/ssa-archive/src/patch/riivolution.mjs`: generate the Riivolution XML and the game-mod descriptor by importing `buildDescriptor` from `tools/dolphin-mcp/runtime.mjs` so descriptor paths keep forward slashes, and compute `expected_monitor_sizes` per replaced disc path (data-model.md PatchWorkspace)
 - [X] T037 [US1] Wire the `patch` command into `tools/ssa-archive/cli.mjs` writing `.local/patches/<experiment-id>/` with `riivolution/<id>.xml`, `launch.json` and `patch.json`
@@ -110,7 +110,7 @@ Single Node.js package per [plan.md](plan.md): library and CLI in `tools/ssa-arc
 - [X] T041 [US1] Write the experiment record to `.local/dolphin-evidence/experiments/<id>.json` validated against `contracts/experiment-record.schema.json`: `kind: "M1_ROUNDTRIP"`, `status` in `["PASS", "FAIL", "UNKNOWN"]`, `runs` `minItems: 1`, and `failing_stage` naming the failing stage on FAIL (FR-008, acceptance scenario 3)
 - [X] T042 [US1] Wire `experiment m1` into `tools/ssa-archive/cli.mjs`: exit 1 on FAIL and exit 2 when `docs/m0-status.json` is not PASS
 - [X] T043 [US1] Run M1a on `level/Level_027_Tutorial.arc` and M1b on `level/Level_027_Tutorial.bld`, including the chunk-preserving rebuild and then a decode/re-encode round-trip of one `.bld` entry (plan.md Gate sequencing)
-- [X] T044 [US1] Record the gate in `docs/m1-status.json` with `name: "M1"`, `status`, `prerequisites: ["M0"]`, non-empty `evidence[]` listing both experiment ids, and `validated_on`; update `docs/iga-v4.md` and `specs/001-ssa-level-research/checklists/requirements.md` (data-model.md ValidationGate, SC-002)
+- [X] T044 [US1] Record the gate in `docs/m1-status.json` with `name: "M1"`, `status`, `prerequisites: ["M0"]`, non-empty `evidence[]` listing both experiment ids, and `validated_on`; update `docs/format/iga-v4.md` and `specs/001-ssa-level-research/checklists/requirements.md` (data-model.md ValidationGate, SC-002)
 
 **Checkpoint**: M1 is decided on evidence. If PASS, US2 may start; if FAIL, the record names the failing stage and format research continues (spec.md edge case)
 
@@ -161,7 +161,7 @@ Single Node.js package per [plan.md](plan.md): library and CLI in `tools/ssa-arc
 - [X] T063 [US3] Add a guard in `tools/ssa-archive/cli.mjs` so no command prints a finding as an editable property unless `editable: true`; cover it with `tools/ssa-archive/tests/findings.test.mjs` (FR-013, SC-005)
 - [X] T064 [P] [US3] Create `docs/findings/README.md` documenting the record format Offset, Type, Endian, Meaning, Evidence, Confidence and the rule that an unproven finding is published as a hypothesis, never as confirmed behaviour (acceptance scenario 3)
 - [X] T065 [P] [US3] Write `docs/experiments/README.md` explaining how to reproduce any experiment from its JSON record: original dump identity, workspace, mutation, patch output and observed result
-- [X] T066 [US3] Generate `docs/iga-v4.md` from the finding records so the container documentation and the machine-readable findings cannot drift apart
+- [X] T066 [US3] Generate `docs/format/iga-v4.md` from the finding records so the container documentation and the machine-readable findings cannot drift apart
 
 **Checkpoint**: Findings and gates are traceable, labelled and reproducible
 

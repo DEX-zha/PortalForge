@@ -3,7 +3,7 @@
   "status": "PASS",
   "validated_on": "2026-09-12",
   "prerequisites": ["M0"],
-  "details": "docs/experiments/README.md, docs/iga-v4.md",
+  "details": "docs/experiments/README.md, docs/format/iga-v4.md",
   "evidence": [
     ".local/dolphin-evidence/experiments/m1-level_027_tutorial-sequential-1789233660781.json",
     ".local/dolphin-evidence/experiments/m1-level_027_tutorial-reencode-1789234744424.json",

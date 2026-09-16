@@ -1,14 +1,14 @@
-# Vérification
+# Verification
 
-1. Dans Objets, rechercher une plante puis cliquer pour révéler et cadrer.
-2. Glisser une source disponible sur la scène. Vérifier fantôme, coordonnées et altitude de secours réglable. Échap ou dépôt hors scène annule.
-3. Choisir l'objet remplacé ; lire le plan et acquitter chaque critique. Aucune édition avant confirmation.
-4. Confirmer : source conservée, copie déposée, une édition. Undo/redo restaurent tous les modèles affectés.
-5. Tester refus script/inactif, sans carte runtime, plan périmé et verrouillage. Ces objets restent sélectionnables.
-6. Sauvegarder/patcher dans un espace isolé, comparer les octets reconstruits ; deux boots identiques avec consommation FileMonitor/RAM, résultat visuel et jouabilité. Preuves dans .local/.
+1. In Objects, search for a plant then click to reveal and frame it.
+2. Drag an available source onto the scene. Check the ghost, the coordinates and the adjustable fallback altitude. Escape, or a drop outside the scene, cancels.
+3. Choose the object to replace; read the plan and acknowledge every critical rule. No edit before confirmation.
+4. Confirm: the source is preserved, the copy is dropped, one edit. Undo/redo restore every affected model.
+5. Test the refusals for scripted/inactive sources, missing runtime map, stale plan and locking. Those objects stay selectable.
+6. Save/patch in an isolated space, compare the rebuilt bytes; two identical boots with FileMonitor/RAM consumption, a visual result and playability. Evidence in .local/.
 
-npm test dans tools/ssa-archive et tools/dolphin-mcp. Navigateur dédié, session utilisateur préservée. Lots 2/3 : [recherche](research.md). Un état créé dans le niveau chargé ne recharge pas automatiquement les ressources modifiées.
+npm test in tools/ssa-archive and tools/dolphin-mcp. Dedicated browser, user session preserved. Batches 2/3: [research](research.md). A state created inside the loaded level does not automatically reload the modified assets.
 
-Contrôle WebGL reproductible depuis la racine : `node tools/ssa-archive/tests/browser-catalog.mjs`. Prérequis : Windows avec Edge, échantillon Tutorial sous `.local/workspaces/tutorial-bld/entries/3-level.bld.decoded`, carte `.local/dolphin-evidence/ptr-scan3-fixups.json`, archive originale extraite et configuration Dolphin habituelle. Le script ouvre une session isolée, utilise les événements HTML5 de dépôt, contrôle les octets et prépare un patch ; il ne lance pas Dolphin. Résultats et captures dans `.local/object-workflow/browser-*/`, dernier rapport dans `.local/object-workflow/latest-browser.json`.
+Reproducible WebGL check from the root: `node tools/ssa-archive/tests/browser-catalog.mjs`. Prerequisites: Windows with Edge, the Tutorial sample under `.local/workspaces/tutorial-bld/entries/3-level.bld.decoded`, the map `.local/dolphin-evidence/ptr-scan3-fixups.json`, the original archive extracted and the usual Dolphin configuration. The script opens an isolated session, uses the HTML5 drop events, checks the bytes and prepares a patch; it does not start Dolphin. Results and captures in `.local/object-workflow/browser-*/`, the latest report in `.local/object-workflow/latest-browser.json`.
 
-Pour utiliser le lot livré : actualiser `http://127.0.0.1:7400/`, rechercher une source **Copiable**, la glisser dans la scène, choisir la victime et confirmer le plan. Le dépôt copie l'objet ; il ne crée pas un emplacement supplémentaire.
+To use the delivered batch: refresh `http://127.0.0.1:7400/`, search for a **Copiable** source, drag it into the scene, choose the victim and confirm the plan. The drop copies the object; it does not create an extra slot.

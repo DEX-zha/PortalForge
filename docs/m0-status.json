@@ -1,8 +1,8 @@
 {
-  "gate": "M0 — Dolphin MCP opérationnel",
+  "gate": "M0 — Dolphin MCP operational",
   "status": "PASS",
   "validated_on": "2026-09-12",
-  "details": "docs/dolphin-mcp.md",
+  "details": "docs/mcp/dolphin-mcp.md",
   "evidence": [
     ".local/dolphin-evidence/m0-proof.json",
     ".local/dolphin-evidence/live-test.json",

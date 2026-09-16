@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Créer la vue 3D simple : cubes/proxies uniquement, groupés par layer, sélection souris, caméra libre, gizmos Move / Rotate / Scale. Brancher directement le contrat v1 dans l'UI : position, rotation, scale, model, behavior, layers, shared state, evidence, safety. Respecter les règles de sécurité dans l'éditeur : critiques clairement signalés, objets scriptés avec avertissement, duplication/remplacement uniquement quand le plan est valide. Implémenter Save → validation → patch → Launch Dolphin. Valider l'éditeur sur le tutoriel, puis sur au moins un second niveau réellement booté. Ensuite seulement : scripts/gameplay plus avancés, géométrie, collisions et duplication sans sacrifice."
+**Input**: User description (translated from French): "Build the simple 3D view: cubes/proxies only, grouped by layer, mouse selection, free camera, Move / Rotate / Scale gizmos. Wire the v1 contract straight into the UI: position, rotation, scale, model, behavior, layers, shared state, evidence, safety. Respect the safety rules in the editor: critical issues clearly reported, scripted objects with a warning, duplication/replacement only when the plan is valid. Implement Save → validation → patch → Launch Dolphin. Validate the editor on the tutorial, then on at least a second level actually booted. Only after that: more advanced scripts/gameplay, geometry, collisions and duplication without sacrifice."
 
 ## User Scenarios & Testing *(mandatory)*
 

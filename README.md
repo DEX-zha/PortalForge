@@ -1,13 +1,196 @@
-# PortalForge — SSA Research Toolkit
+<div align="center">
+  <img src="docs/images/portalforge-logo.png" alt="PortalForge logo" width="260" />
+  <h1>PortalForge</h1>
+  <p><b>A 3D level editor and reverse-engineering toolkit for <i>Skylanders: Spyro's Adventure</i> (Wii)</b></p>
+</div>
 
-Projet de recherche sur les niveaux personnalisés de Skylanders: Spyro’s Adventure Wii.
+<p align="center">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
+  <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-283%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
+  <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
+  <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
+  <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
+  <img alt="Scope" src="https://img.shields.io/badge/fan%20research-non--commercial-lightgrey?style=flat-square" />
+</p>
 
-## Cadre : projet de recherche et de fan
+<p align="center">
+  <a href="#what-is-portalforge">What is it</a> ·
+  <a href="#the-editor">Editor</a> ·
+  <a href="#evidence-not-vibes">Evidence</a> ·
+  <a href="#what-works-today">What works</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#documentation">Docs</a> ·
+  <a href="#how-the-project-is-developed">Development</a>
+</p>
 
-PortalForge est un projet **amateur, non commercial, de rétro-ingénierie à des fins de recherche et de préservation**. Il n'est affilié ni à Activision, ni à Toys for Bob, ni à Vicarious Visions, ni à Nintendo ; *Skylanders*, *Spyro's Adventure*, *Portal of Power* et les noms associés sont des marques de leurs propriétaires. Le dépôt ne contient et ne distribuera **aucune donnée du jeu** : ni image disque, ni archive, ni texture, ni son, ni sauvegarde, ni figurine, ni capture d'écran du jeu. Tout le travail s'effectue sur la copie légitime que possède le chercheur, via des fichiers de remplacement chargés à côté de l'image originale (Riivolution), jamais par modification de cette image. Les découvertes publiées ici décrivent des formats de fichiers et des méthodes expérimentales, avec leur niveau de confiance, pour permettre à d'autres de reproduire les expériences sur leur propre copie.
+---
 
-L'étape préliminaire obligatoire est **M0 : Dolphin MCP opérationnel**, validée le 12 septembre 2026 (`docs/m0-status.json`). Son installation, ses essais réels et ses limites sont décrits dans [le dossier Dolphin MCP](docs/dolphin-mcp.md). La recherche IGA et le développement du toolkit peuvent commencer.
+## What is PortalForge?
 
-La [spécification SSA](specs/001-ssa-level-research/spec.md) conserve les portes M1 (archive round-trip) et M2 (mutation contrôlée) avant tout éditeur. Les deux sont **PASS depuis le 12 septembre 2026** : les archives reconstruites se chargent en jeu, et une seule valeur modifiée dans `level.bld` (position d'apparition du Skylander) produit l'effet prédit de façon répétable (`docs/m1-status.json`, `docs/m2-status.json`). La porte suivante, M3 (duplication d’une entité), est **PASS depuis le 13 septembre 2026** (`docs/m3-status.json`) : un enregistrement est instancié lorsqu’une copie de même taille prend la place d’un enregistrement déjà parcouru par le chargeur, jamais par insertion. La duplication est visible en jeu (trois tournesols au lieu de deux, deux démarrages identiques), et les objets posés d’un niveau se déplacent, se retaillent et se dupliquent avec `ssa-archive edit` ; la méthode et ses limites sont décrites dans [le dossier d’édition de niveau](docs/igz-level-editing.md).
+PortalForge turns a 2011 Wii game's level files into something you can open, look at in 3D, edit, and boot —
+without ever touching the original disc image.
 
-Le MCP local se trouve dans `tools/dolphin-mcp`. Le toolkit de recherche `ssa-archive` (lecture, extraction, vérification, reconstruction et diff des archives IGA v4, décodage LZMA, workspace de patch Riivolution, expériences M1/M2 pilotées par le MCP, découvertes documentées) se trouve dans `tools/ssa-archive` ; son plan et ses contrats sont dans `specs/001-ssa-level-research/`. Les découvertes sur le format sont dans `docs/iga-v4.md` et `docs/findings/`, les portes dans `docs/m*-status.json` (`node cli.mjs gates`). Les binaires Dolphin, profils, patches et preuves de test restent dans `.local/`, exclu du versionnement.
+It is three things in one repository:
+
+- **A format toolkit** — readers, writers and diffing for the game's `IGA v4` archives and the `IGZ v5` object
+  graphs inside them, including the LZMA chunking, the placement records, the scripts and the GX mesh geometry.
+- **A 3D editor** — a local server plus a browser view (Three.js, no bundler) that shows a level's real geometry
+  and its 673 placements, lets you move, rotate, duplicate and **add** objects, and compiles the result back into
+  a Riivolution patch.
+- **An experiment harness** — a dedicated Dolphin instance driven over MCP, with input macros, memory reads,
+  screenshots and machine-checked experiment records, so that every claim about the game can be reproduced.
+
+Nothing here modifies your disc image: edits are shipped as replacement files loaded next to the original
+through Riivolution, exactly the way the retail game reads them.
+
+## The editor
+
+![PortalForge editor](docs/images/editor-workspace.png)
+
+A Unity-like workspace: **Hierarchy** and layers on the left, the **Scene** in the middle with real decoded
+meshes and Move/Rotate/Scale gizmos, the **Inspector** on the right (position, model, behaviour script, layers,
+shared state, evidence and safety flags), and the **Project** browser at the bottom with categories and 3D
+thumbnails generated from the level's own geometry.
+
+The toolbar chain is the whole workflow: **Save → Patch → Launch**. Launch owns its own Dolphin, runs the
+tutorial macro, captures every step and closes cleanly — or drops you straight into the level to play it yourself.
+
+## Evidence, not vibes
+
+Every capability in this repository has to survive the same rule: **two identical cold boots, a proven file
+consumption, and a visual result** — a boot that merely succeeds proves nothing, and neither does a memory write.
+
+| A duplicated prop, in game | Eight native additions, in game | The additions during play |
+|---|---|---|
+| ![Three sunflowers instead of two](docs/images/evidence-duplicated-sunflower.png) | ![Extra barrel, coins and Chompies around Hugo](docs/images/evidence-native-additions-hugo.png) | ![Added enemies attacking the Skylander](docs/images/evidence-native-additions-combat.png) |
+| A third sunflower copied over a weed slot, with the original pair untouched (`editor-test-1789503985200`, 2/2 boots) | A barrel, coins and Chompy Nippers created natively next to Hugo — nothing was sacrificed to make room (`editor-direct-play-1789592930696`) | The same additions keep their scripts and activation ranges: they move, fight and can be destroyed |
+
+Each of those runs has a machine-readable record under `.local/dolphin-evidence/experiments/`, a finding in
+[`docs/findings/`](docs/findings/) carrying its confidence level (CONFIRMED / LIKELY / UNKNOWN), and a written
+scope stating what the run does **not** prove.
+
+## What works today
+
+| Capability | State | Where it is proven |
+|---|---|---|
+| Read, verify, rebuild and diff `IGA v4` archives (`.arc` / `.bld`, LZMA) | **CONFIRMED** | [`docs/format/iga-v4.md`](docs/format/iga-v4.md), gate M1 |
+| Change one value in a level and see the predicted in-game effect | **CONFIRMED** | gate M2 |
+| Duplicate a record by same-size replacement (never by insertion) | **CONFIRMED** | gate M3, [`docs/format/igz-level-editing.md`](docs/format/igz-level-editing.md) |
+| Move / rotate / re-place props from the 3D editor | **CONFIRMED** | [`specs/003-placement-editor-3d/`](specs/003-placement-editor-3d/) |
+| Decode the level's GX mesh geometry and draw the real scenery | **LIKELY**, read-only | [`docs/format/igz-mesh-geometry.md`](docs/format/igz-mesh-geometry.md) |
+| Translate a scripted prop together with its private trajectory | **CONFIRMED** | [`docs/editor/scripted-movement.md`](docs/editor/scripted-movement.md) |
+| **Add** up to eight extra objects with no victim, from nine exact sources | **CONFIRMED** (tutorial, SSPP52 Rev1) | [`specs/005-native-object-addition/validation.md`](specs/005-native-object-addition/validation.md) |
+| Boot straight into the edited tutorial, skipping the menus | **CONFIRMED** (tutorial only) | [`docs/editor/direct-entry.md`](docs/editor/direct-entry.md) |
+| Cross-level import, new geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4A / M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
+
+`node tools/ssa-archive/cli.mjs gates` prints the current state of every gate with its evidence.
+
+## How it works
+
+```
+your own disc image (WBFS, never modified)
+        │  extract
+        ▼
+IGA v4 archive  ──decode──▶  IGZ v5 entry  ──parse──▶  placements · scripts · models · meshes
+        ▲                                                        │
+        │ rebuild (same layout, re-encoded entry)                │ edit in the 3D view
+        │                                                        ▼
+Riivolution patch  +  Gecko companion (native additions)  ◀──  save plan (every changed word justified)
+        │
+        ▼
+dedicated Dolphin (MCP) ──▶ input macro ──▶ memory reads + screenshots ──▶ experiment record
+```
+
+The save plan is the safety rail: it is built **before** the write, checked word by word against the bytes that
+are about to be written, and any byte outside an edited attribute makes the whole save refuse rather than degrade.
+
+## Getting started
+
+**Prerequisites** — Windows, Node.js 24, your own legitimate copy of the game as a WBFS image, and the Dolphin
+research profile described in [`docs/mcp/dolphin-mcp.md`](docs/mcp/dolphin-mcp.md). No game data ships with this
+repository, and none ever will.
+
+```powershell
+# 1. install (two independent packages, no bundler)
+cd tools/dolphin-mcp   ; npm ci --ignore-scripts ; npm test
+cd ../ssa-archive      ; npm ci --ignore-scripts ; npm test
+
+# 2. point the toolkit at your own image
+#    .local/dolphin-config.json  ->  { "game": "D:/path/to/SSA.wbfs" }
+node cli.mjs identify --game "D:/path/to/SSA.wbfs"
+
+# 3. extract a level and decode its entries
+node cli.mjs disc-extract --game "D:/path/to/SSA.wbfs" --path level/Level_027_Tutorial.bld --out .local/samples
+node cli.mjs extract .local/samples/DATA/files/level/Level_027_Tutorial.bld --out .local/workspaces/tutorial-bld --decode
+
+# 4. open the 3D editor
+node cli.mjs edit serve .local/workspaces/tutorial-bld/entries/3-level.bld.decoded \
+  --archive level/Level_027_Tutorial.bld --entry 3 --port 7400 --open
+```
+
+Then edit in the browser and press **Save → Patch → Launch**. The launcher owns its own Dolphin instance in
+`.local/dolphin-user/`; your personal Dolphin installation is never driven, and the WBFS is never written to.
+
+> The editor server must be started from a terminal that is allowed to create processes. A server started inside
+> a restricted sandbox fails at launch time with `spawn EPERM` — see
+> [`docs/editor/dolphin-workflow.md`](docs/editor/dolphin-workflow.md).
+
+## Repository layout
+
+```
+tools/ssa-archive/     the toolkit: CLI, IGA/IGZ readers and writers, editor server, 3D view, tests
+tools/dolphin-mcp/     the Dolphin MCP server, Python bridge and native UI helpers
+specs/                 spec-kit features: spec, plan, research, data model, contracts, tasks, validation
+docs/format/           file-format documentation (IGA v4, IGZ level editing, mesh geometry)
+docs/editor/           editor workflow, direct entry, scripted movement, scene poses, roadmap
+docs/mcp/              the Dolphin MCP dossier and the M0 gate
+docs/findings/         every finding, with confidence, evidence and editable scope
+docs/experiments/      how an experiment is run and judged
+docs/reports/          generated corpus reports
+docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
+.local/                everything game-derived: profiles, patches, dumps, captures — never committed
+```
+
+## Documentation
+
+- **Start here** — [`docs/README.md`](docs/README.md) indexes every document.
+- **Formats** — [IGA v4 containers](docs/format/iga-v4.md) · [IGZ level editing](docs/format/igz-level-editing.md) · [mesh geometry](docs/format/igz-mesh-geometry.md)
+- **Editor** — [roadmap](docs/editor/roadmap.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
+- **Runtime** — [Dolphin MCP, gate M0](docs/mcp/dolphin-mcp.md) · [how experiments are judged](docs/experiments/README.md)
+- **Findings** — [index](docs/findings/) with one JSON record per claim, rendered to Markdown by `cli.mjs findings render`
+- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/)
+
+## How the project is developed
+
+**Spec first.** Every feature starts as a spec-kit folder under `specs/`: specification, plan, research, data
+model, contracts, tasks, then a validation report written after the runs — not before. Tasks carry a real state;
+a documented batch is never reported as a delivered one.
+
+**Gates before capabilities.** M0 (runtime), M1 (archive round-trip), M2 (controlled mutation) and M3 (entity
+duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are UNKNOWN, and no tool is allowed
+to pretend otherwise. A property is only made editable once its finding is CONFIRMED.
+
+**Tests and reproduction.** 283 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus a scripted WebGL
+browser run and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
+successes — the research files are full of them, because they are what makes the successes trustworthy.
+
+**AI in the loop, including local models.** PortalForge is built with coding agents (Codex CLI and Claude Code)
+and with **local inference running on two NVIDIA DGX Spark units**. Keeping a local tier matters here for a
+practical reason: the material this project reasons over is game-derived — memory dumps, decoded archives and
+in-game captures — and it stays on the researcher's own hardware. The agents write code, documentation and
+experiment plans; the gates, the two-boot rule and the tests are what decide whether any of it is true.
+
+## Scope, and what this project is not
+
+PortalForge is an **amateur, non-commercial reverse-engineering project for research and preservation**. It is
+not affiliated with Activision, Toys for Bob, Vicarious Visions or Nintendo; *Skylanders*, *Spyro's Adventure*,
+*Portal of Power* and the related names belong to their respective owners.
+
+The repository contains **no game data**: no disc image, no archive, no texture, no sound, no save and no figure
+dump. All work happens on the copy the researcher legally owns, through replacement files loaded beside the
+original image, never by modifying it. The few in-game screenshots published above are illustrative evidence for
+documented experiments; the bulk of the captures, dumps and reports stays in the untracked `.local/` folder.
+
+What is published here is a description of file formats and experimental methods, each with its confidence
+level, so that other people can reproduce the experiments on their own copy.

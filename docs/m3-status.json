@@ -51,7 +51,7 @@
         "M4B collisions",
         "M5 playable scenario"
     ],
-    "details": "docs/igz-level-editing.md, docs/experiments/README.md, docs/findings/references.md, docs/findings/world-entities.md",
+    "details": "docs/format/igz-level-editing.md, docs/experiments/README.md, docs/findings/references.md, docs/findings/world-entities.md",
     "validated_on": "2026-09-13",
     "pass_experiment": "m3-level_027_tutorial-e3-1789301970935",
     "pass_summary": "Entity duplication demonstrated: a byte-identical copy of PlacementReference 0x123138 written over its successor slot 0x1231A8 (6 words changed, zero shift, no table/count/size change) is constructed by the loader (class 0x8049C738, reached through P.next), processed by the post-load phase like an original, and the level loads and plays in 2/2 formal runs (+1 screening). Two live instances of the same record coexist in the chain. Observable: RAM reads (experiment m3 --read) + level playing; judged with experiment m2-judge."

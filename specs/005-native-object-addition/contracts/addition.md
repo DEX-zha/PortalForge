@@ -1,15 +1,19 @@
-# Contrat de résultat de l'ajout
+# Result contract for an addition
 
-`POST /api/edit` accepte `{kind:"add", source:3446244, position:[x,y,z]}`. Aucun paramètre de victime. La réponse fournit `placement.native_addition`, une identité négative, `rebuild_scene:true` et les profondeurs d'historique. `GET /api/placement/-1` fonctionne pour les copies ; `transform` accepte leur position et heading, pas leur scale.
+`POST /api/edit` accepts `{kind:"add", source:3446244, position:[x,y,z]}`. No victim parameter. The response gives `placement.native_addition`, a negative identity, `rebuild_scene:true` and the history depths. `GET /api/placement/-1` works for the copies; `transform` accepts their position and heading, not their scale.
 
-`GET /api/catalog` annonce `addition_mode:"native"`, `entry.addition.{available,reason,status,label,testable,family,checks,report}` et `compatibility.{counts,families}`. Le Project utilise cette capacité pour Add ; les anciennes routes de remplacement restent explicites. Sources non confirmées : diagnostic et raison anglaise. Limite actuelle : deux copies au total issues des sources exactes tournesol3446244, Barrel3983352, Enemy_ChompyNipper2390540 ou 1_Coper(1)3034548 validées, échelle100%, tutoriel SSPP52 Rev1.
+`GET /api/catalog` announces `addition_mode:"native"`, `addition_capacity:{used,limit:8}`, `entry.addition.{available,reason,status,label,testable,family,checks,report}` and `compatibility.{counts,families}`. Project uses that capacity for Add; the old replacement routes stay explicit. Unconfirmed sources: a diagnostic and an English reason. Current limit: eight copies in total drawn from the nine exact sources listed in compatibility.md, scale 100 %, SSPP52 Rev1 tutorial.
 
-- Entrée : source, position finie, orientation/échelle dans le périmètre validé. Pas de victime.
-- Résultat : identité nouvelle, transform résultant, historique et statut d'export. Aucun succès pour une copie seulement affichée.
-- Refus : source/recette non confirmée, dépendance absente, session verrouillée, destination invalide, limite de création atteinte. Message anglais, état précédent conservé.
-- La sauvegarde et le patch doivent reproduire l'ajout à froid ; une mutation RAM faite manuellement n'est qu'une preuve exploratoire.
-- Critère de publication : nouvelle instance visible 2/2 boots, originaux conservés, preuve de consommation du même patch.
+- Input: source, finite position, orientation/scale within the validated scope. No victim.
+- Result: a new identity, the resulting transform, the history and the export status. No success for a copy that is merely displayed.
+- Refusal: unconfirmed source/recipe, missing dependency, locked session, invalid destination, creation limit reached. English message, previous state preserved.
+- The save and the patch must reproduce the addition from a cold boot; a RAM mutation done by hand is only exploratory evidence.
+- Publication criterion: a new instance visible on 2/2 boots, originals preserved, proof that the same patch was consumed.
 
-`POST /api/addition-validation` accepte `{sources:[offset]}` (une ou deux sources originales distinctes), verrouille la scène et retourne immédiatement `{running:true}`. Deux démarrages à froid vérifient les familles sans modifier la scène. `GET` fournit running/progress/result/error ; `POST /api/addition-validation/stop` demande l'annulation. Le niveau original est requis pour cette sonde.
+`POST /api/addition-validation` accepts `{sources:[offset]}` (one or two distinct original sources), locks the scene and returns `{running:true}` at once. Two cold boots check the families without modifying the scene. `GET` gives running/progress/result/error; `POST /api/addition-validation/stop` requests cancellation. The original level is required for this probe.
 
-`GET /addition-report/<family-sha256>` affiche le rapport et toute la séquence de captures du tutoriel. `GET /api/addition-report/<family-sha256>` fournit les données techniques et liens ; `/shot/<run>/<shot>` sert seulement les images locales du dossier de preuves. Ces rapports ne promeuvent pas automatiquement de finding.
+`GET /addition-report/<family-sha256>` shows the report and the whole capture sequence of the tutorial. `GET /api/addition-report/<family-sha256>` gives the technical data and the links; `/shot/<run>/<shot>` serves only the local images from the evidence folder. Those reports do not promote any finding automatically.
+
+`GET /api/level-entry` gives `{supported,preparation}` for the open archive. `supported` requires the tutorial and the CONFIRMED/editable finding; the interface disables the direct choices elsewhere. The existing launch route also accepts `mode:"direct-test"|"direct-play"`. The preparation uses the current virtual disc before the native codes are installed, then the launch starts a new process. Progress: `preparing-entry`, `booting`, `restoring-entry`, `macro`, then `playing` or closing. An FST table mismatch produces an explicit failure; there is no silent resume onto a loaded state.
+
+`POST /api/launch` accepts `skip_intro:boolean` (default false), passed to the launcher and kept in the launch's state/report. `true` requires the tutorial archive and the test/direct-test/direct-play mode; manual mode, another archive or a non-boolean value are refused before locking. The browser preference modifies neither the patch nor the entry cache. The pre-level preparation does not receive the skip. The optional macro waits for the archive and the start of the dialogue, sends C to the Nunchuk once, then keeps handling the prompts. Direct-play mode ends at the Skylander control marker, not at an index that became wrong once the steps were inserted.

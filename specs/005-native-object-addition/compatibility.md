@@ -41,8 +41,13 @@ The automated verifier checks the requested **initial** transform separately fro
 | Barrel | 3983352 | Barrel.ai |
 | Enemy_ChompyNipper | 2390540 | Enemy_Chompy.ai |
 | 1_Coper(1) | 3034548 | Placed_Loot_Spinning.ai |
+| Enemy_ChompyNipper(1) | 2347820 | Enemy_Chompy.ai |
+| Enemy_ChompyClamper | 2357236 | Enemy_Chompy.ai |
+| 1_Coper(2) | 3040688 | Placed_Loot_Spinning.ai |
+| sunflower_Template(2) | 3451516 | No placement script |
+| weed_2_Template(8) | 3452000 | No placement script |
 
-Use **Can add** to find these four sources. The limit remains two added objects per patch, original 100% scale, tutorial SSPP52 Rev1 and a cold editor-owned Dolphin launch. Regenerate existing scripted-addition patches after updating the editor.
+Use **Can add** to find these nine sources. The limit is eight added objects per patch, shown as `0/8 added` in Project, with original 100% scale, tutorial SSPP52 Rev1 and an editor-owned Dolphin launch. The ninth addition is refused without changing the scene. Regenerate existing scripted-addition patches after updating the editor. Eight mixed additions passed two identical cold boots; the five new exact sources are covered by `level.prop.native-addition-expanded`.
 
 ## Remaining research
 

@@ -121,7 +121,7 @@ As a reverse-engineering contributor, I want every archive and level finding to 
 
 - The MVP is a strongly transformed replacement of an existing selectable level, not a new menu chapter or an altered original game image.
 - The first mandatory feasibility gates are M1 (archive round-trip) and M2 (controlled world mutation).
-- M0 is the mandatory environment prerequisite before those feasibility experiments; it does not prove M1 or any level-editing capability. Its acceptance and evidence are tracked in `docs/dolphin-mcp.md`.
+- M0 is the mandatory environment prerequisite before those feasibility experiments; it does not prove M1 or any level-editing capability. Its acceptance and evidence are tracked in `docs/mcp/dolphin-mcp.md`.
 - Object duplication, geometry, collision, gameplay sequences, and a full editor remain later research gates, respectively M3, M4A, M4B, and M5.
 - New playable character content, Portal changes, custom multiplayer, custom cinematics, new shaders, new music, and distribution of modified game images are outside this feature’s initial scope.
 

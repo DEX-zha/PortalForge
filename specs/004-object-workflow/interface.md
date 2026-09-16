@@ -1,50 +1,50 @@
-# Interface inspirée de Unity — 2026-09-15
+# Unity-inspired interface — 2026-09-15
 
-## Correctifs après utilisation
+## Fixes after use
 
-L'interface est désormais entièrement en anglais : navigation, catégories, inspecteur, aide, confirmations, statuts et erreurs de lancement. Les noms et chemins provenant des données du jeu restent inchangés. Les descriptions françaises ci-dessous relatent la première version de la disposition.
+The interface is now entirely in English: navigation, categories, inspector, help, confirmations, statuses and launch errors. Names and paths that come from the game data stay unchanged. The descriptions below report the first version of the layout.
 
-- [x] UI06 Dépôt par clic maintenu : pointerdown/move/up avec capture du pointeur sur le Projet, seuil de 5 px et aperçu à la position du curseur. Relâcher dans le canvas prépare le remplacement ; Échap, perte de capture/focus et abandon hors scène annulent sans édition. Un simple clic conserve la sélection. Le chemin HTML5 reste compatible, mais le geste souris ne dépend plus de son déclenchement par la fenêtre hôte.
-- [x] UI07 Ajouter **Reset scene** dans la barre de la scène, avec confirmation. Restaurer l'état à l'ouverture en rejouant les annulations exactes des transformations et remplacements ; garder Redo, effacer la sélection, rétablir la visibilité initiale et recadrer le niveau. Détacher sauvegarde et patch de la session pour éviter de relancer un ancien résultat, sans supprimer les fichiers. Refuser pendant une opération ou un lancement Dolphin.
-- [x] UI08 Traduire tous les textes de l'interface en anglais, y compris infobulles, accessibilité, dossiers et erreurs serveur. Les cartes **Copy** acceptent le dépôt ; **View only** expose le motif de refus par infobulle et dans la barre de statut au clic. Le filtre **Copyable** isole les sources admissibles.
-- [x] UI09 Vérifier le geste avec des événements souris natifs du navigateur, depuis le nom et la miniature, deux destinations distinctes, Échap et abandon hors scène. Vérifier annulation du reset, reset exact après copie + déplacement + sauvegarde, préservation du fichier sauvegardé et récupération des deux éditions par Redo. Actualiser le serveur en conservant l'historique utilisateur.
+- [x] UI06 Press-and-hold drop: pointerdown/move/up with pointer capture on the Project pane, a 5 px threshold and a preview at the cursor position. Releasing inside the canvas prepares the replacement; Escape, loss of capture/focus and abandoning outside the scene cancel with no edit. A plain click keeps the selection. The HTML5 path stays compatible, but the mouse gesture no longer depends on the host window triggering it.
+- [x] UI07 Add **Reset scene** to the scene bar, with confirmation. Restore the state as it was when opened by replaying the exact undos of the transforms and replacements; keep Redo, clear the selection, restore the initial visibility and re-frame the level. Detach the save and the patch from the session so an old result cannot be relaunched, without deleting any file. Refuse during an operation or a Dolphin launch.
+- [x] UI08 Translate every interface text into English, including tooltips, accessibility, folders and server errors. **Copy** cards accept the drop; **View only** exposes the refusal reason in a tooltip and in the status bar on click. The **Copyable** filter isolates the eligible sources.
+- [x] UI09 Check the gesture with the browser's native mouse events, from the name and from the thumbnail, two distinct destinations, Escape and abandoning outside the scene. Check cancelling the reset, an exact reset after copy + move + save, preservation of the saved file and recovery of both edits through Redo. Refresh the server while keeping the user's history.
 
-Validation : **250/250 tests SSA et 6/6 tests MCP PASS**. Scénario Edge/WebGL complet avec entrées souris CDP, sans DragEvent synthétique, passé ; dépôt à deux positions distinctes, confirmations du remplacement inchangées, reset et Redo exacts. Disposition vérifiée à 1280×800 et langue anglaise contrôlée. Rapport et captures locaux : `.local/object-workflow/browser-1789509022615/` (`reset-confirmation.png`, `reset-complete.png`). Commande : `node tools/ssa-archive/tests/browser-catalog.mjs --no-patch` ; retirer l'option pour construire aussi le patch.
+Validation: **250/250 SSA tests and 6/6 MCP tests PASS**. Full Edge/WebGL scenario with CDP mouse input, with no synthetic DragEvent, passed; a drop at two distinct positions, the replacement confirmations unchanged, and an exact reset and Redo. Layout checked at 1280×800 and the English wording reviewed. Local report and captures: `.local/object-workflow/browser-1789509022615/` (`reset-confirmation.png`, `reset-complete.png`). Command: `node tools/ssa-archive/tests/browser-catalog.mjs --no-patch`; drop the option to build the patch as well.
 
-Le chemin HTML5 fonctionnait dans Edge isolé avec une séquence souris complète ; une cause unique dans toutes les fenêtres hôtes n'est pas établie. Le nouveau gestionnaire prend directement en charge le geste décrit. Il ne rend pas copiables les objets scriptés/inactifs dont la duplication reste non confirmée : les 48 sources copiables du tutoriel et les règles de remplacement restent identiques. Aucune recette d'archive modifiée, aucun nouveau test en jeu revendiqué. Serveur actualisé avec conservation vérifiée de la session `s_d58eb87d`, de sa sauvegarde, de son patch et de ses 44 Redo.
+The HTML5 path worked in an isolated Edge with a complete mouse sequence; a single cause across every host window is not established. The new handler supports the described gesture directly. It does not make scripted/inactive objects copyable when their duplication is still unconfirmed: the tutorial's 48 copyable sources and the replacement rules stay identical. No archive recipe was modified and no new in-game test is claimed. Server refreshed with verified preservation of session `s_d58eb87d`, of its save, of its patch and of its 44 Redo steps.
 
-Demande : simplifier l'ensemble de l'éditeur, avec explorateur en bas, dossiers/catégories et sous-dossiers, noms puis prévisualisations 3D.
+Request: simplify the editor as a whole, with the browser at the bottom, folders/categories and sub-folders, names then 3D previews.
 
-## Spécification
+## Specification
 
-- Barre principale compacte pour outils de transformation, annulation, sauvegarde, patch et lancement.
-- Hiérarchie des placements à gauche ; calques accessibles dans un onglet distinct. Scène centrale et inspecteur à droite, propriétés avant réglages du lancement.
-- Panneau Projet en bas : arbre de catégories/sous-catégories, fil d'Ariane, recherche et filtres, grille de cartes avec nom au-dessus de l'aperçu 3D. La catégorie est un classement de navigation dérivé des noms/modèles, pas un parent moteur ou un dossier écrit sur disque.
-- Miniatures produites à partir des meshes réellement décodés, cadrage automatique et cache par modèle ; géométrie absente signalée explicitement. Un renderer partagé, génération progressive des cartes visibles, aucun contexte WebGL par carte.
-- Hauteur du panneau et taille des vignettes réglables, préférences locales. Sélection cohérente entre hiérarchie, scène et Projet. Glisser-déposer et confirmations du lot 1 préservés.
-- Aucun changement de données du jeu ou de recette de patch. Aucun redémarrage du serveur ni reconstruction de l'historique requis.
+- A compact main bar for the transform tools, undo, save, patch and launch.
+- Placement hierarchy on the left; layers reachable in a separate tab. Scene in the centre and inspector on the right, properties before the launch settings.
+- Project panel at the bottom: a tree of categories/sub-categories, breadcrumbs, search and filters, a card grid with the name above the 3D preview. A category is a navigation classification derived from the names/models, not an engine parent nor a folder written to disc.
+- Thumbnails produced from the meshes actually decoded, with automatic framing and a per-model cache; missing geometry is reported explicitly. One shared renderer, progressive generation of the visible cards, no WebGL context per card.
+- Adjustable panel height and thumbnail size, with local preferences. Selection consistent between hierarchy, scene and Project. The drag and drop and the confirmations of batch 1 are preserved.
+- No change to the game data or to the patch recipe. No server restart and no history rebuild required.
 
-Référence de disposition : [Unity — Project window, vue en deux colonnes](https://docs.unity.cn/Manual/ProjectView.html). Les noms restent au-dessus des aperçus conformément à la demande.
+Layout reference: [Unity — Project window, two-column view](https://docs.unity.cn/Manual/ProjectView.html). The names stay above the previews, as requested.
 
-## Plan et tâches
+## Plan and tasks
 
-- [x] UI01 Réorganiser index.html et ajouter workspace.css / workspace.mjs : panneaux, onglets et redimensionnement.
-- [x] UI02 Ajouter classification pure dans asset-folders.mjs et grille/arbre dans catalog.mjs.
-- [x] UI03 Produire les miniatures locales dans thumbnails.mjs ; chargement différé, cache et géométrie manquante.
-- [x] UI04 Relier les sélections et préserver le dépôt, undo/redo, réglages et historique.
-- [x] UI05 Vérifier arborescence, aperçus réels, redimensionnement, recherche, dépôt et absence de mutation de la session utilisateur ; mettre à jour le compte rendu.
-- [x] UI10 Supprimer le bouton imbriqué dans les `summary` de dossiers ; utiliser le titre natif et vérifier sélection/repliement avec Espace et Entrée. Scénario Edge PASS dans `.local/object-workflow/browser-1789509766825` : aucun contrôle interactif imbriqué, aucune erreur navigateur. Le dépôt testé reste un remplacement ; l'ajout réel est suivi dans la spec 005.
+- [x] UI01 Reorganise index.html and add workspace.css / workspace.mjs: panels, tabs and resizing.
+- [x] UI02 Add pure classification in asset-folders.mjs and the grid/tree in catalog.mjs.
+- [x] UI03 Produce the local thumbnails in thumbnails.mjs; lazy loading, cache and missing geometry.
+- [x] UI04 Connect the selections and preserve the drop, undo/redo, settings and history.
+- [x] UI05 Check the tree, the real previews, resizing, search, the drop and the absence of mutation in the user's session; update the report.
+- [x] UI10 Remove the button nested inside the folder `summary` elements; use the native title and check selection/collapsing with Space and Enter. Edge scenario PASS in `.local/object-workflow/browser-1789509766825`: no nested interactive control, no browser error. The drop under test is still a replacement; real addition is tracked in spec 005.
 
-## Acceptation
+## Acceptance
 
-Sur le tutoriel, les 673 placements restent accessibles ; ouvrir Végétation puis Fleurs filtre correctement sans édition. Un tournesol possède une miniature non vide sous son nom. Sélection depuis la hiérarchie ou la scène met à jour l'inspecteur et les cartes. Le panneau bas se redimensionne sans canvas nul ; les contrôles restent accessibles à 1280×800. Dépôt puis undo/redo passent le scénario navigateur existant. Les octets de patch ne changent pas du fait de la refonte.
+In the tutorial the 673 placements stay reachable; opening Vegetation then Flowers filters correctly with no edit. A sunflower has a non-empty thumbnail under its name. Selecting from the hierarchy or from the scene updates the inspector and the cards. The bottom panel resizes without a zero-sized canvas; the controls stay reachable at 1280×800. Drop then undo/redo pass the existing browser scenario. The patch bytes do not change because of the rework.
 
-## Validation réalisée
+## Validation carried out
 
-- Suite SSA : **248/248 tests PASS**, y compris les nouveaux tests de partition des dossiers et les tests existants de l'inspecteur.
-- Navigateur Edge/WebGL : 673 objets et 673 entrées de hiérarchie ; sous-dossier Végétation/Fleurs = 21 placements ; miniature du tournesol chargée sous le nom ; sélection synchronisée ; onglets, hauteur du Projet et barre supérieure vérifiés à 1280×800. Recherche mesurée à 4,2 ms.
-- Scénario de dépôt complet : choix de victime, critiques, confirmation, nouvelle opération disponible, undo/redo exacts et rechargement des modèles. Aucune exception navigateur. Le scénario a utilisé une copie isolée et préparé son patch, sans lancer Dolphin. Les recettes de patch n'ont pas été modifiées par ce travail d'interface.
-- Captures inspectées : `.local/object-workflow/browser-1789507926510/workspace-sunflower.png` et `workspace-1280.png`. Rapport dans ce dossier ; aucune image de jeu dans Git.
-- Session ouverte préservée, vérifiée par `.local/object-workflow/check-live.mjs` : même identifiant, sauvegarde, patch, 0 éditions appliquées et 44 Redo. Aucun redémarrage du serveur nécessaire ; actualiser la page charge les nouveaux fichiers.
+- SSA suite: **248/248 tests PASS**, including the new folder-partition tests and the existing inspector tests.
+- Edge/WebGL browser: 673 objects and 673 hierarchy entries; the Vegetation/Flowers sub-folder = 21 placements; the sunflower thumbnail loaded under the name; selection synchronised; tabs, Project height and top bar checked at 1280×800. Search measured at 4.2 ms.
+- Full drop scenario: victim choice, critical rules, confirmation, a new operation available, exact undo/redo and model reloading. No browser exception. The scenario used an isolated copy and prepared its patch, without starting Dolphin. The patch recipes were not modified by this interface work.
+- Captures inspected: `.local/object-workflow/browser-1789507926510/workspace-sunflower.png` and `workspace-1280.png`. Report in that folder; those captures stay local.
+- Open session preserved, checked by `.local/object-workflow/check-live.mjs`: same identifier, save, patch, 0 applied edits and 44 Redo steps. No server restart needed; refreshing the page loads the new files.
 
-Les miniatures sont des aperçus gris de la géométrie déjà décodée : elles ne prétendent pas restituer les matériaux, animations ou assemblages pilotés par scripts. Les catégories peuvent être imparfaites pour les noms inconnus, qui restent accessibles dans Autres et par recherche.
+The thumbnails are grey previews of geometry that is already decoded: they do not claim to reproduce materials, animations or script-driven assemblies. The categories may be imperfect for unknown names, which stay reachable under Others and through search.

@@ -63,7 +63,7 @@ done, because every story reads a session over the contract.
 **Goal**: open a level, see one box per placement grouped by layer, fly the camera, click an object and read
 every attribute of the frozen record with the evidence that produced it.
 
-**Independent Test**: open the tutorial, confirm the count and the layer list against `docs/placement-corpus-v1.json`,
+**Independent Test**: open the tutorial, confirm the count and the layer list against `docs/reports/placement-corpus-v1.json`,
 select the windmill blades and confirm the inspector matches what that report states for `0x324C44`.
 
 ### Tests for User Story 1
@@ -175,7 +175,7 @@ result against the prediction stated before the boot.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T055 [P] Write the editor section of `docs/igz-level-editing.md`: how to start it, what the view shows, what it refuses and why, with the boot evidence behind each refusal
+- [ ] T055 [P] Write the editor section of `docs/format/igz-level-editing.md`: how to start it, what the view shows, what it refuses and why, with the boot evidence behind each refusal
 - [ ] T056 [P] Add the editor commands to `tools/ssa-archive/README.md` and to the CLI usage banner in `tools/ssa-archive/cli.mjs`
 - [ ] T057 Measure the open-to-visible time on the 673-placement tutorial and the frame rate while orbiting, and record both in `specs/003-placement-editor-3d/quickstart.md` notes; if the open exceeds five seconds, cache the resolved session rather than weakening the target (SC-001)
 - [ ] T058 Run the regression block of `quickstart.md`: the whole `node --test` suite passes, `ssa-archive corpus` still validates every record against the frozen contract, and the boot-confirmed duplication still reproduces `sunflower-dup.decoded` byte for byte
@@ -283,7 +283,7 @@ purpose, and a test written after the fact does not become a test written before
 
 ### Follow-up: missing static scenery (2026-09-14)
 
-- [x] T060 Reproduce the decoded-versus-rendered coverage gap, with tutorial/Mining and local corpus evidence in `docs/editor-missing-scenery-study.md`.
+- [x] T060 Reproduce the decoded-versus-rendered coverage gap, with tutorial/Mining and local corpus evidence in `docs/editor/missing-scenery-study.md`.
 - [x] T061 Add regression tests before implementation in `tests/editor-scenery.test.mjs`: no duplicate descriptors, exclude UI/local-space resources, preserve coordinates and placement edits.
 - [x] T062 Extend `src/editor/meshes.mjs` and the API contract with batched, read-only world scenery and explicit unresolved/unique-assignment counters.
 - [x] T063 Add world rendering, a Décor toggle and large-surface preview control in `src/view/`; include scenery in `src/editor/preview.mjs`.
@@ -291,7 +291,7 @@ purpose, and a test written after the fact does not become a test written before
 
 ### Follow-up: scripted movement (2026-09-15)
 
-- [x] T065 Reproduce a Barrel placement translation in two boots of the same patch; distinguish loaded bytes, actor transforms and visible results in `docs/editor-scripted-movement.md`.
+- [x] T065 Reproduce a Barrel placement translation in two boots of the same patch; distinguish loaded bytes, actor transforms and visible results in `docs/editor/scripted-movement.md`.
 - [x] T066 Write failing tests for explicit clone-anchor navigation, resource versus active placement diagnosis, shared model independence and inspector guidance.
 - [x] T067 Extend `src/editor/script-diagnostics.mjs` and the inspector with candidate creator links and scoped movement explanations; preserve existing writers.
 - [x] T068 Verify actual browser selection/edit/undo through the new navigation, run both local test suites, and update the running editor while preserving user edits and undo history.

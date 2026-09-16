@@ -86,4 +86,4 @@ Expected: two runs with identical inputs, both `observed_effect` matching the pr
 node cli.mjs gates
 ```
 
-Expected: M0 PASS, M1/M2 statuses from their status files, M3 to M5 UNKNOWN. `docs/iga-v4.md` and `docs/findings/*.md` contain one record per field with Offset, Type, Endian, Meaning, Evidence, Confidence; no UNKNOWN finding is exposed by any CLI command as editable.
+Expected: M0 PASS, M1/M2 statuses from their status files, M3 to M5 UNKNOWN. `docs/format/iga-v4.md` and `docs/findings/*.md` contain one record per field with Offset, Type, Endian, Meaning, Evidence, Confidence; no UNKNOWN finding is exposed by any CLI command as editable.

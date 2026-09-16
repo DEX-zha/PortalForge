@@ -1,79 +1,84 @@
-# Feature Specification: Ajout réel d'objets supplémentaires
+# Feature Specification: Real addition of extra objects
 
-**Feature Branch**: `main` (dossier indépendant de la branche)
+**Feature Branch**: `main` (folder independent from the branch)
 **Created**: 2026-09-16
-**Status**: Premier périmètre implémenté et validé ; parcours éditeur → patch → deux boots PASS. Voir validation.md.
-**Input**: Glisser un objet du Project dans la Scene comme Unity pour créer une instance supplémentaire devant la caméra. Choix explicite : « Ajout réel dans le jeu », pas de copie réservée à l'éditeur.
+**Status**: Implemented and validated: nine exact sources, eight additions and direct tutorial entry. The editor path, the patch and Dolphin all PASS; the other levels remain to be studied. See validation.md.
+
+**Extension requested on 2026-09-16**: aim for eight additions per patch, widen the confirmed sources and launch the level directly to speed up editing. A direct entry must load the bytes of the current patch, including after the additions have been modified; an old restored scene is not evidence. The first protocol targets the tutorial; the other levels then require their own strategy and their own evidence. The interface keeps a plain launch and states explicitly which levels are supported. The published limits stay the ones actually validated.
+**Input**: Drag an object from the Project pane into the Scene, as in Unity, to create an extra instance in front of the camera. Explicit choice: "real addition in the game", not a copy that only exists in the editor.
 
 ## User Scenarios & Testing
 
-### User Story 1 — Ajouter sans sacrifier (Priority: P1)
+### User Story 1 — Add without sacrificing (Priority: P1)
 
-L'utilisateur dépose une décoration du niveau courant dans la scène, puis la retrouve en jeu en plus des objets déjà présents.
+The user drops a decoration of the current level into the scene, then finds it in game in addition to the objects that were already there.
 
-**Why this priority**: Le remplacement actuel ne satisfait pas le besoin d'ajout.
-**Independent Test**: Déposer un tournesol près du départ du tutoriel ; sauvegarder, patcher et démarrer deux fois. La copie et les deux tournesols d'origine doivent coexister, avec la mauvaise herbe et les autres objets inchangés.
+**Why this priority**: The current replacement does not satisfy the need to add.
+**Independent Test**: Drop a sunflower near the tutorial's start; save, patch and boot twice. The copy and the two original sunflowers must coexist, with the weed and the other objects unchanged.
 
 **Acceptance Scenarios**:
-1. **Given** un objet pris en charge, **When** il est déposé sur une surface visible, **Then** une instance distincte apparaît au point choisi, la source restant en place.
-2. **Given** un ajout enregistré, **When** le niveau démarre, **Then** l'instance supplémentaire est visible à la destination et aucune instance existante n'a été remplacée.
-3. **Given** une catégorie non prise en charge, **When** l'utilisateur tente un ajout, **Then** la raison apparaît en anglais sans modification silencieuse.
+1. **Given** a supported object, **When** it is dropped on a visible surface, **Then** a distinct instance appears at the chosen point, with the source staying in place.
+2. **Given** a recorded addition, **When** the level starts, **Then** the extra instance is visible at the destination and no existing instance has been replaced.
+3. **Given** an unsupported category, **When** the user attempts an addition, **Then** the reason appears in English with no silent modification.
 
-### User Story 2 — Modifier et annuler l'ajout (Priority: P2)
+### User Story 2 — Modify and undo the addition (Priority: P2)
 
-L'instance ajoutée peut être sélectionnée et déplacée ; Undo, Redo et Reset scene restaurent les états attendus.
+The added instance can be selected and moved; Undo, Redo and Reset scene restore the expected states.
 
-**Independent Test**: Ajouter, déplacer, annuler deux fois et rétablir deux fois ; le résultat enregistré correspond exactement à l'état affiché. Reset scene revient au niveau ouvert.
+**Independent Test**: Add, move, undo twice and redo twice; the recorded result matches the displayed state exactly. Reset scene returns to the opened level.
 
 ### Edge Cases
 
-- Dépôt hors scène, Échap, source indisponible : aucune création.
-- Aucune surface sous le pointeur : plan de placement explicite ; pas de coordonnées invalides.
-- Réouverture, changement de patch ou nouveau niveau : pas de copie issue d'un ancien état mémoire.
-- Source scriptée, inactive ou sans géométrie confirmée : refus explicite tant que cette catégorie n'est pas validée.
-- Limite d'instances ou échec du chargement : refus compréhensible, aucun sacrifice automatique.
+- Drop outside the scene, Escape, unavailable source: nothing is created.
+- No surface under the pointer: an explicit placement plane; no invalid coordinates.
+- Reopening, a patch change or a new level: no copy coming from an old memory state.
+- Scripted or inactive source, or one without confirmed geometry: an explicit refusal as long as that category is not validated.
+- Instance limit or a failed load: an understandable refusal, no automatic sacrifice.
 
 ## Requirements
 
 ### Functional Requirements
 
-- **FR-001** : Un ajout augmente d'une unité le nombre d'instances visées dans la scène jouable, sans remplacement.
-- **FR-002** : Le dépôt conserve la source, son apparence et ses propriétés ; la destination correspond au point choisi dans la scène.
-- **FR-003** : Les ajouts enregistrés survivent au parcours sauvegarde → patch → démarrage à froid.
-- **FR-004** : Les instances ajoutées ont une identité distincte, une sélection et un historique réversible.
-- **FR-005** : Aucune catégorie non validée n'est présentée comme ajoutable au jeu ; aucune copie limitée à l'éditeur ne tient lieu de résultat.
-- **FR-006** : Les données originales, la session ouverte et le Dolphin personnel sont préservés.
-- **FR-007** : Les textes de l'interface restent anglais et les dossiers fonctionnent au clavier sans contrôles imbriqués dans leurs titres.
-- **FR-008** : Les preuves identifient le résultat attendu, le patch réellement consommé et la conservation des objets témoins sur deux démarrages identiques.
+- **FR-001**: An addition increases the number of targeted instances in the playable scene by one, with no replacement.
+- **FR-002**: The drop preserves the source, its appearance and its properties; the destination matches the point chosen in the scene.
+- **FR-003**: Recorded additions survive the save → patch → cold boot path.
+- **FR-004**: Added instances have a distinct identity, a selection and a reversible history.
+- **FR-005**: No unvalidated category is presented as addable to the game; no editor-only copy stands in for a result.
+- **FR-006**: The original data, the open session and the user's own Dolphin are preserved.
+- **FR-007**: The interface texts stay in English and the folders work from the keyboard with no controls nested inside their titles.
+- **FR-008**: The evidence identifies the expected result, the patch actually consumed and the preservation of the witness objects across two identical boots.
 
 ### Key Entities
 
-- **Source** : objet existant du niveau dont la création est validée pour le jeu concerné.
-- **Ajout** : identité nouvelle, source, destination, orientation et échelle ; indépendant d'une victime.
-- **Preuve** : entrée, patch, observations du résultat et témoins préservés.
+- **Source**: an existing object of the level whose creation is validated for the game concerned.
+- **Addition**: a new identity, source, destination, orientation and scale; independent of any victim.
+- **Evidence**: entry, patch, observations of the result and preserved witnesses.
 
 ## Success Criteria
 
-- **SC-001** : Un dépôt produit une instance supplémentaire visible en jeu lors de 2/2 démarrages identiques.
-- **SC-002** : Les deux objets sources/témoins et la mauvaise herbe initiale restent présents ; aucun objet sacrifié.
-- **SC-003** : Undo/Redo/Reset reproduisent exactement les états attendus, y compris après déplacement d'une copie.
-- **SC-004** : Les dossiers se sélectionnent et se replient avec Espace et Entrée, sans avertissement de contrôle interactif imbriqué.
+- **SC-001**: A drop produces an extra instance visible in game on 2/2 identical boots.
+- **SC-002**: Both source/witness objects and the initial weed stay present; no object sacrificed.
+- **SC-003**: Undo/Redo/Reset reproduce the expected states exactly, including after a copy has been moved.
+- **SC-004**: Folders can be selected and collapsed with Space and Enter, with no nested-interactive-control warning.
 
 ## Assumptions
 
-## Extension demandée le 2026-09-16 : diagnostic et essais réutilisables
+## Extension requested on 2026-09-16: diagnostics and reusable runs
 
-L'utilisateur demande d'élargir aux pièces `1_Coper`, barrels et Chompies et de savoir pourquoi un objet est ajoutable ou non, sans dépendre d'un examen manuel intégral pour chaque objet.
+The user asks to widen the scope to the `1_Coper` coins, barrels and Chompies, and to know why an object can or cannot be added, without depending on a full manual review of each object.
 
-- **FR-009** : analyser tous les objets en une passe et afficher une famille de compatibilité, les contrôles satisfaits et les obstacles concrets. Un script présent ne signifie pas automatiquement incompatible.
-- **FR-010** : séparer Confirmed, Needs test, Needs script test, Runtime passed / visual pending et Blocked. Les états candidats ne sont pas des promesses d'ajout réussi.
-- **FR-011** : proposer un test en lot qui choisit des représentants de familles, réalise les boots, vérifie les instances natives, conserve captures/échecs et réutilise les résultats pour les mêmes ressources/recettes. Aucune promotion par simple ressemblance de nom ou simple boot.
-- **FR-012** : identifier explicitement les résultats du test des trois familles demandées. La visibilité et le comportement (collecte, destruction, combat) restent des dimensions séparées ; une allocation réussie n'autorise pas à déclarer le gameplay validé.
+- **FR-009**: analyse every object in one pass and show a compatibility family, the checks that pass and the concrete obstacles. A script being present does not automatically mean incompatible.
+- **FR-010**: separate Confirmed, Needs test, Needs script test, Runtime passed / visual pending and Blocked. Candidate states are not promises of a successful addition.
+- **FR-011**: offer a batch test that picks family representatives, performs the boots, checks the native instances, keeps captures/failures and reuses the results for the same assets/recipes. No promotion from a name resemblance or from a single boot.
+- **FR-012**: identify the results of testing the three requested families explicitly. Visibility and behaviour (collection, destruction, combat) stay separate dimensions; a successful allocation does not allow gameplay to be declared validated.
+- **FR-013**: allow eight confirmed additions per patch, show the remaining capacity and refuse the ninth with no mutation. History, save and patch cover all eight instances.
+- **FR-014**: offer a direct entry and a direct test of the tutorial after an automatic preparation; load the archives and the additions of the current patch. Refuse incompatible states and the other levels, with no silent fallback.
+- **FR-015**: allow keeping or skipping the first cinematic during automated tutorial launches. An English option, remembered, disabled by default; the preparation and the patch stay identical. In manual plain game the player keeps the controls. The skip must use the game's own mechanism and preserve the additions and control of the character.
 
-Acceptation : recherche `Barrel`, `1_Coper`, `Chompy` → diagnostic explicite ; campagne reproductible sans modifier la scène utilisateur ; résultats persistés avec empreintes et consultation depuis l'éditeur. Étendre Add uniquement là où la preuve le permet.
+Acceptance: searching `Barrel`, `1_Coper`, `Chompy` → an explicit diagnostic; a reproducible campaign that does not modify the user's scene; results persisted with digests and readable from the editor. Extend Add only where the evidence allows it.
 
-Priorité suivante : expliquer et corriger la différence entre déplacement d'un ennemi/loot existant et ajout d'une copie. Tester séparément les hypothèses de paramètres partagés, identité, contexte d'activation et disparition liée au déroulement de la macro. Une solution doit garder le script d'origine, produire une instance distincte visible sur deux boots identiques et préserver les originaux. Le partage d'un script n'est pas considéré fautif sans preuve.
+Next priority: explain and fix the difference between moving an existing enemy/loot and adding a copy of it. Test separately the hypotheses of shared parameters, identity, activation context and disappearance tied to how the macro unfolds. A solution must keep the original script, produce a distinct instance visible over two identical boots, and preserve the originals. Sharing a script is not considered faulty without evidence.
 
-- Premier périmètre : décoration statique déjà disponible dans le tutoriel ; import inter-niveaux, nouvelles géométries et nouvelles collisions hors périmètre.
-- Périmètre confirmé : SSPP52 Rev1, tutoriel, tournesol source3446244, Barrel3983352, Enemy_ChompyNipper2390540 et 1_Coper(1)3034548, au plus deux ajouts au total par démarrage à froid, position/orientation, échelle d'origine100%. Les scripts et distances d'activation sont conservés ; la création visible ne garantit pas la survie pendant la macro. Les autres modèles et paramètres restent à valider.
-- Les gates existantes autorisent le remplacement confirmé, pas une insertion arbitraire. Les expérimentations se font dans les profils locaux dédiés.
+- First scope: static decoration already available in the tutorial; cross-level import, new geometry and new collisions are out of scope.
+- Confirmed scope of the additions: SSPP52 Rev1, tutorial, nine exact sources listed in compatibility.md, at most eight additions in total per boot, position/orientation, original scale 100 %. Scripts and activation distances are preserved; a visible creation does not guarantee survival during the macro. The other models and parameters remain to be validated.
+- The existing gates allow a confirmed replacement, not an arbitrary insertion. The experiments run in dedicated local profiles.

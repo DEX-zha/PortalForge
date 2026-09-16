@@ -232,7 +232,7 @@ node cli.mjs corpus <file...> [--fixups <igz file>=<map>] [--out report.json]
 
 It resolves every file, validates every record against the frozen schema, grades it with the safety rules and prints
 rates. It exits non-zero if any record fails the schema or any file fails to parse. The stored report for the five
-files of the sample disc is `docs/placement-corpus-v1.json`.
+files of the sample disc is `docs/reports/placement-corpus-v1.json`.
 
 | File | class | placements | resolved | ambiguous | absent | layered | model records | shared | schema |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -258,7 +258,7 @@ always rewrites at least one model record. The only question is how many placeme
 
 ### The whole disc
 
-`docs/placement-corpus-all-levels.json` is the same validation run over **every level archive on the disc**, 76
+`docs/reports/placement-corpus-all-levels.json` is the same validation run over **every level archive on the disc**, 76
 files, extracted with `disc-extract`. It is the widest check the project can make without a boot.
 
 | | |
@@ -321,5 +321,5 @@ duplicate them. Full history: `docs/experiments/README.md` and the `igz.loader.*
 
 The meshes a level draws are decoded from sections 5 and 6 by `tools/ssa-archive/src/igz/gxmesh.mjs` and drawn
 grey in the editor. The format, the ownership rule and the numbers on the whole disc are in
-`docs/igz-mesh-geometry.md`; the finding records are `igz.sections.roles`, `igz.geometry.descriptor-table`,
+`docs/format/igz-mesh-geometry.md`; the finding records are `igz.sections.roles`, `igz.geometry.descriptor-table`,
 `igz.geometry.block-layout`, `igz.geometry.position-quantisation` and `igz.geometry.model-ownership`.

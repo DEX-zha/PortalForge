@@ -25,7 +25,7 @@ node cli.mjs edit serve ../../.local/workspaces/tutorial-bld/entries/3-level.bld
 
 **Must be true**: the number of proxies equals the number of placements the corpus report records for this file,
 673, and the layer list contains `Plants`, `Loot`, `OpeningCS` and `Jump pads_PushBLock_Gates`. Compare against
-`docs/placement-corpus-v1.json` rather than trusting the view.
+`docs/reports/placement-corpus-v1.json` rather than trusting the view.
 
 Covers FR-001, FR-002, FR-006, SC-001, SC-002.
 

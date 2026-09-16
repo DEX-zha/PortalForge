@@ -114,7 +114,7 @@ Records the observation for one run and re-evaluates the M2 rule: PASS only when
 
 ### `findings list [--category <c>] | show <id> | validate | render | editable | promote <id> --to LIKELY|CONFIRMED (--experiment <id> | --probe <name>) --summary "<text>"`
 
-Finding records (`docs/findings/records/*.json`, schema `finding-record.schema.json`). `render` regenerates `docs/findings/<category>.md` and `docs/iga-v4.md`. `editable` lists only CONFIRMED findings flagged editable; `promote` enforces the confidence state machine (two independent observations for LIKELY; a PASS experiment referencing the finding for CONFIRMED).
+Finding records (`docs/findings/records/*.json`, schema `finding-record.schema.json`). `render` regenerates `docs/findings/<category>.md` and `docs/format/iga-v4.md`. `editable` lists only CONFIRMED findings flagged editable; `promote` enforces the confidence state machine (two independent observations for LIKELY; a PASS experiment referencing the finding for CONFIRMED).
 
 ### `gates`
 

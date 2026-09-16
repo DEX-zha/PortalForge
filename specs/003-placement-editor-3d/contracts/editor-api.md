@@ -200,7 +200,7 @@ view can draw them solid or wireframe independently of their semantic identity.
 owner, template, model, position, heading, scale, heading_offset, fixed_heading and scale_mode. Bridge yaw
 is the creator's yaw minus 90 degrees; cannon top follows creator yaw while the initial base yaw is fixed.
 The view preserves those rules during refresh and resolves preview picking to the owner. These previews
-do not add editable placements or affect save plans. See `docs/editor-scene-poses.md` for runtime scope.
+do not add editable placements or affect save plans. See `docs/editor/scene-poses.md` for runtime scope.
 
 `scene_roles` contains tutorial-only `{ offset, role: "template_or_inactive", confidence: "LIKELY",
 editable: false, counterparts: [{offset,name}] }` display hints from the initially inactive/template flag.

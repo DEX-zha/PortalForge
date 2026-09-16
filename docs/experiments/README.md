@@ -10,7 +10,7 @@ Moving Barrel(6) renders a barrel on the start island; moving the stored Barrel 
 effect in the single comparison. All three replacements were consumed and owned Dolphin processes stopped normally.
 The normalized local record validates against the experiment schema. Its mutation spans three adjacent f32be words;
 its control uses a different resource-only patch, not an untouched baseline. Follow
-[the exact positions, hashes and editor procedure](../editor-scripted-movement.md) to reproduce it.
+[the exact positions, hashes and editor procedure](../editor/scripted-movement.md) to reproduce it.
 
 ## Reproducing any experiment from its record
 

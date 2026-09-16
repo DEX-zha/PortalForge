@@ -1,41 +1,41 @@
-# Validation du lot 1 — 2026-09-15
+# Batch 1 validation — 2026-09-15
 
-Suite aux retours utilisateur : **250 tests SSA et 6 tests MCP PASS** après ajout du dépôt par capture du pointeur, du bouton Reset scene et passage de l'interface en anglais. Le scénario navigateur utilise désormais de vraies entrées souris, vérifie deux destinations et les annulations, puis un reset après sauvegarde et la récupération exacte avec Redo. Détails, commandes et preuves : [interface.md, UI06–UI09](interface.md). La validation en jeu historique ci-dessous reste celle du lot 1 ; aucun nouveau passage en jeu n'est revendiqué pour ces corrections.
+Following user feedback: **250 SSA tests and 6 MCP tests PASS** after adding the pointer-capture drop, the Reset scene button and switching the interface to English. The browser scenario now uses real mouse input, checks two destinations and the cancellations, then a reset after saving and the exact recovery through Redo. Details, commands and evidence: [interface.md, UI06–UI09](interface.md). The historical in-game validation below is still the one from batch 1; no new in-game run is claimed for these fixes.
 
-## Résultat et périmètre
+## Result and scope
 
-US1 livré : catalogue de tous les placements, recherche nom/modèle/calque, catégories, sélection avec cadrage/révélation, glisser-déposer avec fantôme, surface visible ou plan horizontal réglable, choix explicite de l'emplacement consommé, plan complet et acquittements critiques. Aucune écriture avant confirmation. Une confirmation = une édition, undo/redo exacts. Les plans deviennent périmés après une édition, même annulée. Sources scriptées, ressources inactives, absence de modèle/carte runtime ou de taille compatible expliquées et refusées.
+US1 delivered: a catalogue of every placement, search by name/model/layer, categories, selection with framing/reveal, drag and drop with a ghost, a visible surface or an adjustable horizontal plane, an explicit choice of the slot consumed, a full plan and critical acknowledgements. No write before confirmation. One confirmation = one edit, with exact undo/redo. Plans become stale after an edit, even an undone one. Scripted sources, inactive assets, and the absence of a model/runtime map or of a compatible size are explained and refused.
 
-La scène et ses modèles sont reconstruits après remplacement et undo/redo. Une bibliothèque de géométrie locale conserve les associations originales ; un modèle partagé renommé reprend les meshes de la ressource source déjà présente. Aucun transfert inter-niveaux et aucune écriture de géométrie. Une association ambiguë reste un proxy.
+The scene and its models are rebuilt after a replacement and after undo/redo. A local geometry library keeps the original associations; a renamed shared model takes the meshes of the source asset that is already present. No cross-level transfer and no geometry write. An ambiguous association stays a proxy.
 
-## Vérifications locales
+## Local checks
 
-- `npm test`, tools/ssa-archive : **246/246 PASS**.
-- `npm test`, tools/dolphin-mcp : **6/6 PASS**.
-- Régression reproduite puis corrigée : la copie affichait l'herbe de la victime malgré son chemin tournesol. Test des meshes et captures après correction : tournesol correct, restauration de l'herbe sur undo puis tournesol sur redo ; décor inchangé.
-- Navigateur Edge WebGL dédié, événements HTML5 via CDP sur les vrais éléments : **673/673 objets**, recherche insensible à la casse **3 ms**, cadrage, aperçu, annulation sans mutation, victime non présélectionnée, critique bloquant la confirmation, une édition, undo/redo identiques octet par octet, nouveau dépôt disponible après confirmation, aucune exception navigateur.
-- Scène réelle Three.js isolée : intersection à Y=5, calque masqué exclu et secours à Y=2, filaire pris en compte, fantôme ignoré par le rayon, dépôt hors canvas/altitude invalide refusés, caméra conservée à la reconstruction.
-- Rapports/captures : `.local/object-workflow/browser-1789505000412/`, `latest-browser.json`. Script reproductible : `tools/ssa-archive/tests/browser-catalog.mjs`.
+- `npm test`, tools/ssa-archive: **246/246 PASS**.
+- `npm test`, tools/dolphin-mcp: **6/6 PASS**.
+- Regression reproduced then fixed: the copy showed the victim's weed despite its sunflower path. Mesh test and captures after the fix: correct sunflower, the weed restored on undo then the sunflower on redo; scenery unchanged.
+- Dedicated Edge WebGL browser, HTML5 events through CDP on the real elements: **673/673 objects**, case-insensitive search at **3 ms**, framing, preview, cancellation without mutation, victim not pre-selected, a critical rule blocking the confirmation, one edit, byte-identical undo/redo, a new drop available after confirmation, no browser exception.
+- Isolated real Three.js scene: intersection at Y=5, hidden layer excluded and fallback at Y=2, wireframe taken into account, ghost ignored by the ray, drop outside the canvas/invalid altitude refused, camera preserved across the rebuild.
+- Reports/captures: `.local/object-workflow/browser-1789505000412/`, `latest-browser.json`. Reproducible script: `tools/ssa-archive/tests/browser-catalog.mjs`.
 
-## Deux boots Dolphin
+## Two Dolphin boots
 
-Le dépôt effectif du navigateur copie **sunflower_Template(1)** (0x3495E4) sur l'emplacement choisi **weed_2_Template(8)** (0x34AC60), position **[91.349, 10.435, 43.275]**, heading 285°, scale 100. Source conservée, nom victime conservé, recette wrapper-proven. Les effets sur le modèle partagé ont été montrés et acquittés.
+The browser's actual drop copies **sunflower_Template(1)** (0x3495E4) over the chosen slot **weed_2_Template(8)** (0x34AC60), position **[91.349, 10.435, 43.275]**, heading 285°, scale 100. Source preserved, victim name preserved, wrapper-proven recipe. The effects on the shared model were shown and acknowledged.
 
-Entrée sauvegardée SHA256 : `957a13bd17757e8c0c6d76b23ac13761389693bba21571be4f17a2b0e5e25066`.
-Archive reconstruite SHA256 : `e3e7a9fbac23ab46ffb4188cb2776bddf5662c9efa023243caf8df155b3d98cc`.
-Le builder a vérifié l'identité de l'entrée reconstruite avec la sauvegarde. Les essais navigateur ont produit les mêmes octets ; les deux boots utilisent le premier patch sans reconstruction entre eux.
+Saved entry SHA256: `957a13bd17757e8c0c6d76b23ac13761389693bba21571be4f17a2b0e5e25066`.
+Rebuilt archive SHA256: `e3e7a9fbac23ab46ffb4188cb2776bddf5662c9efa023243caf8df155b3d98cc`.
+The builder checked that the rebuilt entry is identical to the save. The browser runs produced the same bytes; both boots use the first patch with no rebuild in between.
 
-| Boot | Consommation | Observation | Fermeture |
+| Boot | Consumption | Observation | Close |
 |---|---|---|---|
-| editor-test-1789503985200-c0276b1d | FileMonitor 15 333 kB, original 15 241 kB | Troisième tournesol sur l'îlot, paire originale conservée, Sonic Boom reconnu et déplacements droite/gauche | Normale, PID 34500, forced=false |
-| editor-test-1789504260678-b4ece022 | Même archive, FileMonitor 15 333 kB | Même copie visible, Sonic Boom avance sur le pont puis revient | Normale, PID 9180, forced=false |
+| editor-test-1789503985200-c0276b1d | FileMonitor 15 333 kB, original 15 241 kB | Third sunflower on the islet, original pair preserved, Sonic Boom recognised and moved right/left | Normal, PID 34500, forced=false |
+| editor-test-1789504260678-b4ece022 | Same archive, FileMonitor 15 333 kB | Same copy visible, Sonic Boom walks onto the bridge then comes back | Normal, PID 9180, forced=false |
 
-Captures examinées : suffixes `46-tutorial-skylander`, `49-tutorial-moved-right`, `52-tutorial-moved-left` dans `.local/dolphin-evidence/` ; rapport `.local/object-workflow/game-proof.json`. La recette explique le changement des autres utilisateurs du modèle weed ; ils n'ont pas tous été inspectés visuellement à distance. Aucun succès collision/script/import n'est déduit de ce test. M4A/M4B/M5 restent UNKNOWN.
+Captures examined: suffixes `46-tutorial-skylander`, `49-tutorial-moved-right`, `52-tutorial-moved-left` in `.local/dolphin-evidence/`; report `.local/object-workflow/game-proof.json`. The recipe explains the change to the other users of the weed model; they were not all inspected visually at a distance. No collision/script/import success is inferred from this test. M4A/M4B/M5 stay UNKNOWN.
 
-## Éditeur utilisateur
+## User's editor
 
-Serveur actualisé sur le port 7400 en dehors du bac à sable qui provoquait spawn EPERM. Session `s_d58eb87d`, 0 opérations appliquées et **44 opérations Redo** conservées ; chaque état reconstruit et comparé aux octets du plan avant arrêt de l'ancien serveur. Sauvegarde SHA256 `45be5ecdffaee44309feff64fd2ba82dc36043af81ddcb25f5244a9a19ea88fe`, patch et état dirty conservés. Le test de duplication utilise une session distincte. Actualiser la page charge l'explorateur.
+Server refreshed on port 7400 outside the sandbox that caused spawn EPERM. Session `s_d58eb87d`, 0 applied operations and **44 Redo operations** preserved; every state rebuilt and compared with the plan's bytes before the old server was stopped. Save SHA256 `45be5ecdffaee44309feff64fd2ba82dc36043af81ddcb25f5244a9a19ea88fe`, patch and dirty state preserved. The duplication test uses a separate session. Refreshing the page loads the browser panel.
 
-## Suite
+## Next
 
-T001–T009 terminées. T010–T017 forment le backlog US2/US3 documenté dans research.md et tasks.md. La note ancienne conseillant un état déjà dans Mining a été corrigée : cet état peut restaurer des ressources antérieures au patch.
+T001–T009 finished. Extension of 2026-09-16: T014/T015/T017 finished for the tutorial, with two identical direct entries and the modified patch re-read after restoring (`tutorial-direct-current-patch-two-runs-20260916`). Details in ../005-native-object-addition/validation.md. T010–T013 and T016 stay in the backlog. The old note recommending a state already inside Mining has been corrected: such a state can restore assets from before the patch.
