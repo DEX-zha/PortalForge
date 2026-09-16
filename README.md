@@ -11,6 +11,7 @@
   <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
   <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
   <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
+  <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0%20%C2%B7%20CC%20BY%204.0-blue?style=flat-square" />
   <img alt="Scope" src="https://img.shields.io/badge/fan%20research-non--commercial-lightgrey?style=flat-square" />
 </p>
 
@@ -21,7 +22,8 @@
   <a href="#what-works-today">What works</a> ·
   <a href="#getting-started">Getting started</a> ·
   <a href="#documentation">Docs</a> ·
-  <a href="#how-the-project-is-developed">Development</a>
+  <a href="#how-the-project-is-developed">Development</a> ·
+  <a href="#license-and-credit">License</a>
 </p>
 
 ---
@@ -202,3 +204,28 @@ documented experiments; the bulk of the captures, dumps and reports stays in the
 
 What is published here is a description of file formats and experimental methods, each with its confidence
 level, so that other people can reproduce the experiments on their own copy.
+
+## License and credit
+
+Reuse is welcome — **with credit**. The repository is licensed in two halves:
+
+| What | License | What it asks of you |
+|---|---|---|
+| Code — `tools/`, and any snippet in the docs | [Apache-2.0](LICENSE) | Keep the copyright notice, this [`NOTICE`](NOTICE) file and the license text with any redistribution, and state prominently which files you changed. |
+| Documentation, specs, findings and reports — `README.md`, `docs/`, `specs/` | [CC BY 4.0](LICENSE-DOCS) | Credit PortalForge, link to the license, and say if you changed anything — for copies, translations and adaptations alike. |
+
+Suggested credit line:
+
+> Based on **PortalForge** — https://github.com/DEX-zha/PortalForge
+> Code: Apache-2.0 · Documentation and findings: CC BY 4.0
+
+This covers the reverse-engineering work as it is written here: the format descriptions, the record layouts and
+offsets, the editing recipes, the experiment protocols and the evidence tables. Two honest notes about that.
+First, copyright protects the way those results are expressed, not a technique or a measured fact once you have
+re-derived or re-expressed it yourself — no license can change that, and this one does not pretend to. Second,
+that is exactly why the request matters: every offset in `docs/` cost boots, frozen levels and negative results
+that are documented alongside the successes. If your editor, tool, wiki page or video stands on this work, name
+it and link back, so the next person can find the evidence behind the claim rather than the claim alone.
+
+Game data is out of scope of both licenses: nothing here grants any right over *Skylanders: Spyro's Adventure*,
+its archives, its assets or its trademarks.

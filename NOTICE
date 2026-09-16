@@ -1,0 +1,32 @@
+PortalForge
+Copyright 2026 DEX-zha and the PortalForge contributors
+https://github.com/DEX-zha/PortalForge
+
+This product includes software and research developed for the PortalForge project.
+
+Source code (tools/, and any code embedded in the documentation) is licensed under the
+Apache License, Version 2.0 — see LICENSE. Section 4 of that license requires this NOTICE
+file to be carried with any redistribution, in source or binary form, and requires modified
+files to carry prominent notices stating that they were changed.
+
+Documentation, specifications, findings and reports (README.md, docs/, specs/) are licensed
+under the Creative Commons Attribution 4.0 International license — see LICENSE-DOCS. Copying,
+quoting at length, translating or adapting that material requires credit to PortalForge and a
+link to the license.
+
+Suggested credit line:
+
+    Based on PortalForge — https://github.com/DEX-zha/PortalForge
+    Code: Apache-2.0. Documentation and findings: CC BY 4.0.
+
+This applies to the reverse-engineering results as they are written here: the format
+descriptions, the record layouts and offsets, the editing recipes, the experiment protocols
+and the evidence tables. Copyright does not cover a technique or a fact once you have
+re-derived or re-expressed it yourself, and this project does not claim otherwise — but if
+your work stands on what is documented here, say so. That is how the next person finds the
+evidence behind the claim.
+
+No game data is included in or licensed by this project. Skylanders: Spyro's Adventure, the
+Portal of Power and the related names, assets and trademarks belong to their respective
+owners. PortalForge is an unaffiliated, non-commercial fan project for research and
+preservation, and grants no rights over anything that belongs to those owners.

@@ -2,6 +2,7 @@
   "name": "portalforge-ssa-archive",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "SSA Research Toolkit: IGA v4 inspection, extraction, verification, rebuild, diff, Riivolution patch workspaces and MCP-driven M1/M2 experiments.",
   "engines": {

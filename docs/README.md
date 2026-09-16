@@ -51,3 +51,10 @@ the tooling — `node tools/ssa-archive/cli.mjs gates` prints them with their ev
 
 `images/` holds the few illustrations published with the documentation: the project logo, a capture of the
 editor, and three in-game frames used as evidence in the README. Everything else stays local.
+
+## Reusing this documentation
+
+Everything under `docs/` and `specs/` is published under [CC BY 4.0](../LICENSE-DOCS): copy it, translate it,
+build on it — and credit **PortalForge** (https://github.com/DEX-zha/PortalForge) with a link to the license,
+saying if you changed anything. The code in `tools/` is [Apache-2.0](../LICENSE); keep its [`NOTICE`](../NOTICE)
+with any redistribution. Neither license grants any right over the game's own data or trademarks.
