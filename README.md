@@ -5,6 +5,7 @@
 </div>
 
 <p align="center">
+  <a href="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
   <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
   <img alt="Tests" src="https://img.shields.io/badge/tests-283%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />

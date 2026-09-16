@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm
+    directory: /tools/ssa-archive
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    ignore:
+      # The browser view serves three from node_modules through a fixed import map, and the editor was
+      # validated against this exact version; an upgrade is a deliberate change with its own browser run.
+      - dependency-name: three
+
+  - package-ecosystem: npm
+    directory: /tools/dolphin-mcp
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

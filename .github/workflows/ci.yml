@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: |
+            tools/ssa-archive/package-lock.json
+            tools/dolphin-mcp/package-lock.json
+
+      - name: Install ssa-archive
+        working-directory: tools/ssa-archive
+        run: npm ci --ignore-scripts
+
+      - name: Install dolphin-mcp
+        working-directory: tools/dolphin-mcp
+        run: npm ci --ignore-scripts
+
+      # The repository has no bundler and no linter; parsing every module catches syntax errors in the files
+      # the test suites never import, such as the research probes and the browser view modules.
+      - name: Parse every module
+        shell: bash
+        run: git ls-files '*.mjs' | grep -v node_modules | xargs -n 1 node --check
+
+      - name: Run ssa-archive tests
+        shell: bash
+        working-directory: tools/ssa-archive
+        run: npm test 2>&1 | tee test-output.log
+
+      - name: Run dolphin-mcp tests
+        shell: bash
+        working-directory: tools/dolphin-mcp
+        run: npm test 2>&1 | tee test-output.log
+
+      # No game data exists on a runner, so the fixture tests skip themselves. These floors fail the build if
+      # far more than the usual set skips, which is what a broken fixture path looks like.
+      - name: Check the suites actually ran
+        shell: bash
+        run: |
+          node .github/scripts/check-test-output.mjs tools/ssa-archive/test-output.log ssa-archive 200
+          node .github/scripts/check-test-output.mjs tools/dolphin-mcp/test-output.log dolphin-mcp 6
+
+  research:
+    name: findings and gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tools/ssa-archive/package-lock.json
+
+      - name: Install ssa-archive
+        working-directory: tools/ssa-archive
+        run: npm ci --ignore-scripts
+
+      - name: Validate finding records
+        run: node tools/ssa-archive/cli.mjs findings validate
+
+      - name: Rendered findings match their records
+        run: |
+          node tools/ssa-archive/cli.mjs findings render
+          if ! git diff --quiet -- docs/findings; then
+            git --no-pager diff --stat -- docs/findings
+            echo "::error::docs/findings is out of date; run 'node tools/ssa-archive/cli.mjs findings render' and commit the result"
+            exit 1
+          fi
+
+      - name: Report the gate state
+        run: |
+          {
+            echo '### Gate state'
+            echo ''
+            echo '```'
+            node tools/ssa-archive/cli.mjs gates
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  hygiene:
+    name: repository hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: No game data is tracked
+        run: node .github/scripts/check-no-game-data.mjs
+
+      - name: Documentation links and JSON
+        run: node .github/scripts/check-docs.mjs
+
+      - name: Gate files are consistent
+        run: node .github/scripts/check-gates.mjs
+
+      - name: Licence files are present
+        run: |
+          for file in LICENSE LICENSE-DOCS NOTICE; do
+            test -s "$file" || { echo "::error::$file is missing or empty; the attribution terms depend on it"; exit 1; }
+          done
+
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [tests, research, hygiene]
+    if: always()
+    steps:
+      - name: Fail if any job failed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "::error::at least one CI job failed"
+            exit 1
+          fi
+          echo "all jobs succeeded"
