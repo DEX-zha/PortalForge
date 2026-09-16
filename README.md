@@ -90,22 +90,56 @@ scope stating what the run does **not** prove.
 
 ## How it works
 
-```
-your own disc image (WBFS, never modified)
-        │  extract
-        ▼
-IGA v4 archive  ──decode──▶  IGZ v5 entry  ──parse──▶  placements · scripts · models · meshes
-        ▲                                                        │
-        │ rebuild (same layout, re-encoded entry)                │ edit in the 3D view
-        │                                                        ▼
-Riivolution patch  +  Gecko companion (native additions)  ◀──  save plan (every changed word justified)
-        │
-        ▼
-dedicated Dolphin (MCP) ──▶ input macro ──▶ memory reads + screenshots ──▶ experiment record
+```mermaid
+flowchart TD
+    A["Your own disc image<br/>WBFS — never modified"] -->|disc-extract| B["IGA v4 archive<br/>.arc / .bld"]
+    B -->|decode LZMA chunks| C["IGZ v5 entry<br/>big-endian object graph"]
+    C -->|parse| D["placements · layers · scripts<br/>models · GX meshes"]
+
+    subgraph EDIT["3D editor — local server + browser view"]
+        direction TB
+        E["Hierarchy · Scene · Inspector · Project"]
+        F["Editor session<br/>boot-proven planners"]
+        G{"Save plan<br/>every changed word justified"}
+        H["Refused — nothing written"]
+        I["Edited IGZ<br/>+ additions sidecar"]
+        E -->|intents, never bytes| F
+        F --> G
+        G -->|a byte outside an edited attribute| H
+        G -->|VALID| I
+    end
+
+    D --> E
+
+    I -->|rebuild, re-encode the entry| J["Archive rebuilt<br/>same layout, different bytes"]
+    J --> K["Riivolution patch<br/>+ Gecko companion for native additions"]
+
+    subgraph RUN["Experiment harness — dedicated Dolphin over MCP"]
+        direction TB
+        L["Owned Dolphin instance<br/>.local profile, cold boot"]
+        M["Input macro<br/>menus · tutorial · movement"]
+        N["FileMon size · MEM1 reads · screenshots"]
+        O["Experiment record"]
+        L --> M --> N --> O
+    end
+
+    K --> L
+
+    O --> P{"Two identical boots<br/>and a visible result?"}
+    P -->|no| Q["Negative result — documented,<br/>with what it does not prove"]
+    P -->|yes| R["Finding CONFIRMED"]
+    R --> S["Gates M0 – M5"]
+    S -.->|only CONFIRMED properties are exposed as editable| E
+    Q -.->|next hypothesis| F
 ```
 
-The save plan is the safety rail: it is built **before** the write, checked word by word against the bytes that
+Two things in that loop carry the project.
+
+The **save plan** is the safety rail: it is built *before* the write, checked word by word against the bytes that
 are about to be written, and any byte outside an edited attribute makes the whole save refuse rather than degrade.
+
+The **findings loop** is what keeps the editor honest: a run does not unlock a feature, a confirmed finding does.
+Until two identical boots agree, a capability stays a diagnostic — visible, explained, and refused.
 
 ## Getting started
 
