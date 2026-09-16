@@ -85,8 +85,11 @@ an indicator that the displayed scene is complete.
 
 Two wireframe previews were produced with the same data and the same camera, near the start of the tutorial:
 
-- [.local/mesh-coverage-study/placed-only.png](../../.local/mesh-coverage-study/placed-only.png): current path, placed objects only.
-- [.local/mesh-coverage-study/with-world-candidates.png](../../.local/mesh-coverage-study/with-world-candidates.png): adding the 1 584 unassociated interleaved blocks, with no placement transform.
+- `.local/mesh-coverage-study/placed-only.png`: current path, placed objects only.
+- `.local/mesh-coverage-study/with-world-candidates.png`: adding the 1 584 unassociated interleaved blocks, with no placement transform.
+
+Both stay on the machine that produced them, like every other capture; reproduce them with the command in
+[Reproduction and scope](#reproduction-and-scope).
 
 The second preview brings back the island terrain and the windmill building under the blades that were
 already there. That supports reading those blocks as scenery already expressed in world coordinates.
