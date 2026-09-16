@@ -7,6 +7,7 @@ export const NATIVE_LIMIT = 2;
 export const NATIVE_MAGIC = 0x50464e41;
 export const NATIVE_STRIDE = 0x90;
 export const FACTORY_HASH = '8fcf8ff29324baff5246ef8dbf3dcab41c983941b8ac603b7554fff8bd2b42a3';
+export const ACTIVATION_HASH = '77ce73ad478b451bf6bf01c67104fbc439e5dc5a09818351bcf36babc9cd0b18';
 const hex = n => (n >>> 0).toString(16).padStart(8, '0').toUpperCase();
 const floatWord = n => { const b = new DataView(new ArrayBuffer(4)); b.setFloat32(0, n); return b.getUint32(0); };
 class PPC {
@@ -36,9 +37,20 @@ class PPC {
   tail() { if (this.words.length % 2 === 0) this.emit(0x60000000); this.label('tail'); this.emit(0); }
 }
 
-export const compileNativePatch = (additions, options = {}) => compile(additions, { ...options, probe: Array.isArray(additions)&&additions.some(a=>a?.script!=null) });
+const geckoIni = lines => `[Gecko]\n$PortalForge native additions v1\n${lines.join('\n')}\n[Gecko_Enabled]\n$PortalForge native additions v1\n`;
+export function compileNativePatch(additions, options = {}) {
+  const scripted = Array.isArray(additions) && additions.some(a => a?.script != null);
+  // Validate the whole request before partitioning: IDs and capacity are global.
+  const result = compile(additions, { ...options, probe: scripted });
+  if (!scripted || additions.every(a => a.script != null)) return result;
+  // Keep each recipe's independently validated call context in mixed batches.
+  const parts = [false, true].map(probe => compile(additions.filter(a => (a.script != null) === probe), { ...options, probe }));
+  const lines = parts.flatMap(p => p.lines), bytes = lines.length * 8;
+  if (bytes > 3256) throw Error('Native additions exceed the reserved Gecko code capacity');
+  return { ...result, bytes, records_offset: null, hooks: parts.flatMap(p => p.hooks), lines, ini: geckoIni(lines) };
+}
 // Experimental factory invocation. This does not grant an editable capability.
-export const compileNativeProbe = additions => compile(additions, { probe: true });
+export const compileNativeProbe = additions => compileNativePatch(additions);
 function compile(additions, { scaleHook = false, probe = false } = {}) {
   if (!Array.isArray(additions) || !additions.length || additions.length > NATIVE_LIMIT) throw Error(`Native patch requires 1..${NATIVE_LIMIT} additions`);
   const ids = new Set();
@@ -61,6 +73,12 @@ function compile(additions, { scaleHook = false, probe = false } = {}) {
   const dataFix = p.words.length; p.emit(0); // r30 = payload header, resolved below
   p.lw(0, 4, 30); p.cmpi(0, 0); p.branch('restore', 4, 2);
   if (probe) {
+    // The activation manager's r30 is its native observer list. Clones with a
+    // nonzero activation range were disposed of after early creation. The
+    // validated recipe waits for observers at this boundary; retain the range,
+    // ID, parameters and script, and let native activation keep controlling it.
+    p.lw(3, 0x80, 1); p.cmpi(3, 0); p.branch('restore', 12, 2);
+    p.lw(0, 8, 3); p.cmpi(0, 0); p.branch('restore', 12, 2);
     // Use the independently validated tutorial source as a level-ready anchor.
     p.imm(3, 0x81105604); p.lw(0, 0, 3); p.imm(4, 0x80481674); p.cmp(0,4); p.branch('restore',4,2);
     p.lw(0,0x54,3); p.cmpi(0,1); p.branch('restore',4,2);
@@ -86,7 +104,7 @@ function compile(additions, { scaleHook = false, probe = false } = {}) {
   for (let i = 0; i < 14; i++) p.d(50, i, 1, 0xa0 + i * 8);
   for (const [s, o] of [[8, 0x90], [9, 0x98], [1, 0x9c]]) { p.lw(0, o, 1); p.spr(true, 0, s); }
   p.lw(0, 0x94, 1); p.emit(0x7c0ff120); p.d(46, 2, 1, 0x10); p.lw(0, 8, 1); p.d(14, 1, 1, 0x200);
-  p.emit(0x7c7d1b78); p.branch('tail');
+  p.emit(probe ? 0x7f03c378 : 0x7c7d1b78); p.branch('tail');
   p.label('data'); p.emit(0x50464e48); p.emit(0); p.emit(additions.length); p.emit(NATIVE_STRIDE);
   p.label('records');
   for (const a of additions) {
@@ -102,7 +120,7 @@ function compile(additions, { scaleHook = false, probe = false } = {}) {
   p.tail();
   // A second, separately guarded hook can set scale before native activation.
   // It remains opt-in until the scale recipe has its own in-game evidence.
-  const hooks = [{ address: 0x800445c8, original: 0x7c7d1b78, words: p.done() }];
+  const hooks = [{ address: probe ? 0x80062b88 : 0x800445c8, original: probe ? 0x7f03c378 : 0x7c7d1b78, words: p.done() }];
   if (scaleHook) throw Error('Individual native scale has not been validated');
   const lines = [];
   for (const h of hooks) {
@@ -112,8 +130,7 @@ function compile(additions, { scaleHook = false, probe = false } = {}) {
     lines.push('E0000000 80008000');
   }
   if (lines.length * 8 > 3256) throw Error('Native additions exceed the reserved Gecko code capacity');
-  const name = 'PortalForge native additions v1';
   return { version: 1, game: 'SSPP52', revision: 1, count: additions.length, bytes: lines.length * 8,
     records_offset: p.labels.get('records'), stride: NATIVE_STRIDE, hooks, lines,
-    ini: `[Gecko]\n$${name}\n${lines.join('\n')}\n[Gecko_Enabled]\n$${name}\n` };
+    ini: geckoIni(lines) };
 }

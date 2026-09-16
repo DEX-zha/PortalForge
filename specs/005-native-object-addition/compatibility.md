@@ -29,11 +29,23 @@ Families use the decoded-level fingerprint, archive, model resource, script reso
 
 `native-recipes.json` associates an exact source/model/script with a finding. Only a CONFIRMED editable finding enables the source. A successful boot, non-null allocation or related model name never does. Promotion still requires reproducible memory evidence and visual review; destruction, collection and combat need separate gameplay evidence.
 
-Scripted creation waits for the independently confirmed tutorial readiness anchor and checks the source class, parent, model and exact script. It retains the script. No IGZ insertion or removal of behavior is used. Later disappearance is recorded separately from successful creation; static additions must still pass the final live-instance check.
+Scripted creation waits for both the tutorial readiness anchor and a populated native activation-observer list. The factory runs from the activation update, with source class, parent, model and exact script checks. Source IDs, scripts, activation distances and parameters are preserved; copies have independent actors and actor parameters. No IGZ insertion or removal of behavior is used. Later disappearance is recorded separately from successful creation; static additions must still pass the final live-instance check.
+
+The automated verifier checks the requested **initial** transform separately from the current transform changed by AI or animation. Family reports use version `native-family-v2-observer-ready`; an earlier failure from the premature creation recipe does not stand in for a new test.
+
+## Validated sources
+
+| Exact Project source | Source offset | Retained behavior |
+|---|---|---|
+| Sunflower | 3446244 | No placement script |
+| Barrel | 3983352 | Barrel.ai |
+| Enemy_ChompyNipper | 2390540 | Enemy_Chompy.ai |
+| 1_Coper(1) | 3034548 | Placed_Loot_Spinning.ai |
+
+Use **Can add** to find these four sources. The limit remains two added objects per patch, original 100% scale, tutorial SSPP52 Rev1 and a cold editor-owned Dolphin launch. Regenerate existing scripted-addition patches after updating the editor.
 
 ## Remaining research
 
-- `1_Coper(1)` (`Placed_Loot_Spinning.ai`): factory return observed, final matching actor absent; reason unresolved.
-- `Enemy_ChompyNipper` (`Enemy_Chompy.ai`): same lifetime uncertainty in two identical runs. No claim of validated combat or collection.
-- Test earlier checkpoints and alternate destinations before concluding that these families cannot be added. The reusable runner now records intermediate tutorial checkpoints for this purpose.
+- Early Chompy/coin loss was traced to native distance deactivation before normal activation readiness. The deferred recipe produces visible additional actors on two identical cold boots; this confirms creation and rendering, not full combat or collection semantics.
+- Native behavior and activation distances still govern a copy after creation. A Chompy may move or be removed, and a distant clone may deactivate. Persistence outside activation range is not guaranteed.
 - Other source parameters, scale changes, inter-level imports and level reload inside the same emulation remain outside the confirmed scope. M4A/M4B/M5 are unchanged.

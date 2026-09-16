@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { additionSource } from './native-additions.mjs';
-export const PROBE_VERSION = 'native-family-v1';
+export const PROBE_VERSION = 'native-family-v2-observer-ready';
 export const familyKey = (s,p) => crypto.createHash('sha256').update(JSON.stringify([PROBE_VERSION,s.original_sha256,s.archive?.toLowerCase(),p.model?.offset,p.model?.path,p.behavior?.offset??null,p.behavior?.path??null,p.scale])).digest('hex');
 export function classifyAddition(s,p,{report=null}={}) {
   const checks = [

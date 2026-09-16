@@ -6,7 +6,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {GameSession,gameFromConfig,defaultScript,readScript,local} from '../experiments/run-game.mjs';
 import {defaultFigure} from './dolphin-run.mjs';
 import {compileNativeProbe,NATIVE_BASE,NATIVE_MAGIC,NATIVE_STRIDE} from './native-patch.mjs';
-import {installNativePatch,verifyNativeFactory,readNativeBytes} from './native-run.mjs';
+import {installNativePatch,verifyNativeFactory,verifyNativeInstances,readNativeBytes} from './native-run.mjs';
 import {classifyAddition,PROBE_VERSION} from './addition-compatibility.mjs';
 const hash=b=>createHash('sha256').update(b).digest('hex');
 export const reportsDir=path.join(local,'addition-validation');
@@ -23,7 +23,8 @@ export async function inspectProbe(additions,read=readNativeBytes){
    row.attempt=memory.readUInt32BE(at+4);row.pointer=memory.readUInt32BE(at+8);
    if(row.attempt!==2||row.pointer<0x80003000||row.pointer>0x817fff00){results.push({...row,reason:row.attempt?'Native factory returned no valid instance.':'Source guards have not passed yet.'});continue;}
    const b=await read(row.pointer,0xf8);row.bytes_hex=b.toString('hex');row.state=b.readUInt32BE(0x54);row.actor=b.readUInt32BE(0xf4);row.position=[0,4,8].map(o=>b.readFloatBE(0x24+o));row.heading=b.readFloatBE(0x34);row.parent=b.readUInt32BE(0x5c);row.model=b.readUInt32BE(0xdc);row.script=b.readUInt32BE(0xa8);
-   row.runtime=b.readUInt32BE(0)===0x80481674&&row.parent===NATIVE_BASE+a.source&&row.model===NATIVE_BASE+a.model&&row.actor>=0x80003000&&row.actor<0x81800000&&row.position.every(Number.isFinite)?'passed':'inconclusive';
+   try { row.creation = await verifyNativeInstances([a], read); row.runtime = 'passed'; }
+   catch (e) { row.runtime = 'inconclusive'; row.verification_error = e.message; }
    row.reason=row.runtime==='passed'?'Distinct native instance and actor observed; visual and behavior checks pending.':'No matching live actor remains at capture time. The script may have transformed or destroyed the object; this does not prove incompatibility.';
    results.push(row);
  }

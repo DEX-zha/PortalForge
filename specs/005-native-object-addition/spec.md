@@ -72,6 +72,8 @@ L'utilisateur demande d'élargir aux pièces `1_Coper`, barrels et Chompies et d
 
 Acceptation : recherche `Barrel`, `1_Coper`, `Chompy` → diagnostic explicite ; campagne reproductible sans modifier la scène utilisateur ; résultats persistés avec empreintes et consultation depuis l'éditeur. Étendre Add uniquement là où la preuve le permet.
 
+Priorité suivante : expliquer et corriger la différence entre déplacement d'un ennemi/loot existant et ajout d'une copie. Tester séparément les hypothèses de paramètres partagés, identité, contexte d'activation et disparition liée au déroulement de la macro. Une solution doit garder le script d'origine, produire une instance distincte visible sur deux boots identiques et préserver les originaux. Le partage d'un script n'est pas considéré fautif sans preuve.
+
 - Premier périmètre : décoration statique déjà disponible dans le tutoriel ; import inter-niveaux, nouvelles géométries et nouvelles collisions hors périmètre.
-- Périmètre confirmé : SSPP52 Rev1, tutoriel, tournesol source 3446244 et Barrel source 3983352, au plus deux ajouts au total par démarrage à froid, position/orientation, échelle d'origine 100%. Le Barrel conserve son script ; la création visible ne garantit pas sa survie pendant la macro. Les autres modèles et paramètres restent à valider.
+- Périmètre confirmé : SSPP52 Rev1, tutoriel, tournesol source3446244, Barrel3983352, Enemy_ChompyNipper2390540 et 1_Coper(1)3034548, au plus deux ajouts au total par démarrage à froid, position/orientation, échelle d'origine100%. Les scripts et distances d'activation sont conservés ; la création visible ne garantit pas la survie pendant la macro. Les autres modèles et paramètres restent à valider.
 - Les gates existantes autorisent le remplacement confirmé, pas une insertion arbitraire. Les expérimentations se font dans les profils locaux dédiés.

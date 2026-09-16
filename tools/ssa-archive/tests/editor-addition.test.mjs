@@ -71,14 +71,18 @@ test('additions save beside unchanged IGZ; reopen, stale patch and tampered side
   fs.writeFileSync(target+'.portalforge.json',JSON.stringify(d));assert.throws(()=>patch(s,{deps}),e=>e.error==='STALE_ADDITIONS');
   d.base_sha256='wrong';fs.writeFileSync(target+'.portalforge.json',JSON.stringify(d));assert.throws(()=>loadAdditionSidecar(restored),/does not match/);
 });
-test('confirmed scripted additions retain the source script and reject tampered sidecars', t => {
+for (const [offset,model,modelPath,script,scriptPath] of [
+  [3983352,2794492,'barrel.mdl',2739632,'Barrel.ai'],
+  [2390540,1214412,'Chompy.mdl',2348068,'Enemy_Chompy.ai'],
+  [3034548,3036352,'Treasure_Coin_A.mdl',3034796,'Placed_Loot_Spinning.ai'],
+]) test(`confirmed source ${offset} retains its script and rejects tampered sidecars`, t => {
   const {s,dir,source}=fixture(t);
-  source.offset=3983352;source.model={offset:2794492,path:'Objects/barrel.mdl'};
-  source.behavior={offset:2739632,path:'Scripts/Barrel.ai'};
+  source.offset=offset;source.model={offset:model,path:'Objects/'+modelPath};
+  source.behavior={offset:script,path:'Scripts/'+scriptPath};
   applyEdit(s,{kind:'add',source:source.offset,position:[90,10.5,48]});
-  assert.equal(s.additions[0].script,2739632);
-  const target=path.join(dir,'barrel.decoded');save(s,{out:target});
-  const document=JSON.parse(fs.readFileSync(target+'.portalforge.json'));document.additions[0].script=2739636;
+  assert.equal(s.additions[0].script,script);
+  const target=path.join(dir,'scripted.decoded');save(s,{out:target});
+  const document=JSON.parse(fs.readFileSync(target+'.portalforge.json'));document.additions[0].script=script+4;
   fs.writeFileSync(target+'.portalforge.json',JSON.stringify(document));s.file=target;
   assert.throws(()=>loadAdditionSidecar(s),/script does not match/);
 });
@@ -112,4 +116,25 @@ test('runtime creation proof refuses absent recipes and a completed flag with nu
   await assert.rejects(verifyNativeInstances([a],async()=>memory),/not uniquely consumed/);
   memory.writeUInt32BE(0x50464e41,0);memory.writeUInt32BE(2,4);memory.writeInt32BE(-1,0x1c);memory.writeUInt32BE(0x80dbc020+a.source,0x2c);
   await assert.rejects(verifyNativeInstances([a],async()=>memory),/did not complete/);
+});
+
+test('scripted creation verifies initial placement while allowing live AI movement and rejects shared state', async()=>{
+  const base=0x80dbc020, a={id:-1,source:2390540,model:1214412,script:2348068,position:[90,10.5,48],heading:0};
+  const memory=Buffer.alloc(0x1800), copy=Buffer.alloc(0xf8), source=Buffer.alloc(0xf8), pointer=0x81220000;
+  memory.writeUInt32BE(0x50464e41,0);memory.writeUInt32BE(2,4);memory.writeUInt32BE(pointer,8);
+  memory.writeInt32BE(a.id,0x1c);memory.writeUInt32BE(base+a.source,0x2c);
+  for(const b of [copy,source]){b.writeUInt32BE(0x80481674,0);b.writeUInt32BE(base+a.script,0xa8);}
+  copy.writeUInt32BE(1,0x54);copy.writeUInt32BE(base+a.source,0x5c);copy.writeUInt32BE(base+a.model,0xdc);
+  copy.writeUInt32BE(0x81230000,0xf4);copy.writeUInt32BE(0x81240000,0xe0);source.writeUInt32BE(0x81250000,0xe0);
+  a.position.forEach((v,i)=>copy.writeFloatBE(v,0x24+i*4));
+  [93,11,44].forEach((v,i)=>copy.writeFloatBE(v,0x3c+i*4));copy.writeFloatBE(80,0x4c);
+  const read=async address=>address===0x80001800?memory:address===pointer?copy:source;
+  const result=await verifyNativeInstances([a],read);
+  assert.deepEqual(result.objects[0].position,a.position);assert.deepEqual(result.objects[0].current_position,[93,11,44]);
+  copy.writeFloatBE(89,0x24);await assert.rejects(verifyNativeInstances([a],read),/does not match/);copy.writeFloatBE(90,0x24);
+  copy.writeUInt32BE(0x81250000,0xe0);await assert.rejects(verifyNativeInstances([a],read),/parameters are not independent/);copy.writeUInt32BE(0x81240000,0xe0);
+  copy.writeUInt32BE(base+a.script+4,0xa8);await assert.rejects(verifyNativeInstances([a],read),/script was not retained/);
+  copy.writeUInt32BE(base+a.script,0xa8);source.writeUInt32BE(0x81260000,0xb0);copy.writeUInt32BE(0x81260000,0xb0);
+  await assert.rejects(verifyNativeInstances([a],read),/variables are shared/);
+  copy.writeUInt32BE(0x81270000,0xb0);assert.equal((await verifyNativeInstances([a],read)).verified,true);
 });

@@ -69,16 +69,20 @@ try {
     return {folderCount:count,thumbnails,layout:true,resize:true};
   })()`);
   const before = Buffer.from(session.buffer);
-  const barrel=process.argv.includes('--barrel'), search=barrel?'Barrel':'SUNFLOWER';
+  const subject=process.argv.includes('--chompy')?{source:2390540,search:'Enemy_ChompyNipper',label:'chompy',script:2348068}
+    :process.argv.includes('--coin')?{source:3034548,search:'1_Coper',label:'coper',script:3034796}
+    :process.argv.includes('--barrel')?{source:3983352,search:'Barrel',label:'barrel',script:2739632}
+    :{source:3446244,search:'SUNFLOWER',label:'sunflower',script:null};
+  const search=subject.search;
   const filterMs = await evaluate(`(() => { const t=performance.now(), e=document.getElementById('object-search'); e.value=${JSON.stringify(search)}; e.dispatchEvent(new Event('input')); return performance.now()-t; })()`);
   assert.ok(filterMs < 300);
-  const source = barrel?3983352:0x3495e4;
+  const source = subject.source;
   assert.equal(await evaluate(`document.querySelector('[data-object="${source}"]').draggable`), true);
   await evaluate(`document.querySelector('[data-object="${source}"]').click()`);
-  await waitFor(`document.querySelector('#inspector b')?.textContent?.toLowerCase().includes('${barrel?'barrel':'sunflower'}')`);
+  await waitFor(`document.querySelector('#inspector b')?.textContent?.toLowerCase().includes('${subject.label}')`);
   await waitFor(`document.querySelector('[data-object="${source}"] .asset-preview img')?.naturalWidth > 0`);
   assert.equal(await evaluate(`document.querySelector('[data-hierarchy="${source}"]').classList.contains('selected')`),true);
-  await shot(barrel?'workspace-barrel':'workspace-sunflower');
+  await shot('workspace-'+subject.label);
   assert.equal(await evaluate(`document.querySelector('header').getBoundingClientRect().top`),0);
   await sleep(500);
   // Real browser mouse input: no synthetic DragEvent or API prepare/commit shortcut.
@@ -154,7 +158,7 @@ try {
   const reopened=openSession(session.lastSave.file,{archive:session.archive,entry:3,fixups:session.fixups});
   assert.deepEqual(reopened.additions,session.additions);
   assert.equal(reopened.placements.length,675);
-  if(barrel)assert.ok(reopened.additions.every(a=>a.script===2739632));
+  assert.ok(reopened.additions.every(a=>(a.script??null)===subject.script));
   const built = process.argv.includes('--no-patch') ? null : patch(session, { deps: editorDeps(session, {}) }).patch;
   const result = { out, filterMs, hint, source, additions:session.additions, patch:built, geometryChecks,uiChecks,browser_errors:errors,checks:['673 original objects preserved','two mouse drops at distinct destinations','no victim','negative identity selection','rotation','scale disabled','undo removes additions','redo recreates additions','reset restores opened scene','saved sidecar preserved','real model thumbnails','accessible folder summaries','English interface'] };
   fs.writeFileSync(path.join(out, 'result.json'), JSON.stringify(result, null, 2));

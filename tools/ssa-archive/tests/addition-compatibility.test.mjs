@@ -47,3 +47,14 @@ test('probe reports a disappeared or reused object as inconclusive, never a pass
  const result=await inspectProbe([a],async(address)=>address===0x80001800?payload:object);
  assert.equal(result[0].runtime,'inconclusive');
 });
+
+test('mixed additions preserve each independently compiled native hook and share the global capacity',()=>{
+ const flower={id:-1,source:3446244,model:3446580,position:[88,10.5,43],heading:0,scale:100};
+ const barrel={id:-2,source:3983352,model:2794492,script:2739632,position:[90,10.5,48],heading:0,scale:100};
+ const a=compileNativePatch([flower]),b=compileNativePatch([barrel]),mixed=compileNativePatch([barrel,flower]);
+ assert.deepEqual(mixed.hooks,[...a.hooks,...b.hooks]);assert.deepEqual(mixed.lines,[...a.lines,...b.lines]);
+ assert.equal(mixed.count,2);assert.ok(mixed.bytes<=3256);assert.equal((mixed.ini.match(/\[Gecko_Enabled\]/g)||[]).length,1);
+ assert.equal(compileNativeProbe([barrel,flower]).ini,mixed.ini);
+ assert.throws(()=>compileNativePatch([barrel,{...flower,id:barrel.id}]),/distinct/);
+ assert.throws(()=>compileNativePatch([barrel,flower,{...flower,id:-3}]),/1\.\.2/);
+});

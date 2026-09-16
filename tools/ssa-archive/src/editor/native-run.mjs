@@ -3,13 +3,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { profile, portOccupied, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
-import { compileNativePatch, FACTORY_HASH, NATIVE_MAGIC, NATIVE_STRIDE, NATIVE_BASE } from './native-patch.mjs';
+import { compileNativePatch, FACTORY_HASH, ACTIVATION_HASH, NATIVE_MAGIC, NATIVE_STRIDE, NATIVE_BASE } from './native-patch.mjs';
 const hash = b => createHash('sha256').update(b).digest('hex');
 export const readNativeBytes = async (address, length) => Buffer.from(await bridgeCall('memory.read_bytes', [address, length]), 'hex');
 
 export async function installNativePatch(native, { directory = profile, occupied = portOccupied, compiler = compileNativePatch } = {}) {
   const recipe = compiler(native.additions);
-  if (hash(recipe.ini) !== native.sha256 || !fs.existsSync(native.file) || hash(fs.readFileSync(native.file)) !== native.sha256) throw Error('Native addition patch does not match its reviewed recipe.');
+  if (hash(recipe.ini) !== native.sha256 || !fs.existsSync(native.file) || hash(fs.readFileSync(native.file)) !== native.sha256) throw Error('Native addition patch does not match its reviewed recipe. Rebuild the patch with this editor version.');
   if (await occupied()) throw Error('Close the previous research Dolphin before installing this native patch.');
   fs.mkdirSync(directory, { recursive: true });
   const lease = path.join(directory, 'portalforge-native.lock');
@@ -42,6 +42,7 @@ export async function installNativePatch(native, { directory = profile, occupied
 
 export async function verifyNativeFactory(read = readNativeBytes) {
   if (hash(await read(0x80041984, 0x1f0)) !== FACTORY_HASH) throw Error('Native factory fingerprint differs: this game revision is not supported.');
+  if (hash(await read(0x80062860, 0x328)) !== ACTIVATION_HASH) throw Error('Native activation manager fingerprint differs: this game revision is not supported.');
 }
 
 // A consumed code is not enough: demand distinct live placements and their actors.
@@ -58,12 +59,24 @@ export async function verifyNativeInstances(additions, read = readNativeBytes) {
     const at = matches[0], pointer = memory.readUInt32BE(at + 8);
     if (memory.readUInt32BE(at + 4) !== 2 || !valid(pointer) || pointer === NATIVE_BASE + a.source) throw Error(`Added object ${a.id}: native creation did not complete.`);
     const b = await read(pointer, 0xf8), source = await read(NATIVE_BASE + a.source, 0xf8);
-    const position = [0,4,8].map(n => b.readFloatBE((a.script == null ? 0x24 : 0x3c) + n)), heading = b.readFloatBE(a.script == null ? 0x34 : 0x4c);
+    // Native metadata identifies +24 as the initial transform, +3c as current.
+    // AI movement and coin animation may change the latter after creation.
+    const position = [0,4,8].map(n => b.readFloatBE(0x24 + n)), heading = b.readFloatBE(0x34);
+    const current_position = [0,4,8].map(n => b.readFloatBE(0x3c + n)), current_heading = b.readFloatBE(0x4c);
+    if (b.readUInt32BE(0xa8) !== (a.script == null ? 0 : NATIVE_BASE + a.script)) throw Error(`Added object ${a.id}: source script was not retained.`);
     const sourceValid = a.script == null ? valid(source.readUInt32BE(0xf4)) : source.readUInt32BE(0)===0x80481674 && source.readUInt32BE(0xa8)===NATIVE_BASE+a.script;
     if (b.readUInt32BE(0) !== 0x80481674 || b.readUInt32BE(0x54) !== 1 || b.readUInt32BE(0x5c) !== NATIVE_BASE + a.source || b.readUInt32BE(0xdc) !== NATIVE_BASE + a.model || !valid(b.readUInt32BE(0xf4)) || !sourceValid || b.readUInt32BE(0xf4) === source.readUInt32BE(0xf4) || position.some((n,i) => !Number.isFinite(n) || Math.abs(n - a.position[i]) > 0.002) || !Number.isFinite(heading) || Math.abs(heading - a.heading) > 0.02) throw Error(`Added object ${a.id}: runtime placement does not match the patch.`);
-    rows.push({ id: a.id, pointer, actor: b.readUInt32BE(0xf4), source_actor: source.readUInt32BE(0xf4), position, heading });
+    if (current_position.some(n => !Number.isFinite(n)) || !Number.isFinite(current_heading)) throw Error(`Added object ${a.id}: current transform is not finite.`);
+    const actor_parameters = b.readUInt32BE(0xe0), local_variables = b.readUInt32BE(0xb0);
+    if (a.script != null && source.readUInt32BE(0xe0) && (!valid(actor_parameters) || actor_parameters === source.readUInt32BE(0xe0))) throw Error(`Added object ${a.id}: actor parameters are not independent.`);
+    if (local_variables && local_variables === source.readUInt32BE(0xb0)) throw Error(`Added object ${a.id}: local script variables are shared with the source.`);
+    rows.push({ id: a.id, pointer, actor: b.readUInt32BE(0xf4), source_actor: source.readUInt32BE(0xf4), position, heading, current_position, current_heading, actor_parameters, local_variables });
   }
   if (new Set(rows.map(r => r.pointer)).size !== rows.length || new Set(rows.map(r => r.actor)).size !== rows.length) throw Error('Native additions reused an existing object.');
+  for (const key of ['actor_parameters', 'local_variables']) {
+    const values = rows.map(r => r[key]).filter(Boolean);
+    if (new Set(values).size !== values.length) throw Error(`Native additions share ${key}.`);
+  }
   return { verified: true, method: 'MEM1 native instances and actors', objects: rows };
 }
 

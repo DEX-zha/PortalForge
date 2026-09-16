@@ -1,0 +1,17 @@
+{
+  "id": "level.prop.native-addition-activation-lifecycle",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Native clone activation lifecycle (read-only diagnosis)",
+  "structure": "Placement factory, activation manager and parent clone list",
+  "location": {"offset": 2147888004, "length": 4, "file_pattern": "SSA SSPP52 Rev1 native code"},
+  "meaning": "Early native copies of tutorial sources2390540 Enemy_ChompyNipper and3034548 1_Coper(1) are initially active with distinct actors and private actor parameters. Their first observed deactivation requests state2 from the native activation-distance manager (return address0x80062b88); the parent-clone lifecycle then disposes of the instance. This is different from a failed factory call or an observed remove instruction in either placement script. Source activationRange values are150/140 with buffers20/0; the working Barrel source3983352 has both values zero. Original level placements already share scripts and IDs, so script/ID sharing alone does not establish a conflict. The corrective recipe is confirmed separately in level.prop.native-addition-chompy and level.prop.native-addition-coin. The precise readiness/distance condition at the original deactivation remains unisolated: observer count was not captured at that exact instant. This diagnostic finding grants no editable property and does not authorize disabling activation ranges or scripts.",
+  "evidence": [
+    {"probe": "batch-1789559355785-de449061", "summary": "Two identical cold boots reproduce loss before the first tutorial capture, at two destinations away from the old near-player test position."},
+    {"probe": "lifecycle-1789560103836", "summary": "Immediate 0xf8-byte snapshots after the unchanged factory returns show state1, distinct actors, requested XYZ and private actor parameters. Both instances have disappeared by the intro capture."},
+    {"probe": "lifecycle-1789560836291", "summary": "Bounded integer-only trace at0x80042018 records state2, caller0x80062b88 and null script VM context for both clones. No source/script/ID/activation-range mutation. Dedicated profile stopped cleanly and restored."}
+  ]
+}

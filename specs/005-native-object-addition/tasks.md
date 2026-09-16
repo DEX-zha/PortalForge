@@ -39,5 +39,12 @@ Résultat : premier périmètre terminé, preuves et limites dans [validation.md
 - [x] T014 Définir les diagnostics/familles et tester les distinctions candidat, bloqué, technique et confirmé.
 - [x] T015 Ajouter l'analyse de compatibilité au catalogue et à l'inspecteur, avec compteurs/filtres en anglais et résultats persistants.
 - [x] T016 Implémenter une campagne bornée reproductible : groupes de sources, boot, vérifications par instance, captures, annulation et restauration du profil ; ne pas modifier la scène utilisateur.
-- [x] T017 Exécuter la campagne sur 1_Coper, Barrel et Chompy ; consigner les observations et ouvrir seulement le périmètre confirmé. Barrel ouvert ; 1_Coper/Chompy restent en diagnostic de cycle de vie, pas en faux succès.
+- [x] T017 Exécuter la campagne sur 1_Coper, Barrel et Chompy ; consigner les observations et ouvrir seulement le périmètre confirmé. À cette étape, Barrel ouvert ; 1_Coper/Chompy encore en diagnostic de cycle de vie. Leur validation ultérieure est couverte par T019–T022.
 - [x] T018 Vérifier suites et interface, préserver la session ouverte, documenter comment connaître et tester une capacité. Voir compatibility.md et validation.md.
+
+## Priorité : copie des ennemis et du loot
+
+- [x] T019 Comparer sources existantes et clones : identifiants, paramètres, scripts partagés, état et contexte d'activation ; relever le cycle de vie dès l'entrée du tutoriel.
+- [x] T020 Isoler la cause par expériences témoins (position, contexte, paramètres/identité si justifiés), en conservant scripts et originaux.
+- [x] T021 Implémenter la correction étayée et confirmer les nouvelles sources sur deux boots identiques avec visibilité et instances distinctes ; ne pas confondre création et validation du gameplay.
+- [x] T022 Vérifier sauvegarde/patch/interface et régressions, mettre à jour findings, specs et limites effectives.

@@ -1,0 +1,34 @@
+{
+  "id": "level.prop.native-addition-chompy",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Native scripted addition, XYZ and heading at source scale100",
+  "structure": "Deferred factory call from activation update with nonempty observer list and tutorial guards",
+  "location": {
+    "offset": 2390540,
+    "length": 248,
+    "file_pattern": "SSA SSPP52 Rev1 / level/Level_027_Tutorial.bld"
+  },
+  "meaning": "Confirmed visible additive creation of exact source2390540 Enemy_ChompyNipper, model1214412 Chompy.mdl, script2348068 Enemy_Chompy.ai retained. Factory0x80041984 runs at activation-update return0x80062b88 after its native observer list is populated and tutorial anchor is active. Source ID/script/range are unchanged; parameters and actor are independent. Initial XYZ/heading remain distinct from subsequent script movement or animation. At most two additions total, scale100, cold editor-owned launch. Native script and activation-distance lifecycle still apply: creation is not a guarantee of survival or persistence outside range. This confirms creation/rendering, not combat, collection, loot, arbitrary family parameters, level reload, collision or gameplay editing.",
+  "evidence": [
+    {
+      "probe": "batch-1789561424640-943fbc8d-boot1",
+      "summary": "Distinct live placement and actor; requested initial transform; extra Enemy_ChompyNipper visually reviewed in capture40-tutorial-hugo-5, native script retained, original scene visible, clean stop and profile restored."
+    },
+    {
+      "probe": "batch-1789561424640-943fbc8d-boot2",
+      "summary": "Distinct live placement and actor; requested initial transform; extra Enemy_ChompyNipper visually reviewed in capture40-tutorial-hugo-5, native script retained, original scene visible, clean stop and profile restored."
+    },
+    {
+      "experiment_id": "native-chompy-activation-two-boots-20260916",
+      "summary": "Two identical cold boots of the editor compiler, native instance proof and visual review; creation separated from later script lifecycle."
+    },
+    {
+      "probe": "chompy-pair-1789562012150",
+      "summary": "Additional duplicate-source control: two Chompy from source2390540 visible simultaneously in captures31/34, same native ID1 and Enemy_Chompy.ai, distinct actors, actor parameters and local variable lists. Both move independently. Creation verified before later script lifecycle changes; clean stop and profile restoration. INI c1f1116f620cf56b6df770914d7504472f5aa036c04c77103d2da0964022ff83."
+    }
+  ]
+}
