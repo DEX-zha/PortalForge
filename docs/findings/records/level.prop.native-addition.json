@@ -1,0 +1,34 @@
+{
+  "id": "level.prop.native-addition",
+  "updated": "2026-09-15",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Native additive placement, XYZ and heading at original scale",
+  "structure": "Gecko C2 after OpSpawn return, private placement recipe in handler-owned memory",
+  "location": {
+    "offset": "0x800445c8 hook / source file0x3495e4",
+    "file_pattern": "SSA SSPP52 Rev1 / level/Level_027_Tutorial.bld",
+    "length": 4
+  },
+  "meaning": "Two extra visible sunflower instances are created through the native factory after the static source is active with its actor. The two original flowers and existing weed remain. Runtime instance/actor identities, transforms and model parent lists agree with the visual result across two cold boots of identical Gecko code. Editable scope: source3446244 plant_sunflower_whole, XYZ and heading, original scale100; at most two additions per cold launch. No IGZ insertion, sacrificial replacement, extra geometry, collision or gameplay editing. Restart emulation after reload or patch changes. Other templates remain unavailable.",
+  "evidence": [
+    {
+      "experiment_id": "gecko-1789513063448",
+      "summary": "Visual PASS, two distinct additional actors and preserved originals. INI SHA256 98b4c2f8913f272b4de87fba1bb9e38d9a8892f5d3504169aaa0061b95c604ec; local screenshot C:\\Users\\romai\\Desktop\\PortalForge\\.local\\native-addition\\gecko-1789513063448\\extra.png."
+    },
+    {
+      "experiment_id": "gecko-1789513507766",
+      "summary": "Visual PASS, two distinct additional actors and preserved originals. INI SHA256 98b4c2f8913f272b4de87fba1bb9e38d9a8892f5d3504169aaa0061b95c604ec; local screenshot C:\\Users\\romai\\Desktop\\PortalForge\\.local\\native-addition\\gecko-1789513507766\\extra.png."
+    },
+    {
+      "experiment_id": "native-addition-two-boots-20260916",
+      "summary": "Two independent cold boots of byte-identical generated recipe. Runtime proof plus visual review; ordinary tutorial cadence, clean stop and exact profile restoration."
+    },
+    {
+      "experiment_id": "native-editor-two-boots-20260916",
+      "summary": "Full editor path PASS twice: real Project mouse drops, save sidecar, archive rebuild and temporary Gecko install, archive monitor15333kB, distinct live instances at saved transforms, visual four flowers with originals/weed intact, clean stops and profile restoration. Browser report .local/object-workflow/browser-1789513997418; run records .local/native-addition/editor-proof-1789514119070."
+    }
+  ]
+}

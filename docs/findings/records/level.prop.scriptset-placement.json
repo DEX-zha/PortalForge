@@ -1,6 +1,6 @@
 {
   "id": "level.prop.scriptset-placement",
-  "updated": "2026-09-13",
+  "updated": "2026-09-15",
   "editable": false,
   "category": "world-entities",
   "confidence": "CONFIRMED",
@@ -14,6 +14,10 @@
   },
   "meaning": "If the +0x6C triple is the world position of a visible prop, these records are the visible handle the visible-duplication chantier needs: M2 = edit the triple in place; M3 = copy one record over a sacrificable same-type same-size record of the same script (igz clone-entity --replace-record, keeping the victim`s name and companion pointers), zero shift, so the count-bounded blob walk stays aligned. Selection used only header-table entries and runtime-confirmed pointer words (fixup map), not the heuristic header detector. Test: sunflower(1) copied over weed(8) with position (85.5, 10, 42): expected a second sunflower next to sunflower(1) and no weed at weed(8)`s spot. LIMIT: proven on plants (Plants layer). Both push-block attempts (G2 cross-script/class, G2b same script/class) froze in-game during the opening cutscene; the replacement itself is exonerated by G2b, the object class/position at cutscene time is suspected (control pending).",
   "evidence": [
+    {
+      "experiment_id": "editor-test-1789503985200-c0276b1d / editor-test-1789504260678-b4ece022",
+      "summary": "Feature 004 explorer HTML5 drop: sunflower_Template(1) 0x3495E4 copied over explicitly selected weed_2_Template(8) 0x34AC60 at (91.349, 10.435, 43.275), wrapper-proven recipe, shared-model critical consequences explicitly acknowledged. Two independent boots of identical rebuilt SHA256 e3e7a9fbac23ab46ffb4188cb2776bddf5662c9efa023243caf8df155b3d98cc show a third sunflower near the start, original pair retained, Sonic Boom moving right onto the bridge and back left. FileMonitor 15333 kB versus original 15241 kB in both boots; both owned processes closed without force. Browser exact undo/redo and shared geometry restoration checked. Other users of the renamed weed model are reported by the existing plan; not all distant users were visually inspected. Evidence .local/object-workflow/game-proof.json; no new field, collision or scripted-class readiness inferred."
+    },
     {
       "probe": "igz script 0x33F450 (decodeScript) + scratch sunflower.mjs",
       "summary": "three placed-plant records decoded: opcode text, template name +0x50, model path +0x1A0, triple +0x6C in world scale near the spawn, heading +0x7C, scale +0x100; single inbound pointer each from the script list node; unit-tested planReplaceRecord produces a VALID zero-shift plan (10 words changed: 9 inside the victim, 1 refcount bump)"

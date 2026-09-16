@@ -11,6 +11,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { authorisedWords } from './session.mjs';
 import { FIELDS } from '../igz/model-resolve.mjs';
+import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
+import { compileNativePatch } from './native-patch.mjs';
 
 const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.error = error; e.exitCode = 1; throw e; };
 const hexAt = (buf, at) => buf.subarray(at, at + 4).toString('hex');
@@ -20,16 +22,20 @@ const hash = buf => crypto.createHash('sha256').update(buf).digest('hex');
 // the working buffer, so an unexplained byte is a refusal rather than a surprise in the game.
 export function buildSavePlan(session) {
   const failures = [];
+  let additions = [];
+  try { additions = currentAdditionRecipe(session); }
+  catch (e) { failures.push({ stage: 'additions', reason: e.message }); }
   const original = fs.existsSync(session.file) ? fs.readFileSync(session.file) : null;
   if (!original) failures.push({ stage: 'source', reason: `${session.file} is gone since the session opened` });
   else if (crypto.createHash('sha256').update(original).digest('hex') !== session.original_sha256) {
     failures.push({ stage: 'source', reason: `${session.file} changed since the session opened: its hash no longer matches, so this save would overwrite someone else's work` });
   }
-  if (!session.edits.length) failures.push({ stage: 'edits', reason: 'nothing to save: no edit has been applied' });
+  if (!session.edits.length && !additions.length) failures.push({ stage: 'edits', reason: 'nothing to save: no edit has been applied' });
 
   const allowed = authorisedWords(session);
   const changes = [];
   for (const e of session.edits) {
+    if (e.kind === 'add' || e.kind === 'add-transform') continue;
     if (e.kind === 'replace') {
       for (const w of e.words) changes.push({ target: e.target, attribute: 'replace', field: `+0x${(w.offset - e.target).toString(16)}`,
         old: null, new: null, old_hex: original ? hexAt(original, w.offset) : null, new_hex: hexAt(session.buffer, w.offset) });
@@ -62,6 +68,7 @@ export function buildSavePlan(session) {
   return {
     status: failures.length ? 'INVALID' : 'VALID',
     changes: dedupe(changes),
+    native_additions: additions,
     failures,
     warnings: [],
     file_length_unchanged: lengthUnchanged,
@@ -118,9 +125,12 @@ export function save(session, { out = null } = {}) {
     return { plan, written: null };
   }
 
+  const sha256 = hash(written);
+  try { saveAdditionSidecar(session, target, sha256); }
+  catch (e) { plan.status = 'INVALID'; plan.failures.push({ stage: 'addition-write', reason: e.message }); return { plan, written: null }; }
   session.dirty = false;
   session.lastPatch = null;
-  session.lastSave = { file: target, plan, sha256: crypto.createHash('sha256').update(written).digest('hex'), at: new Date().toISOString() };
+  session.lastSave = { file: target, plan, sha256, additions: plan.native_additions, additions_sha256: additionsDigest(plan.native_additions), at: new Date().toISOString() };
   return { plan, written: target };
 }
 
@@ -128,6 +138,12 @@ export function patch(session, { deps = {} } = {}) {
   if (!session.lastSave) fail('NOTHING_SAVED', 'there is no valid save to build a patch from');
   if (session.locked) fail('SESSION_LOCKED', `a launched run may still be reading ${session.lock?.patch_dir}; record what you saw before rebuilding it`);
   if (hash(session.buffer) !== session.lastSave.sha256 || !fs.existsSync(session.lastSave.file) || hash(fs.readFileSync(session.lastSave.file)) !== session.lastSave.sha256) fail('UNSAVED_CHANGES', 'save the current edits before building their patch');
+  if (additionsDigest(currentAdditionRecipe(session)) !== (session.lastSave.additions_sha256 ?? additionsDigest([]))) fail('UNSAVED_CHANGES', 'Save the current added objects before building their patch.');
+  if (session.lastSave.additions_sha256) {
+    let sidecar;
+    try { sidecar = JSON.parse(fs.readFileSync(session.lastSave.file + '.portalforge.json', 'utf8')); } catch { fail('STALE_ADDITIONS', 'The saved addition file is missing or unreadable.'); }
+    if (sidecar.base_sha256 !== session.lastSave.sha256 || additionsDigest(sidecar.additions) !== session.lastSave.additions_sha256) fail('STALE_ADDITIONS', 'The saved addition file changed. Save the scene again.');
+  }
   const build = deps.build ?? defaultBuild;
   const experimentId = `edit-${path.basename(session.file, path.extname(session.file))}-${Date.now()}`;
   const result = build({
@@ -136,8 +152,15 @@ export function patch(session, { deps = {} } = {}) {
     entry: session.entry,
     session,
   });
+  let native_additions = null;
+  if (session.lastSave.additions?.length) {
+    const recipe = compileNativePatch(session.lastSave.additions), file = path.join(result.dir, 'portalforge-additions.ini');
+    fs.writeFileSync(file, recipe.ini);
+    native_additions = { version: 1, file, sha256: hash(recipe.ini), additions: structuredClone(session.lastSave.additions) };
+    fs.writeFileSync(path.join(result.dir, 'portalforge-additions.json'), JSON.stringify(native_additions, null, 2));
+  }
   session.lastPatch = { ...result, dir: result.dir, replacements: result.replacements ?? [], experiment_id: experimentId,
-    save_sha256: session.lastSave.sha256, rebuilt_sha256: result.rebuilt_sha256 ?? null, at: new Date().toISOString() };
+    save_sha256: session.lastSave.sha256, additions_sha256: session.lastSave.additions_sha256, native_additions, rebuilt_sha256: result.rebuilt_sha256 ?? null, at: new Date().toISOString() };
   return { patch: session.lastPatch };
 }
 
@@ -154,6 +177,9 @@ export async function launch(session, { prediction = '', figure = null, repeat =
   if (!session.lastPatch) fail('NOTHING_PATCHED', 'build a patch before launching');
   if (session.lastLaunch?.running) fail('ALREADY_RUNNING', 'a run is already under way; wait for it to finish');
   if (hash(session.buffer) !== session.lastPatch.save_sha256) fail('STALE_PATCH', 'the patch predates these edits: save and rebuild it first');
+  if (additionsDigest(currentAdditionRecipe(session)) !== (session.lastPatch.additions_sha256 ?? additionsDigest([]))) fail('STALE_PATCH', 'Added objects changed: save and rebuild the patch first.');
+  const native = session.lastPatch.native_additions;
+  if (native && (!fs.existsSync(native.file) || hash(fs.readFileSync(native.file)) !== native.sha256 || additionsDigest(native.additions) !== session.lastPatch.additions_sha256)) fail('STALE_PATCH', 'The native addition patch changed after it was built.');
   for (const r of session.lastPatch.replacements) {
     if (r.sha256 && (!fs.existsSync(path.resolve(session.lastPatch.dir, r.file)) || hash(fs.readFileSync(path.resolve(session.lastPatch.dir, r.file))) !== r.sha256)) fail('STALE_PATCH', 'a replacement file changed after the patch was built');
   }

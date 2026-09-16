@@ -19,6 +19,7 @@ import { gateStatus } from '../experiments/run-game.mjs';
 import { scriptTable } from '../igz/script.mjs';
 import { replacePlacement } from './placements.mjs';
 import { translatedPathWords } from './trajectory.mjs';
+import { applyAddition, transformAddition, restoreAddition, refreshAdditions, loadAdditionSidecar, assertAdditionDependencies } from './native-additions.mjs';
 
 const UNLAYERED = '(unlayered)';
 const WRAPPER_EMBED = 0x48;
@@ -88,7 +89,7 @@ export function openSession(file, { archive, entry, fixups = null, deps = {} } =
 
   const hasRuntimeMap = !!fixups;
   const sec = graph.sections[graph.object_section];
-  return {
+  const session = {
     // Kept so the duplication path can hand the existing planners the shape they expect, on the working buffer.
     graph, sec, table: scriptTable(buf, graph), ptrSet: new Set(fixups?.pointer_words ?? []),
     copy: copySizes(graph, res.rows),
@@ -109,11 +110,16 @@ export function openSession(file, { archive, entry, fixups = null, deps = {} } =
     has_runtime_map: hasRuntimeMap,
     fixups,
     edits: [],
+    edit_revision: 0,
     undone: [],
     dirty: false,
     locked: false,
     lock: null,
+    additions: [], next_addition_id: -1,
   };
+  loadAdditionSidecar(session);
+  session.layers = deriveLayers(session.placements, { hasRuntimeMap });
+  return session;
 }
 
 // What `GET /api/session` returns: everything except the bytes and the placements.
@@ -134,6 +140,7 @@ export const findPlacement = (s, offset) => s.placements.find(p => p.offset === 
 // the bytes before writing.
 
 import { FIELDS } from '../igz/model-resolve.mjs';
+import { modelMeshes } from './meshes.mjs';
 
 const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.error = error; e.exitCode = 1; throw e; };
 
@@ -144,6 +151,7 @@ const fail = (error, reason) => { const e = new Error(`${error}: ${reason}`); e.
 export const EDITABLE = { position: 'layout', heading: 'layout', scale: 'layout' };
 
 export function canEdit(placement, attribute) {
+  if (placement.native_addition && attribute === 'scale') return { ok: false, error: 'UNSUPPORTED_FIELD', reason: 'Added objects currently keep their original 100% scale.' };
   const key = EDITABLE[attribute];
   if (!key) return { ok: false, error: 'UNSUPPORTED_FIELD', reason: `${attribute} is not an attribute this editor writes; it writes ${Object.keys(EDITABLE).join(', ')}` };
   const evidence = placement.evidence?.[key];
@@ -189,6 +197,14 @@ function refreshRecord(session, placement) {
 
 export function applyEdit(session, intent) {
   if (session.locked) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before editing');
+  assertAdditionDependencies(session, intent);
+  if (intent.kind === 'add' || (intent.kind === 'transform' && intent.target < 0)) {
+    const placement = intent.kind === 'add' ? applyAddition(session, intent) : transformAddition(session, intent);
+    session.edit_revision = (session.edit_revision ?? 0) + 1;
+    session.undone.length = 0; session.dirty = true;
+    session.layers = deriveLayers(session.placements, { hasRuntimeMap: session.has_runtime_map });
+    return { ...editResult(session, placement), rebuild_scene: true };
+  }
   if (intent.kind === 'replace') return applyReplace(session, intent);
   if (intent.kind !== 'transform') fail('UNSUPPORTED_INTENT', `${intent.kind} is not a supported intent; this editor applies transform and replace`);
   const placement = findPlacement(session, intent.target);
@@ -210,6 +226,7 @@ export function applyEdit(session, intent) {
   writeWords(session.buffer, dependent_words, 'after');
 
   session.edits.push({ kind: 'transform', target: placement.offset, attributes: asked, before, after, before_raw, after_raw, dependent_words, at: new Date().toISOString() });
+  session.edit_revision = (session.edit_revision ?? 0) + 1;
   session.undone.length = 0;
   refreshRecord(session, placement);
   session.dirty = true;
@@ -254,7 +271,8 @@ function reresolve(session) {
   delete session._meshes;
   const res = resolveAll(session.buffer, session.graph, session.fixups);
   session.placements = res.rows;
-  session.layers = deriveLayers(res.rows, { hasRuntimeMap: session.has_runtime_map });
+  refreshAdditions(session);
+  session.layers = deriveLayers(session.placements, { hasRuntimeMap: session.has_runtime_map });
   session.models = res.models;
   session.counts = { direct: res.counts.direct ?? 0, indirect: res.counts.indirect ?? 0, ambiguous: res.counts.ambiguous ?? 0, absent: res.counts.absent ?? 0 };
 }
@@ -264,8 +282,8 @@ function reresolve(session) {
 export function planReplace(session, intent) {
   try {
     const dry = { ...intent, acknowledged: [] };
-    applyReplace({ ...session, edits: [], undone: [], buffer: Buffer.from(session.buffer), placements: session.placements }, dry);
-    return { plan: null, rules: [], reason: 'nothing to acknowledge: this duplication triggers no critical rule' };
+    const result = applyReplace({ ...session, edits: [], undone: [], buffer: Buffer.from(session.buffer), placements: session.placements }, dry);
+    return { plan: result.plan, rules: result.plan.safety ?? [] };
   } catch (e) {
     if (e.plan) return { plan: e.plan, rules: e.rules ?? e.plan.safety ?? [], error: e.error === 'ACKNOWLEDGEMENT_REQUIRED' ? null : e.error, reason: e.message };
     return { plan: null, rules: e.rules ?? [], error: e.error ?? 'REFUSED', reason: e.message };
@@ -312,14 +330,18 @@ export function applyReplace(session, intent) {
   }
 
   const words = wordDiff(session.buffer, r.buffer);
+  // Geometry is immutable under these recipes. Keep its original asset bindings before a shared
+  // model record is renamed, otherwise ownership-by-offset would draw the victim's old geometry.
+  session._meshLibrary ??= modelMeshes(session);
   writeWords(session.buffer, words, 'after');
   session.edits.push({ kind: 'replace', target: victim.offset, source: source.offset, words, plan,
     summary: `${source.name} copied over ${victim.name}`, at: new Date().toISOString() });
+  session.edit_revision = (session.edit_revision ?? 0) + 1;
   session.undone.length = 0;
   reresolve(session);
   session.dirty = true;
   const placement = findPlacement(session, victim.offset);
-  return { ...editResult(session, placement), plan };
+  return { ...editResult(session, placement), plan, rebuild_scene: true };
 }
 
 export function undo(session) {
@@ -328,12 +350,31 @@ export function undo(session) {
   if (!edit) return null;
   const placement = restore(session, edit, 'before');
   session.undone.push(edit);
+  session.edit_revision = (session.edit_revision ?? 0) + 1;
   session.dirty = session.edits.length > 0;
-  return editResult(session, placement);
+  return { ...editResult(session, placement), rebuild_scene: edit.kind !== 'transform' };
+}
+
+// Replay the existing exact-byte undo records, including replacements and private paths.
+// Keep the redo chain, and detach saved artefacts so Reset cannot launch an old patch.
+export function resetScene(session) {
+  if (session.locked || session.lastLaunch?.running) fail('SESSION_LOCKED', 'stop the editor-owned Dolphin before resetting the scene');
+  const count = session.edits.length;
+  while (session.edits.length) undo(session);
+  session.edit_revision = (session.edit_revision ?? 0) + 1;
+  session.dirty = false;
+  session.lastSave = null;
+  session.lastPatch = null;
+  return { applied: count > 0, reset_scene: true, rebuild_scene: true, reset_count: count };
 }
 
 // A transform is restored field by field; a replacement is restored word by word, because the whole slot moved.
 function restore(session, edit, side) {
+  if (edit.kind === 'add' || edit.kind === 'add-transform') {
+    const p = restoreAddition(session, edit, side);
+    session.layers = deriveLayers(session.placements, { hasRuntimeMap: session.has_runtime_map });
+    return p;
+  }
   if (edit.kind === 'replace') {
     writeWords(session.buffer, edit.words, side);
     reresolve(session);
@@ -349,13 +390,14 @@ export function redo(session) {
   if (!edit) return null;
   const placement = restore(session, edit, 'after');
   session.edits.push(edit);
+  session.edit_revision = (session.edit_revision ?? 0) + 1;
   session.dirty = true;
-  return editResult(session, placement);
+  return { ...editResult(session, placement), rebuild_scene: edit.kind !== 'transform' };
 }
 
 const editResult = (session, placement) => ({
   applied: true, placement,
-  safety: assessPlacement(placement, { hasRuntimeMap: session.has_runtime_map }),
+  safety: placement ? assessPlacement(placement, { hasRuntimeMap: session.has_runtime_map }) : [],
   dirty: session.dirty, undo_depth: session.edits.length, redo_depth: session.undone.length,
 });
 
@@ -363,6 +405,7 @@ const editResult = (session, placement) => ({
 export function authorisedWords(session) {
   const out = new Set();
   for (const e of session.edits) {
+    if (e.kind === 'add' || e.kind === 'add-transform') continue;
     if (e.kind === 'replace') { for (const w of e.words) out.add(w.offset); continue; }
     for (const a of e.attributes) for (const w of wordsOf(e.target, a)) out.add(w);
     for (const w of e.dependent_words ?? []) out.add(w.offset);

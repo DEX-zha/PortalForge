@@ -51,16 +51,16 @@ test('a cloned bridge resource offers conditional creator anchors instead of its
   assert.ok(d.movement.targets.every(p=>p.offset!==template.offset));
   const html=renderPlacement(template,[],[],{script:d});
   assert.match(html,/data-counterpart="1875316"/);
-  assert.match(html,/conditionnel/);
-  assert.match(html,/Déplacement en jeu/);
+  assert.match(html,/Conditional/);
+  assert.match(html,/In-game movement/);
 });
 
 test('motion opcodes and shared model warnings do not claim every scripted position is reset', {skip}, () => {
   const s=tutorial(), barrel=at(s,3074164), d=scriptDiagnostics(s,barrel);
   const html=renderPlacement(barrel,[],[],{script:d});
-  assert.match(html,/position propre/);
-  assert.match(html,/copies ou des débris/);
-  assert.doesNotMatch(html,/Une position enregistrée peut ensuite être recalculée/);
+  assert.match(html,/independent position/);
+  assert.match(html,/copies or debris/);
+  assert.doesNotMatch(html,/A stored position may subsequently be recalculated/);
   const blades=at(s,3296324);
   assert.equal(scriptDiagnostics(s,blades).movement.kind,'initial_position');
   assert.equal(scriptDiagnostics(s,blades).movement.targets.length,0);

@@ -1,0 +1,119 @@
+// SSA SSPP52 Rev 1 native placement recipe. This compiler is not a capability
+// decision: native-additions.mjs checks the finding and the source catalogue.
+// Gecko owns the code region; no IGZ insertion or guessed code cave is used.
+export const NATIVE_BASE = 0x80dbc020;
+// The handler can hold more records; the exposed limit follows the two-copy proof.
+export const NATIVE_LIMIT = 2;
+export const NATIVE_MAGIC = 0x50464e41;
+export const NATIVE_STRIDE = 0x90;
+export const FACTORY_HASH = '8fcf8ff29324baff5246ef8dbf3dcab41c983941b8ac603b7554fff8bd2b42a3';
+const hex = n => (n >>> 0).toString(16).padStart(8, '0').toUpperCase();
+const floatWord = n => { const b = new DataView(new ArrayBuffer(4)); b.setFloat32(0, n); return b.getUint32(0); };
+class PPC {
+  words = []; labels = new Map(); fixups = [];
+  emit(w) { this.words.push(w >>> 0); }
+  label(s) { this.labels.set(s, this.words.length * 4); }
+  d(op, t, a, value) { this.emit((op << 26) | (t << 21) | (a << 16) | (value & 65535)); }
+  lw(t, off, a) { this.d(32, t, a, off); }
+  sw(t, off, a) { this.d(36, t, a, off); }
+  li(t, v) { this.d(14, t, 0, v); }
+  imm(t, v) { this.d(15, t, 0, v >>> 16); this.d(24, t, t, v & 65535); }
+  spr(write, t, s) { this.emit((31 << 26) | (t << 21) | ((s & 31) << 16) | ((s & 992) << 6) | ((write ? 467 : 339) << 1)); }
+  cmpi(r, v) { this.d(11, 0, r, v); }
+  cmp(a, b, unsigned = false) { this.emit((31 << 26) | (a << 16) | (b << 11) | (unsigned ? 64 : 0)); }
+  mr(t, s) { this.emit((31 << 26) | (s << 21) | (t << 16) | (s << 11) | (444 << 1)); }
+  branch(to, bo = null, bi = null) { this.fixups.push({ at: this.words.length, to, bo, bi }); this.emit(0); }
+  done() {
+    for (const f of this.fixups) {
+      if (!this.labels.has(f.to)) throw Error('Missing PPC label');
+      const delta = this.labels.get(f.to) - f.at * 4;
+      if (Math.abs(delta) > 32764) throw Error('PPC branch exceeds bounded payload');
+      this.words[f.at] = f.bo === null ? (0x48000000 | (delta & 0x3fffffc)) >>> 0
+        : ((16 << 26) | (f.bo << 21) | (f.bi << 16) | (delta & 65532)) >>> 0;
+    }
+    return this.words;
+  }
+  tail() { if (this.words.length % 2 === 0) this.emit(0x60000000); this.label('tail'); this.emit(0); }
+}
+
+export const compileNativePatch = (additions, options = {}) => compile(additions, { ...options, probe: Array.isArray(additions)&&additions.some(a=>a?.script!=null) });
+// Experimental factory invocation. This does not grant an editable capability.
+export const compileNativeProbe = additions => compile(additions, { probe: true });
+function compile(additions, { scaleHook = false, probe = false } = {}) {
+  if (!Array.isArray(additions) || !additions.length || additions.length > NATIVE_LIMIT) throw Error(`Native patch requires 1..${NATIVE_LIMIT} additions`);
+  const ids = new Set();
+  for (const a of additions) {
+    if (!a || !Number.isInteger(a.id) || a.id < -2147483648 || a.id >= 0 || ids.has(a.id)) throw Error('Addition identities must be distinct negative int32 integers');
+    ids.add(a.id);
+    for (const k of ['source', 'model']) if (!Number.isInteger(a[k]) || a[k] < 0 || NATIVE_BASE + a[k] + 0xf8 >= 0x81800000 || a[k] % 4) throw Error('Invalid resident source/model offset');
+    if (!Array.isArray(a.position) || a.position.length !== 3 || [...a.position, a.heading, a.scale].some(n => !Number.isFinite(n) || !Number.isFinite(Math.fround(n)))) throw Error('Native transform must be finite float32');
+    if (a.scale <= 0 || a.scale > 1000) throw Error('Native scale must be in (0,1000]');
+    if (a.scale !== 100) throw Error('Native additions currently require the source scale of 100%');
+    if (probe && a.script != null && (!Number.isInteger(a.script) || a.script < 0 || a.script % 4 || NATIVE_BASE + a.script >= 0x81800000)) throw Error('Invalid script offset');
+  }
+  const p = new PPC(), guardZero = (r, yes = false) => { p.cmpi(r, 0); p.branch('next', yes ? 12 : 4, 2); };
+  p.d(37, 1, 1, -0x200); p.sw(0, 8, 1); p.d(47, 2, 1, 0x10);
+  for (const [s, o] of [[8, 0x90], [9, 0x98], [1, 0x9c]]) { p.spr(false, 0, s); p.sw(0, o, 1); }
+  p.emit(0x7c000026); p.sw(0, 0x94, 1);
+  for (let i = 0; i < 14; i++) p.d(54, i, 1, 0xa0 + i * 8);
+  p.emit(0xfc00048e); p.d(54, 0, 1, 0x110);
+  p.emit(0x48000005); p.label('pc'); p.spr(false, 30, 8);
+  const dataFix = p.words.length; p.emit(0); // r30 = payload header, resolved below
+  p.lw(0, 4, 30); p.cmpi(0, 0); p.branch('restore', 4, 2);
+  if (probe) {
+    // Use the independently validated tutorial source as a level-ready anchor.
+    p.imm(3, 0x81105604); p.lw(0, 0, 3); p.imm(4, 0x80481674); p.cmp(0,4); p.branch('restore',4,2);
+    p.lw(0,0x54,3); p.cmpi(0,1); p.branch('restore',4,2);
+    p.lw(0,0xf4,3); p.cmpi(0,0); p.branch('restore',12,2);
+  }
+  p.li(0, 1); p.sw(0, 4, 30); p.li(29, additions.length); p.d(14, 31, 30, 0x10);
+  p.label('loop'); p.lw(0, 4, 31); guardZero(0);
+  p.lw(3, 0x2c, 31); p.lw(4, 0, 3); p.imm(0, 0x80481674); p.cmp(4, 0); p.branch('next', 4, 2);
+  if (probe) { p.lw(0,0xa8,3); p.lw(4,0x88,31); p.cmp(0,4); p.branch('next',4,2); }
+  else { p.lw(0, 0xa8, 3); guardZero(0); }
+  p.lw(0, 0x5c, 3); guardZero(0);
+  p.lw(4, 0xdc, 3); p.lw(0, 0x84, 31); p.cmp(4, 0); p.branch('next', 4, 2);
+  if (!probe) { p.lw(0, 0x54, 3); p.cmpi(0, 1); p.branch('next', 4, 2); p.lw(0, 0xf4, 3); guardZero(0, true); }
+  p.li(0, 1); p.sw(0, 4, 31); p.lw(0, 0x14, 1); p.sw(0, 0xc, 31);
+  p.lw(0, -19944, 13); p.sw(0, 0x10, 31); p.lw(0, 0xf4, 3); p.sw(0, 0x18, 31);
+  p.d(14, 0, 31, 0x50); p.sw(0, 0x38, 31); p.imm(0, 0x8005c4d0); p.sw(0, 0x44, 31);
+  p.lw(0, -19764, 13); p.sw(0, 0x6c, 31); p.d(14, 4, 31, 0x20); p.d(14, 5, 31, 0x30);
+  p.imm(12, 0x80041984); p.spr(true, 12, 9); p.emit(0x4e800421); p.label('factory_return');
+  p.sw(3, 8, 31); p.lw(0, -19944, 13); p.sw(0, 0x14, 31); p.li(0, 2); p.sw(0, 4, 31);
+  p.label('next'); p.d(14, 31, 31, NATIVE_STRIDE); p.d(14, 29, 29, -1); p.cmpi(29, 0); p.branch('loop', 4, 2);
+  p.li(0, 0); p.sw(0, 4, 30);
+  p.label('restore'); p.d(50, 0, 1, 0x110); p.emit(0xfdfe058e);
+  for (let i = 0; i < 14; i++) p.d(50, i, 1, 0xa0 + i * 8);
+  for (const [s, o] of [[8, 0x90], [9, 0x98], [1, 0x9c]]) { p.lw(0, o, 1); p.spr(true, 0, s); }
+  p.lw(0, 0x94, 1); p.emit(0x7c0ff120); p.d(46, 2, 1, 0x10); p.lw(0, 8, 1); p.d(14, 1, 1, 0x200);
+  p.emit(0x7c7d1b78); p.branch('tail');
+  p.label('data'); p.emit(0x50464e48); p.emit(0); p.emit(additions.length); p.emit(NATIVE_STRIDE);
+  p.label('records');
+  for (const a of additions) {
+    const row = Array(NATIVE_STRIDE / 4).fill(0);
+    row[0] = NATIVE_MAGIC; row[0x1c / 4] = a.id >>> 0;
+    a.position.forEach((v, i) => row[8 + i] = floatWord(v)); row[0x2c / 4] = NATIVE_BASE + a.source;
+    row[0x70 / 4] = floatWord(a.heading); for (const o of [0x78, 0x7c, 0x80]) row[o / 4] = floatWord(a.scale);
+    row[0x84 / 4] = NATIVE_BASE + a.model;
+    if (probe) row[0x88 / 4] = a.script == null ? 0 : NATIVE_BASE + a.script;
+    row.forEach(w => p.emit(w));
+  }
+  p.words[dataFix] = ((14 << 26) | (30 << 21) | (30 << 16) | (p.labels.get('data') - p.labels.get('pc'))) >>> 0;
+  p.tail();
+  // A second, separately guarded hook can set scale before native activation.
+  // It remains opt-in until the scale recipe has its own in-game evidence.
+  const hooks = [{ address: 0x800445c8, original: 0x7c7d1b78, words: p.done() }];
+  if (scaleHook) throw Error('Individual native scale has not been validated');
+  const lines = [];
+  for (const h of hooks) {
+    lines.push('20000000 53535050', '20000004 35320001', '20041984 9421FFD0', '2005C4D0 80A30008', hex(0x20000000 | (h.address & 0x1ffffff)) + ' ' + hex(h.original));
+    lines.push(hex(0xc2000000 | (h.address & 0x1ffffff)) + ' ' + hex(h.words.length / 2));
+    for (let i = 0; i < h.words.length; i += 2) lines.push(hex(h.words[i]) + ' ' + hex(h.words[i + 1]));
+    lines.push('E0000000 80008000');
+  }
+  if (lines.length * 8 > 3256) throw Error('Native additions exceed the reserved Gecko code capacity');
+  const name = 'PortalForge native additions v1';
+  return { version: 1, game: 'SSPP52', revision: 1, count: additions.length, bytes: lines.length * 8,
+    records_offset: p.labels.get('records'), stride: NATIVE_STRIDE, hooks, lines,
+    ini: `[Gecko]\n$${name}\n${lines.join('\n')}\n[Gecko_Enabled]\n$${name}\n` };
+}

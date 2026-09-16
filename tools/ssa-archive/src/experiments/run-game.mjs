@@ -143,7 +143,7 @@ export class GameSession {
       else if (s.nunchuk) await this.nunchuk(s.nunchuk, s.frames ?? 60);
       else if (s.wait) await this.waitSeconds(s.wait);
       else if (s.wait_monitor) { note = await this.waitMonitor(s.wait_monitor, s.timeout ?? 120); if (!note && s.required !== false) throw new Error(`file monitor never reported ${s.wait_monitor}`); }
-      else if (s.shot) { note = await this.screenshot(`${labelPrefix}-${String(i).padStart(2, '0')}-${s.shot}`); if (onShot && note) onShot(note); if (!note) note = 'screenshot skipped (stall)'; }
+      else if (s.shot) { note = await this.screenshot(`${labelPrefix}-${String(i).padStart(2, '0')}-${s.shot}`); if (onShot && note) await onShot(note); if (!note) note = 'screenshot skipped (stall)'; }
       else if (s.figure) note = JSON.stringify(await this.loadFigure(s.figure, s.slot ?? 1));
       else if (s.save_state) note = JSON.stringify(await this.saveState(s.save_state));
       else if (s.load_state !== undefined) note = JSON.stringify(await this.loadState(s.load_state));

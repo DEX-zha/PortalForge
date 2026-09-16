@@ -4,6 +4,8 @@ node_modules/
 .env*
 # Exported chat sessions (local paths, hundreds of KB); keep them out of the repository
 codex-session-*.md
+editor=chat=session.txt
+graphify-out/
 *.wbfs
 *.iso
 *.rvz

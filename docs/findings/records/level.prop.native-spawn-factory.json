@@ -1,0 +1,34 @@
+{
+  "id": "level.prop.native-spawn-factory",
+  "updated": "2026-09-16",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "Native OpSpawn factory: r3 source, r4 XYZ pointer, r5 facing expression; r3 returns a distinct runtime placement or null",
+  "structure": "Native clone allocation and activation; visible additive placement is not yet proven",
+  "location": {
+    "offset": "MEM1 0x80041984..0x80041B74, called at 0x800445C4; SSPP52 Rev 1 only",
+    "file_pattern": "SSA SSPP52 Rev 1 runtime / Level_027_Tutorial",
+    "length": 496
+  },
+  "meaning": "The existing clone opcode calls a native factory that allocates, copies through class metadata, sets transform/source/activator, and activates the result. Runtime state and clone lists are excluded from generic copy; collision and actor-parameter objects have a specific copy path. A controlled extra call returned an active, distinct placement with its own actor and requested XYZ, while preserving the original bridge call. However, the additional sunflower was not visible at the target in the first early-call experiment. Allocation and correct actor transform alone do not establish render visibility, lifetime or an editor export recipe. No archive insertion, new geometry, collision editing or general Add capability is authorized by this finding.",
+  "evidence": [
+    {
+      "probe": ".local/object-workflow/native-clone-research.json",
+      "summary": "Read-only decoding links clone opcode file0x1b1f5c to native virtual handler0x800444f4 and factory0x80041984. Factory bytes have identical SHA2568fcf8ff29324baff5246ef8dbf3dcab41c983941b8ac603b7554fff8bd2b42a3 in three historical MEM1 dumps. Native metadata and historical bridge/cannon instances agree with the argument/result model. No mutation by this probe."
+    },
+    {
+      "experiment_id": "native-observe-1789510647445",
+      "summary": "Non-halting breakpoints in a dedicated cold boot captured source bridge0x80f6dfc8, XYZ pointer0x80f85dd0 and facing0x80f43bc8; return0x81229d70 at0x800445c8. MEM1 contains this active instance with correct parent/source and position. Tutorial playable, owned process closed without force, config restored. Evidence .local/native-addition/observe-1789510647445/."
+    },
+    {
+      "experiment_id": "native-gecko-1789511665997",
+      "summary": "Early one-shot C2 hook after the original factory call is consumed in RAM. New sunflower instance0x8122a164 has source0x81105604, actor0x8122f35c and XYZ91.349/10.435/43.275; original bridge0x81229d70 is retained. Source clone-list count becomes1. Actor matrix is valid and both actors link the model node. VISUAL FAILURE: no extra sunflower at the target in the playable tutorial. Heading0 and activationRange0 differ from the source's285 and180. Source initialization timing, orientation and context remain hypotheses, not confirmed causes. Evidence .local/native-addition/gecko-1789511665997/; no gate promoted."
+    },
+    {
+      "experiment_id": "native-addition-two-boots-20260916",
+      "summary": "Late guarded recipe is now visually confirmed for the single static sunflower template; see level.prop.native-addition for exact editable scope. Early-call failure remains valid."
+    }
+  ]
+}

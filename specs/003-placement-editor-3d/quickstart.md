@@ -250,8 +250,10 @@ runtime map while still allowing transforms, and a save changes exactly the thre
 
 Three ways forward, none of them free:
 
-1. **A save state inside Mining.** Play there once and save a state; the runner now understands a `load_state`
-   step, so the scenario then costs its two boots and nothing more. This is the cheapest and the most honest.
+1. **An entry state before Mining loads.** A state inside Mining restores its already loaded RAM and can hide a
+   changed patch. Prove a fresh archive read after restoring a state before the transition, then verify the level,
+   changed bytes and playable scene on two independent boots. A state inside a patched level is only a cache tied
+   to that exact patch, never a new consumption proof. See feature 004 research R3.
 2. **Prove the structural path in game on the tutorial instead**, by opening the tutorial with no fixup map so
    every value is structural, editing, and booting. It does not prove a second level, but it does prove the
    editor does not depend on runtime evidence, which is the real risk behind User Story 4.

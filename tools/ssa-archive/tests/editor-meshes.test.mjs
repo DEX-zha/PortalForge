@@ -8,6 +8,7 @@ import { syntheticLevel } from './helpers/synthetic-level.mjs';
 import { openSession } from '../src/editor/session.mjs';
 import { startServer } from '../src/editor/server.mjs';
 import { modelMeshes, meshesPayload } from '../src/editor/meshes.mjs';
+import { applyEdit, undo, redo, planReplace } from '../src/editor/session.mjs';
 
 // Feature 004. The editor draws real geometry where the decoder reaches it and a proxy where it does not, and
 // the API hands the view one vertex array and one index array per model. These tests pin that contract on the
@@ -22,6 +23,25 @@ const gates = { gates: () => ({ status: 'PASS' }) };
 
 let cached = null;
 const tutorial = () => cached ??= openSession(TUTORIAL, { archive: 'level/Level_027_Tutorial.bld', entry: 3, fixups: JSON.parse(fs.readFileSync(FIXUPS, 'utf8')), deps: gates });
+
+test('replacement and undo/redo bind every shared model user to the correct local geometry', { skip }, () => {
+  const s = openSession(TUTORIAL, { fixups: JSON.parse(fs.readFileSync(FIXUPS, 'utf8')), deps: gates });
+  const original = modelMeshes(s), source = 0x3495e4, target = 0x34ac60;
+  const sourceModel = s.placements.find(p => p.offset === source).model.offset;
+  const targetModel = s.placements.find(p => p.offset === target).model.offset;
+  const sourceMesh = original.models.get(sourceModel), targetMesh = original.models.get(targetModel);
+  assert.notDeepEqual(sourceMesh.positions, targetMesh.positions);
+  const intent = { kind: 'replace', source, target, position: [91.349, 10.435, 43.275] };
+  const prepared = planReplace(s, intent);
+  const before = Buffer.from(s.buffer);
+  assert.throws(() => applyEdit(s, intent), e => e.error === 'ACKNOWLEDGEMENT_REQUIRED');
+  assert.deepEqual(s.buffer, before);
+  applyEdit(s, { ...intent, acknowledged: prepared.plan.safety.filter(r => r.severity === 'critical').map(r => r.id) });
+  assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, sourceMesh.positions);
+  assert.deepEqual(modelMeshes(s).scenery, original.scenery, 'orphaned old mesh must not become world scenery');
+  undo(s); assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, targetMesh.positions);
+  redo(s); assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, sourceMesh.positions);
+});
 
 test('meshes: every model the tutorial places gets one vertex array and one index array, and they agree', { skip }, () => {
   const { models, stats } = modelMeshes(tutorial());

@@ -35,7 +35,7 @@ test('a denied MCP process reports how to restart the editor and preserves failu
  const f=fixture();f.fake.pid=null;
  f.fake.connect=async()=>{throw Object.assign(new Error('spawn EPERM'),{code:'EPERM'});};
  await assert.rejects(runEditorGame({...f,mode:'test',archive:'level/Level_027_Tutorial.bld',gameFactory:()=>f.fake,evidenceDir:f.dir}),e=>{
-  assert.equal(e.code,'EPERM');assert.match(e.message,/serveur MCP/);assert.match(e.message,/terminal Windows/);assert.match(e.message,/spawn EPERM/);return true;
+  assert.equal(e.code,'EPERM');assert.match(e.message,/MCP server/);assert.match(e.message,/Windows terminal/);assert.match(e.message,/spawn EPERM/);return true;
  });
  assert.deepEqual(f.calls,[['close']]);
  const record=JSON.parse(fs.readFileSync(path.join(f.dir,fs.readdirSync(f.dir).find(n=>n.endsWith('.json')))));

@@ -22,11 +22,11 @@ function row(key, value, evidence) {
   return `<div class="row"><span class="k">${esc(key)}</span><span class="v">${value}${ev}</span></div>`;
 }
 
-export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = true, script = null } = {}) {
+export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = true, script = null, addition = null } = {}) {
   if (!p) return '<div class="empty">Nothing selected. Click a proxy in the view.</div>';
   const model = p.model.path
     ? `${esc(base(p.model.path))}<div class="ev">${esc(p.model.path)}</div>`
-    : `<span class="k">Aucun modèle direct ; peut être un repère ou un générateur d’objets.</span>`;
+    : `<span class="k">No direct model; this may be a marker or an object generator.</span>`;
   const behaviour = p.behavior
     ? `${esc(base(p.behavior.path))}<div class="ev">${esc(p.behavior.path)}</div>`
     : '<span class="k">none</span>';
@@ -38,36 +38,44 @@ export function renderPlacement(p, safety = [], targets = [], { hasRuntimeMap = 
     : '<span class="k">no model record</span>';
 
   return [
-    `<div class="row"><span class="k">name</span><span class="v"><b>${esc(p.name ?? '(unnamed)')}</b></span></div>`,
-    row('offset', `${hex(p.offset)}<div class="ev">slot ${hex(p.span)} bytes</div>`),
+    `<div class="object-heading"><b>${esc(p.name ?? '(unnamed)')}</b><span>Level object</span></div>`,
+    '<h2>Transform</h2>',
     // Typed entry and the gizmos produce the same intent, so a value can be read off a report and entered exactly.
-    renderMovement(script),
-    row('position', [0, 1, 2].map(i => `<input class="num" data-edit="position" data-axis="${i}" value="${p.position[i]}">`).join(' ')),
-    row('heading', `<input class="num" data-edit="heading" value="${p.rotation.heading}"> &deg;`),
-    row('scale', `<input class="num" data-edit="scale" value="${p.scale}"> <span class="k">(100 = 1.0)</span>`),
+    row('Position', [0, 1, 2].map(i => `<label class="axis-field"><span>${['X','Y','Z'][i]}</span><input class="num" data-edit="position" data-axis="${i}" aria-label="Position ${['X','Y','Z'][i]}" value="${p.position[i]}"></label>`).join(' ')),
+    row('Orientation', `<input class="num" data-edit="heading" aria-label="Orientation" value="${p.rotation.heading}"> &deg;`),
+    row('Scale', `<input class="num" data-edit="scale" aria-label="Scale" value="${p.scale}"${p.native_addition ? ' disabled title="Added objects currently keep their original scale"' : ''}> <span class="k">(100 = 1.0)</span>`),
+    script?.movement ? `<details class="inspector-fold" ${['resource','unsupported_trajectory'].includes(script.movement.kind)?'open':''}><summary>In-game movement</summary>${renderMovement(script)}</details>` : '',
+    '<h2>Object</h2>',
+    addition ? '<details class="inspector-fold" open><summary>Add compatibility: '+esc(addition.label)+'</summary><div class="ev">'+esc(addition.reason)+'</div>'+addition.checks.map(c=>row(c.id,esc(c.status+' — '+c.detail))).join('')+(addition.report?row('Latest test',esc(addition.report.runtime+' · '+addition.report.runs+' run(s)'))+`<a href="/addition-report/${esc(addition.family)}" target="_blank" rel="noopener">View test screenshots and results</a>`:'')+'</details>' : '',
+    row('Model', p.model.path ? esc(base(p.model.path)) : model),
+    row('Script', p.behavior ? esc(base(p.behavior.path)) : 'None'),
+    script?.clones?.length ? row('Script-created objects', script.clones.map(c => `${esc(c.name)}<div class="ev">${esc(base(c.model) ?? 'no direct model')}</div>`).join('<br>')
+      + '<div class="rule medium">Bridge and cannon previews show their initial pose. Animations and changes during gameplay are not simulated.</div>') : '',
+    script?.scene_role ? '<div class="rule medium">Template or initially disabled object: this may be a storage position with no ground beneath it.</div>'
+      + (script.movement ? '' : (script.scene_role.counterparts ?? []).map(c => `<button data-counterpart="${c.offset}">Select ${esc(c.name)} in the level</button>`).join('')) : '',
+    script?.template_for?.length ? '<div class="rule medium">Object used as a template by '
+      + script.template_for.map(s => esc(base(s.path))).join(', ')
+      + '. Copies created during gameplay may appear elsewhere than the position stored here.</div>' : '',
+    script?.trajectory?.supported ? `<div class="rule info">Moving also translates the ${script.trajectory.points.length} path points of this object. Its animation is preserved.</div>`
+      : script?.animated ? '<div class="rule medium">This script contains movement. It may affect copies or debris; its presence alone does not prove that this object position is overwritten.</div>' : '',
+    row('Layers', p.layers.length ? esc(p.layers.join(', ')) : '<span class="k">Unlayered</span>'),
+    p.shared_state?.shared ? '<details class="inspector-fold"><summary>Shared model · '+p.shared_state.users+' placements</summary>'+row('Usage',shared)+'</details>' : '',
+    safety.length ? '<h2>Review</h2>'+safety.map(renderRule).join('') : '',
+    '<details class="inspector-fold"><summary>Advanced duplication</summary>',
+    p.native_addition ? '<div class="ev">Added object. Move and Rotate are supported. Restart the game after each patch.</div>' : renderDuplicate(p, targets, hasRuntimeMap),
+    '</details>',
+    '<details class="inspector-fold"><summary>Technical details and evidence</summary>',
+    p.native_addition ? row('Identity', `Added object ${-p.offset}`) : row('offset', `${hex(p.offset)}<div class="ev">slot ${hex(p.span)} bytes</div>`),
     row('model', model, p.evidence.model),
     row('behaviour', behaviour, p.evidence.behavior),
-    script?.clones?.length ? row('Objets créés par script', script.clones.map(c => `${esc(c.name)}<div class="ev">${esc(base(c.model) ?? 'sans modèle direct')}</div>`).join('<br>')
-      + '<div class="rule medium">Les aperçus de ponts et canons représentent leur pose initiale. Les animations et changements pendant le jeu ne sont pas simulés.</div>') : '',
-    script?.scene_role ? '<div class="rule medium">Modèle ou objet initialement désactivé : cette position peut être un emplacement de stockage, sans sol associé.</div>'
-      + (script.movement ? '' : (script.scene_role.counterparts ?? []).map(c => `<button data-counterpart="${c.offset}">Voir ${esc(c.name)} dans le niveau</button>`).join('')) : '',
-    script?.template_for?.length ? '<div class="rule medium">Objet utilisé comme modèle par '
-      + script.template_for.map(s => esc(base(s.path))).join(', ')
-      + '. Les copies créées en jeu peuvent apparaître ailleurs que la position enregistrée ici.</div>' : '',
-    script?.trajectory?.supported ? `<div class="rule info">Le déplacement translate aussi les ${script.trajectory.points.length} points de trajectoire de cet objet. Son animation est conservée.</div>`
-      : script?.animated ? '<div class="rule medium">Ce script contient des mouvements. Ils peuvent concerner des copies ou des débris ; leur présence seule ne prouve pas que la position de cet objet est réécrite.</div>' : '',
-    row('layers', p.layers.length ? esc(p.layers.join(', ')) : '<span class="k">(unlayered)</span>', p.evidence.layers),
-    row('shared state', shared),
+    row('layers', esc(p.layers.join(', ')), p.evidence.layers),
     row('resolution', esc(p.model.status) + (p.model.field !== null ? ` <span class="k">via +${hex(p.model.field)}</span>` : '')),
     p.model_candidates.length > 1
       ? row('candidates', p.model_candidates.map(c => esc(base(c.path)) + ' <span class="k">+' + hex(c.field) + '</span>').join('<br>'))
       : '',
-    `<h2>Safety</h2>`,
-    safety.length ? safety.map(renderRule).join('') : '<div class="empty">no rule triggered</div>',
-    `<h2>Duplication</h2>`,
-    renderDuplicate(p, targets, hasRuntimeMap),
     `<h2>Layout evidence</h2>`,
     `<div class="ev" style="padding:0 12px 12px">${esc(p.evidence.layout)}</div>`,
+    '</details>',
   ].join('');
 }
 
@@ -75,17 +83,17 @@ function renderMovement(script) {
   const m = script?.movement;
   if (!m) return '';
   const text = {
-    resource: 'Ressource ou objet initialement désactivé. Sa position enregistrée ne donne pas nécessairement celle des objets visibles. '
-      + (m.targets?.length ? 'Sélectionnez un placement ci-dessous avant de le déplacer.' : 'Aucun placement correspondant ni créateur à position directe identifié pour cette ressource.'),
-    trajectory: 'Position et trajectoire : les points privés suivent automatiquement le déplacement.',
-    unsupported_trajectory: 'Trajectoire non prise en charge : le déplacement est refusé pour éviter une animation restée à son ancienne position.',
-    initial_position: m.scripted ? 'Position initiale du placement. Son effet visuel reste à vérifier en jeu pour cet objet et cette destination.' : 'Position propre à ce placement.',
+    resource: 'Resource or initially disabled object. Its stored position does not necessarily match visible objects. '
+      + (m.targets?.length ? 'Select a placement below before moving it.' : 'No matching placement or creator with a direct position was identified for this resource.'),
+    trajectory: 'Position and path: private path points move with the object.',
+    unsupported_trajectory: 'Unsupported path: moving is blocked to avoid leaving its animation at the old position.',
+    initial_position: m.scripted ? 'Initial placement position. Its visual effect still needs in-game verification for this object and destination.' : 'Position specific to this placement.',
   }[m.kind];
-  const targets = (m.targets ?? []).map(p => `<button data-counterpart="${p.offset}">${p.relation === 'creator' ? 'Voir le créateur possible' : 'Voir le placement'} : ${esc(p.name)} · ${p.position.map(v => esc(v)).join(', ')}</button>`).join('');
-  return '<div class="movement-info"><div class="k">Déplacement en jeu</div><p>' + esc(text) + '</p>'
-    + (m.model_shared ? '<div class="ev">Modèle partagé, position propre à ce placement : déplacer cet objet ne déplace pas les autres utilisateurs du modèle.</div>' : '')
-    + (m.targets?.some(p => p.conditional) ? '<div class="ev">Création conditionnelle : le script utilise ce créateur comme position, mais sa branche peut ne pas être exécutée. Ce lien sélectionne un objet sans modifier les données.</div>' : '')
-    + (targets ? `<details class="movement-targets" open><summary>Placements à sélectionner (${m.targets.length})</summary><div>${targets}</div></details>` : '') + '</div>';
+  const targets = (m.targets ?? []).map(p => `<button data-counterpart="${p.offset}">${p.relation === 'creator' ? 'Select possible creator' : 'Select placement'} : ${esc(p.name)} · ${p.position.map(v => esc(v)).join(', ')}</button>`).join('');
+  return '<div class="movement-info"><div class="k">In-game movement</div><p>' + esc(text) + '</p>'
+    + (m.model_shared ? '<div class="ev">Shared model, independent position: moving this object does not move other users of the model.</div>' : '')
+    + (m.targets?.some(p => p.conditional) ? '<div class="ev">Conditional creation: the script uses this creator as a position, but its branch may not run. This link selects an object without editing data.</div>' : '')
+    + (targets ? `<details class="movement-targets" open><summary>Related placements (${m.targets.length})</summary><div>${targets}</div></details>` : '') + '</div>';
 }
 
 export function renderRule(r) {

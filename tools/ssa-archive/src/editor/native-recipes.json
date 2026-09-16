@@ -1,0 +1,4 @@
+[
+  {"source":3446244,"model":"plant_sunflower_whole.mdl","script":null,"finding":"level.prop.native-addition"},
+  {"source":3983352,"model":"barrel.mdl","script":{"offset":2739632,"name":"Barrel.ai"},"finding":"level.prop.native-addition-barrel"}
+]

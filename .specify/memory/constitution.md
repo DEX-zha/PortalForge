@@ -11,7 +11,7 @@ A capability exists only when runtime evidence shows it: a tool listing, a proce
 M0 (Dolphin MCP) precedes toolkit work; M1 (archive round-trip) and M2 (controlled world mutation) must both be PASS before any editor, viewport, import, object-creation or menu-expansion work (FR-015, FR-018, SC-006). Gate status lives in `docs/m*-status.json` with the experiment ids that justify it; a documented FAIL is a valid, useful outcome.
 
 ### III. The original game is never modified
-The WBFS dump and the user's own Dolphin installation are read-only. Experiments run in the isolated `.local/` profile through replacement-only Riivolution patch workspaces (FR-002, FR-009, FR-017, FR-020).
+The WBFS dump and the user's own Dolphin installation are read-only. Archive experiments use replacement-only Riivolution patch workspaces in the isolated `.local/` profile (FR-002, FR-009, FR-017, FR-020). A separately CONFIRMED native addition recipe may accompany that workspace as temporary Dolphin Gecko code: require revision/factory fingerprints, handler-owned storage, distinct visible instances on two cold boots, preservation of originals, and profile restoration after confirmed stop. This does not authorize IGZ insertion or advance geometry, collision or gameplay gates.
 
 ### IV. No protected content in the repository
 Game data, figures, saves, memory dumps and captured game images stay in `.local/`, which is git-ignored. Tests use synthetic fixtures; fixture tests skip when local samples are absent (FR-017).
@@ -34,4 +34,6 @@ Spec-kit flow: `speckit-specify` → `speckit-plan` → `speckit-tasks` → `spe
 
 This constitution supersedes other practices in this repository. Changes require a documented rationale, a version bump below and matching updates to `AGENTS.md` and the active plan's Constitution Check.
 
-**Version**: 1.0.0 | **Ratified**: 2026-09-12 | **Last Amended**: 2026-09-12
+Amendment 2026-09-16: native placement creation needs an accompanying executable recipe because insertion into the archive is not valid. Finding `level.prop.native-addition` and experiment `native-addition-two-boots-20260916` establish the limited alternative while preserving the original game and existing gates.
+
+**Version**: 1.1.0 | **Ratified**: 2026-09-12 | **Last Amended**: 2026-09-16

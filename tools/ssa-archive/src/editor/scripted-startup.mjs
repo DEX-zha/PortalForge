@@ -3,6 +3,7 @@
 export const STARTUP_TEMPLATES = new Set(['Template_Bridge_whole', 'Template_Dock_whole', 'Push_Canon_Art_Top', 'Push_Canon_Art_Bottom']);
 
 export function startupParts(session, owner) {
+  if (owner.native_addition) return null;
   const script = owner.behavior?.path ?? '';
   const bridge = /\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(script);
   const cannon = /\/Includes\/GameElement_PushBlock\/Scripts\/PushBlock_Template\.ai$/i.test(script)

@@ -49,8 +49,8 @@ test('inspector: an absent direct model does not rule out a scripted spawner', {
   const marker = res.rows.find(r => r.model.status === 'absent' && /CS_PortalEntry01/.test(r.name ?? ''));
   const html = renderPlacement(marker, assessPlacement(marker, { hasRuntimeMap: true }), []);
   assert.match(html, /CS_PortalEntry01/);
-  assert.match(html, /Aucun modèle direct/);
-  assert.match(html, /générateur/);
+  assert.match(html, /No direct model/);
+  assert.match(html, /generator/);
   assert.match(html, /MARKER_NO_MODEL/);
   assert.doesNotMatch(html, /\.mdl/, 'no model path is invented for a marker');
 });

@@ -63,6 +63,18 @@ export function modelMeshes(session) {
   const buf = session.buffer, graph = session.graph;
   const models = [...new Set(session.placements.filter(p => p.model?.offset != null).map(p => p.model.offset))];
   const paths = new Map(session.placements.filter(p => p.model?.offset != null).map(p => [p.model.offset, p.model.path]));
+  if (session._meshLibrary) {
+    const library = session._meshLibrary, out = new Map();
+    for (const m of models) {
+      const path = paths.get(m), original = library.models.get(m);
+      const candidates = [...library.models.values()].filter(mesh => mesh.path === path);
+      // Reuse only geometry already resolved in this same level. Ambiguous asset bindings stay proxies.
+      const mesh = original?.path === path ? original : candidates.length === 1 ? candidates[0] : null;
+      if (mesh) out.set(m, { ...mesh, model: m, path });
+    }
+    session._meshes = { ...library, models: out, stats: { ...library.stats, models: models.length, with_mesh: out.size } };
+    return session._meshes;
+  }
   const geo = decodeGeometry(buf, graph);
   const a = geo.units.length ? assignUnits(buf, graph, geo.units, models, session.fixups) : { byModel: new Map(models.map(m => [m, []])), bounds: new Map(), shared: 0, world: 0, structural: !session.fixups };
   const out = new Map();

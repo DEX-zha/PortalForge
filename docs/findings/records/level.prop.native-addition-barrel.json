@@ -1,0 +1,30 @@
+{
+  "id": "level.prop.native-addition-barrel",
+  "updated": "2026-09-16",
+  "category": "world-entities",
+  "confidence": "CONFIRMED",
+  "editable": true,
+  "endian": "be",
+  "type": "Native scripted Barrel addition, XYZ and heading, original scale",
+  "structure": "Gecko C2 factory recipe with tutorial ready anchor and exact source/model/script guards",
+  "location": {
+    "offset": 3983352,
+    "file_pattern": "SSA SSPP52 Rev1 / level/Level_027_Tutorial.bld",
+    "length": 248
+  },
+  "meaning": "Confirmed visible additive creation from exact source3983352 Barrel, model2794492 barrel.mdl, script2739632 Barrel.ai retained. Factory0x80041984 invoked after the independently validated tutorial anchor is active. No original placement is replaced and no IGZ insertion occurs. Editable scope: XYZ/heading at scale100, within the shared two-addition capacity, cold editor-owned launch only. Placement remains governed by its original script: creation does not guarantee survival through the macro. Destruction, loot and combat semantics are not independently validated; other Barrel placements/parameters, coins and enemies are not covered.",
+  "evidence": [
+    {
+      "probe": "batch-1789515929960-66501f94",
+      "summary": "Extra Barrel visibly present near the mill at [90,10.5,48] with distinct active native actor; final memory agrees with requested initial transform. Originals remain visible. Local capture: batch-1789515929960-66501f94-0-46-tutorial-skylander.png."
+    },
+    {
+      "probe": "batch-1789516240184-d7e23442",
+      "summary": "Extra Barrel visibly present near the mill at [90,10.5,48] with distinct active native actor; final memory agrees with requested initial transform. Originals remain visible. Local capture: batch-1789516240184-d7e23442-0-46-tutorial-skylander.png."
+    },
+    {
+      "experiment_id": "native-barrel-two-boots-20260916",
+      "summary": "Two identical cold boots plus a single-Barrel control, live distinct actors, source/script/model guards, visual review and clean profile restoration. Script lifecycle is preserved, not validated as gameplay editing."
+    }
+  ]
+}

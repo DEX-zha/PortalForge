@@ -109,7 +109,10 @@ export function createScene(canvas) {
   // `meshes` maps a model offset to its decoded geometry (feature 004); placements whose model has one are drawn
   // as that geometry, grey, at their transform. The others keep the proxy: a cube for a model the decoder does
   // not reach, a hollow marker for a placement with no model. What is missing stays visible as missing.
-  function build(placements, grades, meshes = new Map(), scenery = null) {
+  function build(placements, grades, meshes = new Map(), scenery = null, { preserveCamera = false } = {}) {
+    clearDropPreview();
+    gizmo.detach();
+    if (state.outlineBox) { state.outlineBox.geometry.dispose(); state.outlineBox.material.dispose(); }
     disposeScenery(state.scenery);
     state.scenery = createScenery(scenery, sceneryMaterial, largeMaterial);
     state.scenery.visible = state.sceneryVisible;
@@ -181,7 +184,7 @@ export function createScene(canvas) {
     scene.add(state.outline);
     state.drawn = state.entries.length;
     setWireframe(state.wireframe);   // a rebuild keeps whatever the person was looking at
-    frameAll();
+    if (!preserveCamera) frameAll();
   }
 
   // What the scene believes it is showing. The view puts this on screen: an empty picture with 673 proxies drawn
@@ -228,6 +231,7 @@ export function createScene(canvas) {
     setMatrix(dummy, p, !state.visibleOffsets || state.visibleOffsets.has(offset));
     e.mesh.setMatrixAt(e.index, dummy.matrix);
     e.mesh.instanceMatrix.needsUpdate = true;
+    e.mesh.boundingSphere = null;
     for (const child of scriptedGroup.children.filter(c => c.userData.owner === offset)) {
       applyScriptedPose(child, p);
     }
@@ -243,7 +247,7 @@ export function createScene(canvas) {
       setMatrix(dummy, p, offsets.has(e.offset));
       e.mesh.setMatrixAt(e.index, dummy.matrix);
     }
-    for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)]) if (m) m.instanceMatrix.needsUpdate = true;
+    for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)]) if (m) { m.instanceMatrix.needsUpdate = true; m.boundingSphere = null; }
     if (state.selected !== null && !offsets.has(state.selected)) select(null);
   }
 
@@ -291,6 +295,7 @@ export function createScene(canvas) {
   }
 
   function setGizmoMode(mode) {
+    if (mode === 'scale' && state.placements?.find(p => p.offset === state.selected)?.native_addition) { gizmo.detach(); return; }
     if (!mode || state.selected === null) { gizmo.detach(); return; }
     gizmo.attach(state.outline);
     gizmo.setMode(mode === 'rotate' ? 'rotate' : mode === 'scale' ? 'scale' : 'translate');
@@ -305,6 +310,44 @@ export function createScene(canvas) {
 
   const raycaster = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
+
+  // Visible geometry only; the explicit horizontal plane is the fallback.
+  function dropPosition(clientX, clientY, height = 0) {
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height || clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom || !Number.isFinite(height)) return null;
+    ndc.set((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1);
+    scene.updateMatrixWorld(true); camera.updateMatrixWorld();
+    raycaster.setFromCamera(ndc, camera);
+    const hits = [];
+    if (state.scenery?.visible) state.scenery.traverse(child => {
+      if (child.isMesh && child.visible) hits.push(...raycaster.intersectObject(child, false));
+    });
+    for (const { mesh } of state.models) for (const hit of raycaster.intersectObject(mesh, false)) {
+      const entry = state.entries.find(e => e.mesh === mesh && e.index === hit.instanceId);
+      if (entry && (!state.visibleOffsets || state.visibleOffsets.has(entry.offset))) hits.push(hit);
+    }
+    if (scriptedGroup.visible) for (const child of scriptedGroup.children) {
+      if (child.visible) hits.push(...raycaster.intersectObject(child, false));
+    }
+    hits.sort((a, b) => a.distance - b.distance);
+    const point = hits[0]?.point ?? raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -mapping.toView([0, height, 0])[1]), new THREE.Vector3());
+    return point ? { position: mapping.toGame(point.toArray()).map(v => Math.round(v * 1000) / 1000), mode: hits.length ? 'surface' : 'plane' } : null;
+  }
+  let dropGhost = null, dropSource = null;
+  function clearDropPreview() {
+    if (dropGhost) { scene.remove(dropGhost); dropGhost.geometry.dispose(); dropGhost.material.dispose(); }
+    dropGhost = null; dropSource = null;
+  }
+  function previewDrop(offset, position) {
+    const p = state.byOffset.get(offset); if (!p) return clearDropPreview();
+    if (dropSource !== offset) {
+      clearDropPreview();
+      const geometry = state.models.find(m => m.model === p.model?.offset)?.mesh.geometry.clone() ?? new THREE.BoxGeometry(state.proxy, state.proxy, state.proxy);
+      dropGhost = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: SELECTED_COLOUR, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
+      scene.add(dropGhost); dropSource = offset;
+    }
+    setMatrix(dropGhost, { ...p, position }, true);
+  }
 
   // Every proxy under the cursor, nearest first, as {offset, distance}. Ordering and cycling live in select.mjs.
   function hitsAt(clientX, clientY) {
@@ -430,5 +473,5 @@ export function createScene(canvas) {
     }
   }
   function setScriptedVisible(visible) { scriptedGroup.visible = visible; }
-  return { build, setVisible, setSceneryVisible, setScriptedPreviews, setScriptedVisible, setLargeSurfacesSolid, refresh, hitsAt, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, setFly, setWireframe, diagnostics, state };
+  return { build, setVisible, setSceneryVisible, setScriptedPreviews, setScriptedVisible, setLargeSurfacesSolid, refresh, hitsAt, dropPosition, previewDrop, clearDropPreview, select, frameAll, frameSelection, topDown, setGizmoMode, onGizmo, gizmoState, setFly, setWireframe, diagnostics, state };
 }

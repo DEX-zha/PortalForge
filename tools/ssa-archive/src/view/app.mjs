@@ -9,6 +9,8 @@ import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.
 import { HANDEDNESS } from './coords.mjs';
 import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
 import { decodeMeshPayload } from './mesh-data.mjs';
+import { bindCatalog } from './catalog.mjs';
+import { bindWorkspace } from './workspace.mjs';
 
 const $ = id => document.getElementById(id);
 const api = async (path, body) => {
@@ -29,6 +31,7 @@ const fail = message => {
 const state = { placements: [], layers: [], visible: new Set(), selection: null, scene: null, mode: null, dirty: false, undoDepth: 0, redoDepth: 0, saved: null, patched: null };
 
 async function main() {
+  bindWorkspace();
   let session, data;
   try {
     session = await api('/api/session');
@@ -102,6 +105,7 @@ async function main() {
 
   const index = layerIndex(state.placements);
   state.visible = showAll(index);
+  state.layerIndex = index;
   renderLayers(index);
   apply();
 
@@ -110,8 +114,8 @@ async function main() {
   $('frame-all').addEventListener('click', () => state.scene.frameAll());
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
   $('wireframe').addEventListener('click', () => toggleWireframe());
-  $('all-on').addEventListener('click', () => { state.visible = showAll(index); renderLayers(index); apply(); $('scenery-visible').checked = true; state.scene.setSceneryVisible(true); });
-  $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(index); apply(); $('scenery-visible').checked = false; state.scene.setSceneryVisible(false); });
+  $('all-on').addEventListener('click', () => { state.visible = showAll(state.layerIndex); renderLayers(state.layerIndex); apply(); $('scenery-visible').checked = true; state.scene.setSceneryVisible(true); });
+  $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(state.layerIndex); apply(); $('scenery-visible').checked = false; state.scene.setSceneryVisible(false); });
 
   // Gizmos and typed entry produce the SAME intent, so the two ways of editing cannot drift apart (T034 to T036).
   for (const [id, mode] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
@@ -131,11 +135,19 @@ async function main() {
   });
   $('undo').addEventListener('click', () => sendPost('/api/undo'));
   $('redo').addEventListener('click', () => sendPost('/api/redo'));
+  $('reset-scene').addEventListener('click', () => {
+    if (state.busy || state.running || state.locked) return;
+    state.catalog?.cancel(); $('reset-dialog').showModal();
+  });
+  $('reset-cancel').addEventListener('click', () => $('reset-dialog').close());
+  $('reset-confirm').addEventListener('click', async () => {
+    $('reset-dialog').close(); await sendPost('/api/reset');
+  });
   $('save').addEventListener('click', doSave);
   $('do-patch').addEventListener('click', doPatch);
   $('do-launch').addEventListener('click', doLaunch);
   $('stop-launch').addEventListener('click', async () => {
-    try { await api('/api/launch/stop', {}); note('Fermeture du Dolphin de recherche…'); }
+    try { await api('/api/launch/stop', {}); note('Closing the research Dolphin instance…'); }
     catch (e) { note(e.message); }
   });
   $('prediction').addEventListener('input', refreshSaveState);
@@ -154,9 +166,14 @@ async function main() {
     await reselect();
   });
   refreshSaveState();
+  state.catalog = bindCatalog({ api, scene: state.scene, select: selectOffset, changed: afterChange,
+    busy: () => state.busy || state.running || state.locked, note,
+    validationState: running => { state.locked = running || state.running; refreshSaveState(); } });
+  try { await state.catalog.reload(); } catch (e) { note('Project browser unavailable: ' + e.message); }
   if (state.running) pollLaunch();
 
   window.addEventListener('keydown', e => {
+    if ($('drop-dialog').open || $('reset-dialog').open) return;
     if (typingIn(e.target)) return;                    // a position field must never fly the camera
     flying.fast = e.shiftKey; flying.slow = e.altKey;
     if (isBound(e.key)) { e.preventDefault(); flying.held.add(e.key); state.scene.setFly(flying); return; }
@@ -246,6 +263,7 @@ async function onPick(ev) {
   const next = pickNext({ hits, pointer: { x: ev.clientX, y: ev.clientY }, previous: state.selection });
   state.selection = next;
   state.scene.select(next ? next.offset : null);
+  state.catalog?.highlight(next?.offset ?? null);
   if (state.mode) state.scene.setGizmoMode(state.mode);
   if (!next) { $('inspector').innerHTML = renderPlacement(null); return; }
   try {
@@ -292,44 +310,96 @@ async function onTyped(ev) {
 }
 
 async function sendIntent(intent) {
-  if (!intent.target) return;
-  try { afterChange(await api('/api/edit', intent)); }
+  if (!intent.target || state.busy || state.running || state.locked) return;
+  state.busy = true; refreshSaveState();
+  try { await afterChange(await api('/api/edit', intent)); }
   catch (e) { note(e.message); await reselect(); }
+  finally { state.busy = false; refreshSaveState(); }
 }
 
 async function sendPost(path) {
-  try { afterChange(await api(path, {})); } catch (e) { note(e.message); }
+  if (state.busy || state.running || state.locked) return;
+  state.busy = true; refreshSaveState();
+  try { await afterChange(await api(path, {})); } catch (e) { note(e.message); }
+  finally { state.busy = false; refreshSaveState(); }
 }
 
 // The session is the truth: redraw the edited proxy from what came back, never from what was dragged.
-function afterChange(b) {
-  const p = b.placement;
-  if (p) {
-    const local = state.placements.find(x => x.offset === p.offset);
-    if (local) { local.position = p.position; local.rotation = p.rotation; local.scale = p.scale; }
-    state.scene.refresh(p.offset);
-    state.scene.select(p.offset);
-    if (state.mode) state.scene.setGizmoMode(state.mode);
-    updateFields({ position: p.position, heading: p.rotation.heading, scale: p.scale });
-  }
-  state.dirty = b.dirty;
-  state.saved = b.saved ?? state.saved;
-  state.patched = b.patched ?? null;
-  state.undoDepth = b.undo_depth ?? state.undoDepth;
-  state.redoDepth = b.redo_depth ?? state.redoDepth;
-  refreshSaveState();
+async function afterChange(b) {
+  state.busy = true; refreshSaveState();
+  try {
+    if (b.reset_scene) {
+      state.selection = null;
+      $('inspector').innerHTML = renderPlacement(null);
+      $('resources-visible').checked = false;
+      $('scenery-visible').checked = true;
+      $('scripted-visible').checked = true;
+      $('large-surfaces-solid').checked = false;
+      state.scene.setSceneryVisible(true); state.scene.setLargeSurfacesSolid(false);
+      toggleWireframe(false);
+    }
+    if (b.rebuild_scene) {
+      const [data, payload] = await Promise.all([api('/api/placements'), api('/api/meshes')]);
+      const decoded = decodeMeshPayload(payload);
+      state.placements = data.placements; state.layers = data.layers;
+      if (state.selection && !state.placements.some(p => p.offset === state.selection.offset)) {
+        state.selection = null; $('inspector').innerHTML = renderPlacement(null); state.catalog?.highlight(null);
+      }
+      state.layerIndex = layerIndex(state.placements);
+      if (b.reset_scene) state.visible = showAll(state.layerIndex);
+      state.resources = new Set((payload.scene_roles ?? []).map(r => r.offset));
+      state.scene.build(state.placements, new Map(state.placements.map(p => [p.offset, gradeOf(p)])), decoded.models, decoded.scenery, { preserveCamera: true });
+      state.scene.setScriptedPreviews(payload.scripted_previews ?? [], decoded.models);
+      state.scene.setScriptedVisible($('scripted-visible').checked);
+      renderLayers(state.layerIndex); apply();
+    }
+    const p = b.placement;
+    if (p) {
+      const local = state.placements.find(x => x.offset === p.offset);
+      if (local) Object.assign(local, p);
+      state.selection = { offset: p.offset, index: 0, total: 1 };
+      state.scene.refresh(p.offset);
+      state.scene.select(p.offset);
+      if (state.mode) state.scene.setGizmoMode(state.mode);
+      updateFields({ position: p.position, heading: p.rotation.heading, scale: p.scale });
+    }
+    state.dirty = b.dirty;
+    if (Object.hasOwn(b, 'saved')) state.saved = b.saved;
+    state.patched = b.patched ?? null;
+    state.undoDepth = b.undo_depth ?? state.undoDepth;
+    state.redoDepth = b.redo_depth ?? state.redoDepth;
+    await reselect();
+    if (b.rebuild_scene) await state.catalog?.reload();
+    if (b.reset_scene) {
+      state.scene.select(null); state.catalog?.highlight(null); state.scene.frameAll();
+      note(`Scene reset: ${b.reset_count} edits undone. Redo can recover them.`);
+    }
+  } finally { state.busy = false; refreshSaveState(); }
+}
+
+async function selectOffset(offset) {
+  const p = state.placements.find(p => p.offset === offset); if (!p) return;
+  for (const layer of p.layers.length ? p.layers : ['(unlayered)']) state.visible.add(layer);
+  if (state.resources?.has(offset)) $('resources-visible').checked = true;
+  renderLayers(state.layerIndex); apply();
+  state.selection = { offset, index: 0, total: 1 };
+  state.scene.select(offset); state.scene.frameSelection();
+  if (state.mode) state.scene.setGizmoMode(state.mode);
+  await reselect();
 }
 
 async function reselect() {
   if (!state.selection) return;
+  state.catalog?.highlight(state.selection.offset);
   const b = await api('/api/placement/' + state.selection.offset);
-  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script });
+  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script, addition: b.addition });
 }
 
-const note = msg => { $('save-note').textContent = msg; };
+const note = msg => { $('save-note').textContent = msg; $('status-tip').textContent = msg; };
 
 function refreshSaveState() {
   const busy = state.busy || state.running || state.locked;
+  state.catalog?.lock();
   $('dirty').textContent = state.dirty ? state.undoDepth + ' unsaved edit' + (state.undoDepth > 1 ? 's' : '') : '';
   $('dirty').classList.toggle('on', !!state.dirty);
   $('save').disabled = busy || !state.dirty;
@@ -339,18 +409,22 @@ function refreshSaveState() {
   $('launch-mode').disabled = !!busy;
   $('undo').disabled = busy || !state.undoDepth;
   $('redo').disabled = busy || !state.redoDepth;
+  $('reset-scene').disabled = !!busy;
   $('save-state').textContent = state.dirty ? 'unsaved changes'
-    : state.running ? 'Dolphin en cours' : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
+    : state.running ? 'Dolphin running' : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
 }
 
 async function doSave() {
+  if (state.busy || state.running || state.locked) return;
+  state.busy = true; refreshSaveState();
   try {
     const b = await api('/api/save', {});
     if (!b.written) throw new Error(b.plan.failures.map(f => f.reason).join('; '));
     state.saved = b.written; state.patched = null; state.dirty = b.dirty;
-    note('Written to ' + b.written + '. ' + b.plan.changes.length + ' field' + (b.plan.changes.length === 1 ? '' : 's') + ' changed, nothing outside them.');
+    const additions = b.plan.native_additions?.length ?? 0;
+    note('Saved to ' + b.written + '. ' + b.plan.changes.length + ' field changes' + (additions ? ` and ${additions} added object${additions === 1 ? '' : 's'}` : '') + '.');
   } catch (e) { state.saved = null; note('refused: ' + e.message); }
-  refreshSaveState();
+  state.busy = false; refreshSaveState();
 }
 
 async function doPatch() {
@@ -361,11 +435,11 @@ async function doPatch() {
       if (!saved.written) throw new Error(saved.plan.failures.map(f => f.reason).join('; '));
       state.saved = saved.written; state.dirty = saved.dirty; state.patched = null;
     }
-    note('Reconstruction et vérification de l’archive…');
+    note('Rebuilding and verifying the archive…');
     const b = await api('/api/patch', {}); state.patched = b.patch;
-    note('Patch vérifié, prêt pour Dolphin.');
+    note('Patch verified, ready for Dolphin.');
     if ($('launch-after-patch').checked) await doLaunch();
-  } catch (e) { note('Échec : ' + e.message); }
+  } catch (e) { note('Failed: ' + e.message); }
   finally { state.busy = false; refreshSaveState(); }
 }
 
@@ -374,7 +448,7 @@ async function doLaunch() {
   try {
     await api('/api/launch', { prediction, mode: $('launch-mode').value });
     state.running = true; state.locked = true;
-    note('Dolphin démarre avec le patch courant…');
+    note('Starting Dolphin with the current patch…');
     pollLaunch();
   } catch (e) { note('refused: ' + e.message); }
   refreshSaveState();
@@ -390,16 +464,16 @@ async function pollLaunch() {
     refreshSaveState();
     if (b.launch?.running) {
       const p = b.launch.progress ?? {};
-      const phase = { booting: 'Démarrage de Dolphin', macro: `Macro du tutoriel : étape ${p.step ?? 0}/${p.steps ?? '?'}`,
-        playing: 'Jeu classique : vous avez les commandes', stopping: 'Fermeture de Dolphin', finished: 'Fin du test, fermeture de Dolphin' }[p.phase] ?? 'Préparation de Dolphin';
+      const phase = { booting: 'Starting Dolphin', macro: `Tutorial macro: step ${p.step ?? 0}/${p.steps ?? '?'}`,
+        playing: 'Normal play: you have control', stopping: 'Closing Dolphin', finished: 'Test finished, closing Dolphin' }[p.phase] ?? 'Preparing Dolphin';
       note(phase + ' · ' + Math.round((Date.now() - started) / 1000) + ' s'
-        + (p.consumption?.verified ? ' · Archive modifiée chargée.' : ''));
+        + (p.consumption?.verified ? ' · Modified archive loaded.' : ''));
       return setTimeout(tick, 5000);
     }
-    note(b.launch?.error ? 'Échec du lancement : ' + b.launch.error
-      : (b.launch?.status === 'STOPPED' ? 'Dolphin arrêté.' : b.launch?.mode === 'test' ? 'Macro terminée, Dolphin fermé.' : 'Partie fermée.')
-        + (b.launch?.consumption?.verified ? ' Chargement du patch confirmé.' : '')
-        + (b.launch?.screenshots?.length ? ` ${b.launch.screenshots.length} captures conservées dans .local/dolphin-evidence/.` : ''));
+    note(b.launch?.error ? 'Launch failed: ' + b.launch.error
+      : (b.launch?.status === 'STOPPED' ? 'Dolphin stopped.' : b.launch?.mode === 'test' ? 'Macro completed, Dolphin closed.' : 'Game closed.')
+        + (b.launch?.consumption?.verified ? ' Patch consumption confirmed.' : '')
+        + (b.launch?.screenshots?.length ? ` ${b.launch.screenshots.length} screenshots saved in .local/dolphin-evidence/.` : ''));
     refreshSaveState();
   };
   tick();
@@ -446,7 +520,7 @@ async function confirmDuplicate() {
   try {
     const b = await api('/api/edit', { kind: 'replace', target, source: state.selection.offset, acknowledged });
     prepared = null;
-    afterChange(b);
+    await afterChange(b);
     await reselect();
     note('duplicated into 0x' + target.toString(16) + '; save to write it');
   } catch (e) { note('refused: ' + e.message); }

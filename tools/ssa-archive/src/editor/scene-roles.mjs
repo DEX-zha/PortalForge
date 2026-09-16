@@ -5,7 +5,7 @@ export function sceneRoles(session) {
   if (session._sceneRoles) return session._sceneRoles;
   const tutorial = session.placements.some(p => /\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(p.behavior?.path ?? ''));
   if (!tutorial) return [];
-  const inactive = p => session.buffer.readUInt32BE(p.offset) === 104
+  const inactive = p => !p.native_addition && p.offset >= 0 && session.buffer.readUInt32BE(p.offset) === 104
     && (session.buffer.readUInt32BE(p.offset + 0x54) & 1) !== 0;
   const roles = session.placements.filter(inactive).map(p => ({
     offset: p.offset, role: 'template_or_inactive', confidence: 'LIKELY', editable: false,

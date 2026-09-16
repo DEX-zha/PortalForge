@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<html lang="en">
 <!-- 3D placement editor view (feature 003). Served verbatim by src/editor/server.mjs; no build step, no bundler,
      so reading the shipped file and reading the source is the same act.
 
@@ -82,6 +83,17 @@
   .num { width: 76px; background: #0d1218; border: 1px solid var(--line); color: var(--text); border-radius: 3px;
          padding: 2px 4px; font: inherit; text-align: right; }
   .empty { color: var(--dim); padding: 12px; }
+  #object-tools { display:grid; gap:6px; padding:0 12px 10px; }
+  #object-tools input, #object-tools select, #drop-dialog select { width:100%; padding:6px; background:var(--bg); color:var(--text); border:1px solid var(--line); }
+  #objects { max-height:42vh; overflow:auto; padding:0 8px; }
+  .object-item { display:block; width:100%; text-align:left; margin:3px 0; overflow-wrap:anywhere; }
+  .object-item small { display:block; color:var(--dim); font-size:10px; }
+  .object-item[draggable="true"] { cursor:grab; border-left:2px solid var(--proven); }
+  #drop-hint { position:absolute; top:12px; left:12px; padding:8px 12px; background:var(--panel); color:var(--pick); pointer-events:none; max-width:90%; }
+  #drop-dialog { color:var(--text); background:var(--panel); border:1px solid var(--pick); border-radius:8px; width:620px; max-width:90vw; max-height:85vh; overflow:auto; }
+  #drop-dialog::backdrop { background:#0009; }
+  #drop-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  #drop-status { color:var(--high); }
   button { background: #1c242e; color: var(--text); border: 1px solid var(--line); border-radius: 4px;
            padding: 4px 9px; cursor: pointer; font: inherit; }
   button:hover { background: #263341; border-color: #33414f; }
@@ -90,12 +102,13 @@
            text-align: center; color: var(--high); background: var(--bg); font-size: 14px; line-height: 1.6; }
   #error b { display: block; font: 400 18px/1.3 var(--serif); color: var(--text); margin-bottom: 10px; }
 </style>
+<link rel="stylesheet" href="/view/workspace.css">
 
 <header>
-  <b>Placement editor</b>
+  <b class="brand">◈ PortalForge</b>
   <span class="dim" id="file">opening…</span>
-  <span id="tally"></span>
-  <span id="diag" title="what the scene believes it is showing"></span>
+
+
   <span style="flex:1"></span>
   <span id="tools"><button id="gizmo-move">Move</button><button id="gizmo-rotate">Rotate</button><button id="gizmo-scale">Scale</button><button id="gizmo-off">Off</button></span>
   <button id="frame-all">Frame level</button>
@@ -103,56 +116,103 @@
   <button id="wireframe" title="see through the meshes (V)">Wireframe</button>
   <button id="undo">Undo</button><button id="redo">Redo</button>
   <span id="dirty" class="dim"></span>
-  <span class="dim" id="evidence-note" title="where the values in this session come from"></span>
+    <div style="display:flex;gap:6px;margin:6px 0"><button id="save">Save</button><button id="do-patch">Patch</button><button id="do-launch">Launch</button><button id="stop-launch" disabled>Stop</button></div>
 </header>
 
-<aside>
-  <h2>Layers</h2>
+<aside id="hierarchy-panel">
+  <div class="panel-tabs"><button id="tab-hierarchy" class="on">Hierarchy</button><button id="tab-layers">Layers</button></div>
+  <div id="hierarchy-pane"><input id="hierarchy-search" type="search" placeholder="Search scene…" aria-label="Search hierarchy"><div class="scene-root">▾ Current level <span id="hierarchy-count"></span></div><div id="hierarchy-list"></div></div>
+  <div id="layers-pane" hidden>
+  <h2>Scene visibility</h2>
   <div id="layer-actions" style="display:flex;gap:6px;padding:0 12px 8px">
     <button id="all-on">All</button><button id="all-off">None</button>
   </div>
   <label id="scenery-layer" class="layer" hidden title="Static scenery, read-only. Materials and runtime visibility are not reconstructed.">
     <input id="scenery-visible" type="checkbox" checked>
-    <span class="n">Décor <span class="dim">· lecture seule</span></span>
+    <span class="n">Scenery <span class="dim">· read-only</span></span>
     <span id="scenery-count" class="c">0</span>
   </label>
   <div id="mesh-coverage" class="ev" style="padding:6px 12px 12px"></div>
-  <label id="scripted-layer" class="layer" hidden title="Ponts et canons à leur position initiale. Cliquez sur un aperçu pour sélectionner son générateur. Les animations et destructions ne sont pas simulées.">
-    <input id="scripted-visible" type="checkbox" checked><span class="n">Ponts et canons · aperçu</span>
+  <label id="scripted-layer" class="layer" hidden title="Bridges and cannons at their initial position. Click a preview to select its generator. Animations and destruction are not simulated.">
+    <input id="scripted-visible" type="checkbox" checked><span class="n">Bridges and cannons · preview</span>
   </label>
-  <label id="resources-layer" class="layer" hidden title="Objets modèles et objets initialement désactivés, à leurs coordonnées de stockage. Les scripts peuvent les créer ou les activer ailleurs.">
-    <input id="resources-visible" type="checkbox"><span class="n">Modèles et objets désactivés</span><span id="resources-count" class="c">0</span>
+  <label id="resources-layer" class="layer" hidden title="Templates and initially disabled objects at their storage coordinates. Scripts may create or activate them elsewhere.">
+    <input id="resources-visible" type="checkbox"><span class="n">Templates and disabled objects</span><span id="resources-count" class="c">0</span>
   </label>
-  <label class="layer" title="Les très grandes surfaces restent en filaire pour garder le niveau visible. Cochez pour les rendre pleines.">
-    <input id="large-surfaces-solid" type="checkbox"><span class="n">Grandes surfaces pleines</span>
+  <label class="layer" title="Very large surfaces remain wireframe to keep the level visible. Check to make them solid.">
+    <input id="large-surfaces-solid" type="checkbox"><span class="n">Solid large surfaces</span>
   </label>
   <div id="layers"></div>
+  </div>
 </aside>
 
 <div id="canvas-wrap">
+  <div class="scene-toolbar"><b>Scene</b><span>Perspective · 3D</span><button id="reset-scene" title="Undo all scene edits and restore the level as it was opened">Reset scene</button><button id="scene-help" title="Show navigation controls">?</button></div>
   <canvas id="c"></canvas>
-  <div id="hint">Arrows fly, Page Up and Page Down rise and fall, Shift hurries, Alt creeps. V sees through the meshes.<br>Drag to orbit, right-drag to pan, wheel to zoom. Click an object; click again to reach what is behind it.</div>
+  <div id="drop-hint" hidden></div>
+  <div id="hint" hidden>Drag: orbit · Right drag: pan · Wheel: zoom<br>Arrow keys: fly · Page ↑/↓: height · F: frame · V: wireframe</div>
   <div id="error" hidden></div>
 </div>
 
-<section>
-  <h2>Save, patch, launch</h2>
+<section id="inspector-panel">
+  <div class="panel-tabs"><b>Inspector</b></div>
+  <div id="inspector"><div class="empty">Select an object in the Scene or Project.</div></div>
+  <details class="settings"><summary>Playtest settings</summary>
   <div id="save-panel" style="padding:0 12px 10px">
     <div class="row"><span class="k">state</span><span class="v" id="save-state">no edit yet</span></div>
-    <label for="launch-mode">Après le patch</label>
+    <label for="launch-mode">After patching</label>
     <select id="launch-mode" style="width:100%;margin:5px 0;padding:5px;background:#0d1218;color:var(--text)">
-      <option value="test">Test du tutoriel, puis fermer Dolphin</option>
-      <option value="play">Jeu classique, laisser Dolphin ouvert</option>
+      <option value="test">Tutorial test, then close Dolphin</option>
+      <option value="play">Normal play, keep Dolphin open</option>
     </select>
-    <label style="display:block"><input id="launch-after-patch" type="checkbox" checked> Lancer automatiquement après le patch</label>
-    <div class="ev">Le test charge le Skylander configuré, passe les menus et avance au début du tutoriel. Le jeu classique vous laisse les commandes.</div>
-    <div style="display:flex;gap:6px;margin:6px 0"><button id="save">Save</button><button id="do-patch">Patch</button><button id="do-launch">Lancer</button><button id="stop-launch" disabled>Arrêter</button></div>
-    <input id="prediction" placeholder="Résultat attendu (facultatif)" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
+    <label style="display:block"><input id="launch-after-patch" type="checkbox" checked> Launch automatically after patching</label>
+    <div class="ev">The test loads the configured Skylander, skips menus and reaches the start of the tutorial. Normal play gives you control.</div>
+
+    <input id="prediction" placeholder="Expected result (optional)" style="width:100%;background:#0d1218;border:1px solid var(--line);color:var(--text);border-radius:4px;padding:5px 7px;font:inherit">
     <div class="ev" id="save-note" style="margin-top:6px"></div>
   </div>
-  <h2>Selection</h2>
-  <div id="inspector"><div class="empty">Nothing selected. Click a proxy in the view.</div></div>
+  </details>
+  <details class="settings"><summary>Level information</summary><div id="tally"></div>  <span class="dim" id="evidence-note" title="where the values in this session come from"></span></details>
 </section>
+
+<div id="project-splitter" role="separator" tabindex="0" aria-label="Project panel height" aria-orientation="horizontal" aria-valuemin="180" aria-valuemax="600" aria-valuenow="300"></div>
+<section id="project-panel" aria-label="Project">
+  <div class="panel-tabs"><b>Project</b><span>Level objects</span><span class="spacer"></span><label class="thumbnail-size">Thumbnails <input id="thumbnail-size" type="range" min="110" max="220" value="150" aria-label="Thumbnail size"></label></div>
+  <div id="project-body"><nav id="folder-tree" aria-label="Object categories"></nav><div id="asset-browser">
+    <div id="object-tools">
+      <input id="object-search" type="search" placeholder="Search name, model or layer…" aria-label="Search objects">
+      <select id="object-category" aria-label="Availability"><option value="all">All objects</option><option value="available">Can add</option><option value="needs_test">Needs test</option><option value="needs_script_test">Needs script test</option><option value="runtime_passed">Visual check pending</option><option value="inconclusive">Lifecycle check needed</option><option value="family_tested">Related source tested</option><option value="test_failed">Test failed</option><option value="blocked">Blocked</option><option value="scripted">Scripted</option><option value="resource">Resources / inactive</option><option value="marker">No model</option></select>
+      <label class="drop-plane">Drop plane Y <input id="drop-height" type="number" value="0" step="0.1" aria-label="Drop plane height" title="Fallback height when no surface is hit"></label>
+    </div>
+    <div id="project-location"><nav id="folder-breadcrumb" aria-label="Category path"></nav><span id="object-count" aria-live="polite"></span></div>
+    <div id="addition-validation" style="display:flex;gap:8px;align-items:center;padding:4px 10px;flex-wrap:wrap">
+      <button id="test-addition" title="Test the selected source in two isolated Dolphin boots">Test selected</button>
+      <button id="test-addition-batch" title="Test representatives of the next two untested visible types">Test next 2 types</button>
+      <button id="stop-addition-test" disabled>Stop test</button>
+      <span id="addition-test-status" role="status">Tests keep your scene unchanged. Rendering and behavior are reviewed separately.</span>
+    </div>
+    <div id="objects"></div>
+  </div></div>
+</section>
+<footer id="status-bar"><span id="status-tip">Select an object · Drag from Project to add an object</span><span id="diag"></span></footer>
+
+<dialog id="drop-dialog" aria-labelledby="drop-title">
+  <h2 id="drop-title">Place a copy</h2>
+  <p id="drop-summary"></p>
+  <p>The copy replaces an existing object. The source stays in place; the replaced slot keeps its name.</p>
+  <label>Object to replace <select id="drop-target"><option value="">Choose a slot…</option></select></label>
+  <div id="drop-review"></div>
+  <details id="drop-details" hidden><summary>Full plan</summary><pre id="drop-json" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
+  <p id="drop-status" role="status"></p>
+  <div id="drop-actions"><button id="drop-cancel">Cancel</button><button id="drop-confirm" disabled>Confirm replacement</button></div>
+</dialog>
+
+<dialog id="reset-dialog" aria-labelledby="reset-title">
+  <h2 id="reset-title">Reset scene?</h2>
+  <p>Undo all edits and restore the level as it was opened, including additions, moved objects and replacements.</p>
+  <p>You can recover edits with Redo. Existing files stay on disk; save and build a new patch before launching edited content again.</p>
+  <div class="dialog-actions"><button id="reset-cancel">Cancel</button><button id="reset-confirm">Reset scene</button></div>
+</dialog>
 
 <script type="importmap">
 { "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }

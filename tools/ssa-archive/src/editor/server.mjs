@@ -11,8 +11,11 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sessionSummary, findPlacement, applyEdit, undo, redo, planReplace, interchangeable } from './session.mjs';
+import { sessionSummary, findPlacement, applyEdit, undo, redo, resetScene, planReplace, interchangeable } from './session.mjs';
 import { meshesPayload } from './meshes.mjs';
+import { catalog, prepareDrop, commitDrop } from './catalog.mjs';
+import { classifyAddition, familyKey } from './addition-compatibility.mjs';
+import { runAdditionProbe, readFamilyReport, reportsDir } from './addition-probe.mjs';
 import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
@@ -21,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
 const THREE_DIR = path.resolve(here, '../../node_modules/three');
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.map': 'application/json; charset=utf-8' };
+const TYPES = { '.png':'image/png', '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.map': 'application/json; charset=utf-8' };
 
 const json = (res, status, body) => { const b = JSON.stringify(body); res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(b) }); res.end(b); };
 const notFound = (res, what) => json(res, 404, { error: 'NOT_FOUND', reason: `${what} is not served by this editor` });
@@ -41,12 +44,21 @@ function sendFile(res, abs) {
 }
 
 export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {} } = {}) {
+  let validation = null;
   const server = http.createServer((req, res) => {
     let pathname;
     try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); }
     catch { return notFound(res, 'that path'); }
 
     try {
+      const reportPage=/^\/addition-report\/([a-f0-9]{64})$/.exec(pathname);
+      if(req.method==='GET'&&reportPage){
+        const report=readFamilyReport(reportPage[1]);if(!report||!/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch))return notFound(res,'that test report');
+        const record=JSON.parse(fs.readFileSync(path.join(reportsDir,report.batch,'result.json'),'utf8'));
+        const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const body=`<!doctype html><html lang="en"><meta charset="utf-8"><title>Addition test</title><style>body{background:#20242b;color:#eee;font:16px system-ui;max-width:1100px;margin:30px auto;padding:20px}img{max-width:100%;display:block;margin:14px 0}a{color:#9ed4ff}</style><h1>${esc(report.name)}: ${esc(report.runtime)}</h1><p>${esc(report.reason)}</p><p>Visual: ${esc(report.visual)}. Gameplay: ${esc(report.gameplay)}. A technical pass alone does not enable Add.</p>${record.runs.map((r,i)=>`<h2>Run ${i+1}: ${esc(r.status)}</h2>${(r.screenshots??[]).map((file,j)=>({file,j})).filter(x=>/tutorial/.test(x.file)).map(x=>`<p>${esc(path.basename(x.file))}</p><img loading="lazy" alt="Tutorial capture, run ${i+1}" src="/api/addition-report/${reportPage[1]}/shot/${i}/${x.j}">`).join('')}`).join('')}<a href="/api/addition-report/${reportPage[1]}">Technical report</a></html>`;
+        res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});return res.end(body);
+      }
       if (pathname.startsWith('/api/')) return route(req, res, pathname, session);
       if (pathname === '/' || pathname === '/index.html') {
         const f = safeFile(VIEW_DIR, 'index.html');
@@ -71,19 +83,33 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
   function api(req, res, pathname, s) {
     if (req.method !== 'GET') return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: `${req.method} is not accepted on ${pathname}` });
     if (pathname === '/api/session') return json(res, 200, sessionSummary(s));
+    if (pathname === '/api/catalog') return json(res, 200, catalog(s));
+    if (pathname === '/api/addition-validation') return json(res,200,validation ? {running:validation.running,progress:validation.progress,result:validation.result,error:validation.error}: {running:false});
+    const reportMatch=/^\/api\/addition-report\/([a-f0-9]{64})(?:\/shot\/(\d+)\/(\d+))?$/.exec(pathname);
+    if(reportMatch){
+      const report=readFamilyReport(reportMatch[1]);if(!report||!/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch))return notFound(res,'that test report');
+      const record=JSON.parse(fs.readFileSync(path.join(reportsDir,report.batch,'result.json'),'utf8'));
+      if(reportMatch[2]!==undefined){
+        const shot=record.runs[Number(reportMatch[2])]?.screenshots?.[Number(reportMatch[3])],root=path.resolve(reportsDir,'../dolphin-evidence');
+        if(!shot||!path.resolve(shot).startsWith(root+path.sep)||path.extname(shot)!=='.png')return notFound(res,'that test screenshot');
+        return sendFile(res,path.resolve(shot));
+      }
+      return json(res,200,{report,record,screenshots:record.runs.flatMap((r,i)=>(r.screenshots??[]).map((_,j)=>({run:i+1,url:`/api/addition-report/${reportMatch[1]}/shot/${i}/${j}`})))});
+    }
     if (pathname === '/api/placements') return json(res, 200, { placements: s.placements, layers: s.layers });
     // Real geometry, decoded once per session from the two geometry sections and cached (feature 004).
     if (pathname === '/api/meshes') return json(res, 200, meshesPayload(s));
     // A run is polled, never awaited over HTTP: two boots outlast every client's header timeout.
     if (pathname === '/api/launch') return json(res, 200, launchState(s));
-    const m = /^\/api\/placement\/(0x[0-9a-fA-F]+|\d+)$/.exec(pathname);
+    const m = /^\/api\/placement\/(0x[0-9a-fA-F]+|-?\d+)$/.exec(pathname);
     if (m) {
       const offset = Number(m[1]);
       const placement = findPlacement(s, offset);
       if (!placement) return json(res, 404, { error: 'NO_SUCH_PLACEMENT', reason: `no placement at 0x${offset.toString(16)} in this level` });
       return json(res, 200, {
         placement,
-        script: scriptDiagnostics(s, placement),
+        addition: classifyAddition(s,placement,{report:readFamilyReport(familyKey(s,placement))}),
+        script: placement.native_addition ? null : scriptDiagnostics(s, placement),
         safety: assessPlacement(placement, { hasRuntimeMap: s.has_runtime_map }),
         replace_targets: replaceTargets(s, placement),
       });
@@ -106,9 +132,24 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
     const state = extra => ({ dirty: s.dirty, undo_depth: s.edits.length, redo_depth: s.undone.length, locked: s.locked,
       saved: s.lastSave ? { file: s.lastSave.file, sha256: s.lastSave.sha256 } : null, patched: s.lastPatch ?? null, ...extra });
     try {
+      if (pathname === '/api/addition-validation/stop') { validation?.controller.abort(); return json(res,200,{stopping:!!validation?.running}); }
+      if (pathname === '/api/addition-validation') {
+        if(s.locked || s.lastLaunch?.running || validation?.running) return json(res,409,{error:'SESSION_LOCKED',reason:'Stop the current editor-owned run before starting a validation batch.'});
+        const sources=body.sources;
+        if(!Array.isArray(sources)||!sources.length||sources.length>2||sources.some(o=>!Number.isInteger(o)))return json(res,409,{error:'BAD_BATCH',reason:'Choose one or two source objects.'});
+        const controller=new AbortController();validation={controller,running:true,progress:null,result:null,error:null};const current=validation;
+        s.locked=true;
+        Promise.resolve().then(()=>(deps.probe??runAdditionProbe)(s,sources,{repeat:2,signal:controller.signal,onProgress:p=>current.progress=p}))
+          .then(r=>current.result={id:r.id,status:r.status,candidates:r.candidates,error:r.error??null})
+          .catch(e=>current.error=e.message).finally(()=>{current.running=false;s.locked=false;});
+        return json(res,200,{running:true});
+      }
       if (pathname === '/api/edit') return json(res, 200, state(applyEdit(s, body)));
+      if (pathname === '/api/catalog/prepare') return json(res, 200, prepareDrop(s, body));
+      if (pathname === '/api/catalog/commit') return json(res, 200, state(commitDrop(s, body)));
       if (pathname === '/api/undo') { const r = undo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_UNDO', reason: 'no edit left to undo' }); }
       if (pathname === '/api/redo') { const r = redo(s); return r ? json(res, 200, state(r)) : json(res, 409, { error: 'NOTHING_TO_REDO', reason: 'nothing was undone' }); }
+      if (pathname === '/api/reset') return json(res, 200, state(resetScene(s)));
       if (pathname === '/api/plan') return json(res, 200, { plan: buildSavePlan(s) });
       // Prepare a duplication without applying it: the refusal IS the answer, because it carries the rules the
       // researcher has to read before anything can be confirmed.
