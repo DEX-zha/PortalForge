@@ -57,11 +57,6 @@ patch(s, { deps });
 if (!s.lastPatch.redirect) throw new Error('the patch carries no redirect descriptor');
 
 const readBytes = async (address, n) => Buffer.from(await bridgeCall('memory.read_bytes', [address, n]), 'hex');
-const f32 = v => {
-  const b = Buffer.alloc(4);
-  b.writeFloatBE(v);
-  return b;
-};
 // The stored position triple, taken from the FILE bytes so no rounding enters the pattern.
 const triple = p => s.buffer.subarray(p.offset + 0x24, p.offset + 0x30);
 
