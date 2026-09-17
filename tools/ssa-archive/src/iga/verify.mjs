@@ -1,9 +1,9 @@
 // Structural validation (FR-005, FR-006). Every failure carries offset, field, actual, expected, reason.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { parseArchive } from './reader.mjs';
 import { readManifest, validateManifest } from '../workspace/manifest.mjs';
+import { sha256File } from '../util/hash.mjs';
 
 const UNSUPPORTED = new Set(['UNSUPPORTED_VERSION', 'UNSUPPORTED_MODE']);
 
@@ -74,7 +74,7 @@ export function verifyWorkspace(dir) {
       });
       continue;
     }
-    const actual = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+    const actual = sha256File(file);
     if (!e.replaced && actual !== e.data_sha256)
       failures.push({
         offset: e.start,

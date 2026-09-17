@@ -1,27 +1,31 @@
-import crypto from 'node:crypto';
+// Whether an object can be added to the game, and why. Every placement gets a list of checks (level, model,
+// scale, identity, recipe, test report) and one status derived from them, so the Project pane shows a reason
+// rather than a disabled button.
+//
+// A family is every placement sharing a model, a behaviour script and a scale in one level. A test report is
+// stored per family, but it only ever confirms the exact source that was booted: the others stay candidates.
 import { additionSource } from './native-additions.mjs';
+import { sha256 } from '../util/hash.mjs';
+import { isTutorial } from './levels.mjs';
 export const PROBE_VERSION = 'native-family-v2-observer-ready';
 export const familyKey = (s, p) =>
-  crypto
-    .createHash('sha256')
-    .update(
-      JSON.stringify([
-        PROBE_VERSION,
-        s.original_sha256,
-        s.archive?.toLowerCase(),
-        p.model?.offset,
-        p.model?.path,
-        p.behavior?.offset ?? null,
-        p.behavior?.path ?? null,
-        p.scale,
-      ]),
-    )
-    .digest('hex');
+  sha256(
+    JSON.stringify([
+      PROBE_VERSION,
+      s.original_sha256,
+      s.archive?.toLowerCase(),
+      p.model?.offset,
+      p.model?.path,
+      p.behavior?.offset ?? null,
+      p.behavior?.path ?? null,
+      p.scale,
+    ]),
+  );
 export function classifyAddition(s, p, { report = null } = {}) {
   const checks = [
     {
       id: 'level',
-      status: s.has_runtime_map && s.archive?.toLowerCase() === 'level/level_027_tutorial.bld' ? 'pass' : 'blocked',
+      status: s.has_runtime_map && isTutorial(s.archive) ? 'pass' : 'blocked',
       detail: 'Tutorial runtime map required for this recipe.',
     },
     {

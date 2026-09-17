@@ -130,7 +130,7 @@ export function openSession(file, { archive, entry, fixups = null, deps = {} } =
     archive: archive ?? null,
     entry: entry ?? null,
     opened: new Date().toISOString(),
-    original_sha256: crypto.createHash('sha256').update(buf).digest('hex'),
+    original_sha256: sha256(buf),
     buffer: buf,
     placements: res.rows,
     layers: deriveLayers(res.rows, { hasRuntimeMap }),
@@ -195,6 +195,7 @@ export const findPlacement = (s, offset) => s.placements.find(p => p.offset === 
 
 import { FIELDS } from '../igz/model-resolve.mjs';
 import { modelMeshes } from './meshes.mjs';
+import { sha256 } from '../util/hash.mjs';
 
 const fail = (error, reason) => {
   const e = new Error(`${error}: ${reason}`);

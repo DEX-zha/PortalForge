@@ -1,8 +1,16 @@
+// Native additions: extra instances created by the game itself at boot, from a confirmed recipe, without
+// replacing any existing object and without inserting a byte into the level.
+//
+// An addition lives in the session and in a sidecar next to the saved level (<level>.portalforge.json). The
+// level bytes never change for it; the patch carries a Gecko companion compiled by native-patch.mjs. A source
+// may only be added when its recipe and the finding behind it are CONFIRMED and editable.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { NATIVE_LIMIT, compileNativePatch } from './native-patch.mjs';
+import { sha256 } from '../util/hash.mjs';
+import { isTutorial } from './levels.mjs';
 const recipes = JSON.parse(fs.readFileSync(new URL('./native-recipes.json', import.meta.url), 'utf8'));
 const basename = s =>
   String(s ?? '')
@@ -15,11 +23,7 @@ const ADDITION_FINDING = 'level.prop.native-addition';
 const fail = (error, reason) => {
   throw Object.assign(new Error(`${error}: ${reason}`), { error });
 };
-export const additionsDigest = rows =>
-  crypto
-    .createHash('sha256')
-    .update(JSON.stringify(rows ?? []))
-    .digest('hex');
+export const additionsDigest = rows => sha256(JSON.stringify(rows ?? []));
 function additionConfirmed(id = ADDITION_FINDING) {
   try {
     const f = JSON.parse(fs.readFileSync(path.join(root, 'docs/findings/records', id + '.json')));
@@ -40,7 +44,7 @@ export function additionSource(s, offset) {
   );
   const reason = !additionConfirmed()
     ? 'Native additions are still being validated.'
-    : !s.has_runtime_map || s.archive?.toLowerCase() !== 'level/level_027_tutorial.bld'
+    : !s.has_runtime_map || !isTutorial(s.archive)
       ? 'Native additions currently support the tutorial with its runtime map.'
       : !recipe || !additionConfirmed(recipe.finding)
         ? 'This object has not been validated for native addition yet.'

@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// Looks for the player spawn among records holding a position near the measured in-game coordinates.
+import fs from 'node:fs';
 const b = fs.readFileSync('../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded');
 const u32 = o => b.readUInt32BE(o),
   f32 = o => b.readFloatBE(o);

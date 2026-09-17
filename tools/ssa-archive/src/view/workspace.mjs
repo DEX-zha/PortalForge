@@ -1,3 +1,5 @@
+// Workspace chrome: the Hierarchy/Layers tabs, the help overlay, and the resizable Project pane whose height
+// and thumbnail size are remembered between visits.
 export function bindWorkspace() {
   const $ = id => document.getElementById(id);
   for (const tab of ['hierarchy', 'layers'])

@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// Dumps the header, hash table and entry table of the sample IGA archives, to test the layout reading.
+import fs from 'node:fs';
 for (const file of ['character/001_Gryphon.arc', 'character/001_Gryphon.bld', 'level/Level_027_Tutorial.arc']) {
   const b = fs.readFileSync('../../.local/samples/DATA/files/' + file);
   const u32 = o => b.readUInt32LE(o);

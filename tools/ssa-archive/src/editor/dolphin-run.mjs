@@ -19,6 +19,7 @@ import {
   directEntryConfirmed,
 } from './level-entry.mjs';
 import { setting } from '../../../dolphin-mcp/config.mjs';
+import { isTutorial } from './levels.mjs';
 
 export function defaultFigure() {
   const configured = setting('figure');
@@ -54,7 +55,7 @@ export async function runEditorGame({
     throw new Error(
       'No Skylander figure available: choose a .sky file or configure figure in .local/dolphin-config.json',
     );
-  if (mode === 'test' && archive.toLowerCase() !== 'level/level_027_tutorial.bld')
+  if (mode === 'test' && !isTutorial(archive))
     throw new Error('The automatic tutorial macro only supports Level_027_Tutorial; use classic play for this level');
   const id = 'editor-' + mode + '-' + Date.now() + '-' + randomUUID().slice(0, 8);
   const record = {

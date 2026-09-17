@@ -6,8 +6,9 @@ import { createHash } from 'node:crypto';
 import { local, defaultScript, readScript, profileLog } from '../experiments/run-game.mjs';
 import { felk, profile, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
+import { TUTORIAL_ARCHIVE } from './levels.mjs';
 export const ENTRY_VERSION = 1;
-export const TUTORIAL = 'level/level_027_tutorial.bld';
+export const TUTORIAL = TUTORIAL_ARCHIVE;
 const directory = path.join(local, 'level-entry');
 const slot = 8,
   slotFile = path.join(profile, 'StateSaves/SSPP52.s08');

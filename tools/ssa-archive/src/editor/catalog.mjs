@@ -1,3 +1,8 @@
+// The Project catalogue and the drop transaction behind drag and drop.
+//
+// A drop is prepared, then committed. Preparing changes nothing: it returns the plan, its rules and an opaque
+// token bound to the exact bytes and history it was computed from. Committing requires that token and an
+// acknowledgement of every critical rule, so a plan can never be applied to a level it was not computed for.
 import crypto from 'node:crypto';
 import { sceneRoles } from './scene-roles.mjs';
 import { interchangeable, planReplace, applyEdit } from './session.mjs';

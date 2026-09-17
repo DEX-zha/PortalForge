@@ -1,3 +1,5 @@
+// The Project pane: folder tree, search, cards with 3D thumbnails, and the drag that ends in a drop.
+// The server owns the transaction; this controller only holds its opaque token.
 import { renderRule } from './inspector.mjs';
 import { assetFolder, folderTree, inFolder } from './asset-folders.mjs';
 import { createThumbnails } from './thumbnails.mjs';
@@ -12,7 +14,6 @@ export function filterCatalog(entries, query = '', category = 'all') {
   );
 }
 
-// The server owns the transaction; this controller holds only its opaque token.
 export function bindCatalog({ api, scene, select, changed, busy, note, validationState = () => {} }) {
   const $ = id => document.getElementById(id),
     dialog = $('drop-dialog');

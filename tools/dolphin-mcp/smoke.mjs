@@ -1,3 +1,5 @@
+// Smoke test of the MCP server without a game: handshake, tool list, status, and the refusal of a write
+// outside guest memory. With --live it also pings a running bridge. Usage: node smoke.mjs [--live]
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { here } from './runtime.mjs';

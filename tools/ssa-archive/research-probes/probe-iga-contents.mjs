@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// Lists what the sample IGA archives contain: entry names, and the bytes that follow the tables.
+import fs from 'node:fs';
 for (const file of [
   'character/001_Gryphon.arc',
   'character/001_Gryphon.bld',

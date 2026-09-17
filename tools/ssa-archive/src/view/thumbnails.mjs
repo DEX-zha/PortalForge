@@ -1,3 +1,4 @@
+// 3D thumbnails for the Project cards, drawn from the geometry the level really contains.
 import * as THREE from 'three';
 
 // One offscreen renderer, shared by every visible card; no game textures are invented.

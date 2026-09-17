@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// Checks header word 0x10 == floor(0xFFFFFFFF / count) over the surveyed levels, and the hash lookup bound.
+import fs from 'node:fs';
 import path from 'node:path';
 import { parseArchive } from '../src/iga/reader.mjs';
 // 1) word 0x10 == floor(0xFFFFFFFF / count) over the full survey

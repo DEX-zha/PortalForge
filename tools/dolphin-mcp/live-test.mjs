@@ -1,3 +1,6 @@
+// Live test of the MCP against the real game: launch, identity, memory round trip, inputs, save state and,
+// with --patch, a Riivolution descriptor. It drives the research profile only, overwrites its slot 9, and
+// stops the instance it started. Usage: node live-test.mjs [--patch]
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';

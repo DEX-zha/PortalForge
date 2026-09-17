@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// Dumps the tfbPhysicsModel records near the player spawn, the candidate that M2 then confirmed.
+import fs from 'node:fs';
 const b = fs.readFileSync('../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded');
 const u32 = o => b.readUInt32BE(o),
   f32 = o => b.readFloatBE(o);

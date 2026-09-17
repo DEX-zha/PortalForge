@@ -1,12 +1,12 @@
 // ObjectGraph assembly with 100 % area accounting (spec 002 FR-002, SC-001), validated against
 // specs/002-igz-entity-model/contracts/object-graph.schema.json.
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { parseIgzHeader } from './header.mjs';
 import { parseTypes, typeRows } from './types.mjs';
 import { enumerateObjects } from './objects.mjs';
 import { makeResolver } from './refs.mjs';
 import { schemaValidator, contracts002 } from '../workspace/manifest.mjs';
+import { sha256 } from '../util/hash.mjs';
 
 export function buildGraph(buf, { file = null, fields = false, fieldLimit = 64 } = {}) {
   const header = parseIgzHeader(buf);
@@ -25,7 +25,7 @@ export function buildGraph(buf, { file = null, fields = false, fieldLimit = 64 }
     unparsedBytes = unparsed.reduce((n, u) => n + u.size, 0);
   const graph = {
     file: file ? path.resolve(file) : 'buffer',
-    sha256: createHash('sha256').update(buf).digest('hex'),
+    sha256: sha256(buf),
     size: buf.length,
     header: { magic: header.magic, version: header.version, words: header.words },
     sections: header.sections.map(({ index, offset, size, align, tag }) => ({ index, offset, size, align, tag })),

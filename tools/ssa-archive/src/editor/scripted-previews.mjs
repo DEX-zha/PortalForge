@@ -1,3 +1,5 @@
+// Read-only previews of objects a script assembles at start-up (bridges, cannons): where the parts stand when
+// the level begins. They are LIKELY, never editable, and nothing here executes a script.
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { startupParts } from './scripted-startup.mjs';
 

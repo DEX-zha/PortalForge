@@ -1,4 +1,5 @@
-﻿import fs from 'node:fs';
+// First enumeration of the objects of the decoded tutorial level: type names, then records by size.
+import fs from 'node:fs';
 const b = fs.readFileSync('../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded');
 const u32 = o => b.readUInt32BE(o);
 // type names between 0x834 and the sizes table
