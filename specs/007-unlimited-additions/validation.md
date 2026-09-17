@@ -196,6 +196,11 @@ memory pressure late in a long level; real hardware, where this word and this re
 
 ## What these boots change
 
+An offline pass over all 75 levels with placements found 20 distinct script-class indices; every header-table
+script passed the owner layout check. Tutorial, Mining and Castle use classes 92, 86 and 86 respectively; their
+157, 194 and 292 scripts all pass, and the editor's read-only diagnostics finds clone resources on all three.
+This does not test imported scripts or change gate M4A.
+
 - Success criteria SC-001 (additions on a second level) and SC-002 (at least 32 in one patch) are met as far as
   memory can tell; both wait for a look at the screen.
 - The experimental addition of constitution 1.2.0 rests on A1: the recipe creates placed objects and stored

@@ -152,8 +152,9 @@ The only route to "any enemy anywhere". Staged so that each step either loads or
    to level A: placement, model record, geometry blocks (sections 5 and 6), textures (section 4), names
    (section 2), type-table entries when B's classes are absent from A's table. One boot per attempt; the first
    target is a prop with no script.
-4. **C3 — Scripts and sounds.** The same with a scripted enemy: its type-92 script, its `.ai` strings, its
-   sound bank in section 8. The script class must be detected per file first (the known defect in `script.mjs`).
+4. **C3 — Scripts and sounds.** The same with a scripted enemy: its script, its `.ai` strings, its
+   sound bank in section 8. The script class and clone-list layouts are now detected per file for read-only
+   diagnostics (C06); importing and relocating those records remains to be tested.
 5. Gate M4A PASS when a level loads with an imported library on two boots and phase A clones its template.
 
 ## Phase V — Validation without hand work

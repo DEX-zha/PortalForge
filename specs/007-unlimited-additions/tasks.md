@@ -105,7 +105,10 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 - [ ] C04 If C1 loads: `igz append` command and the editor's "Duplicate without a victim"; two boots.
 - [ ] C05 Experiment C2: one static library (a prop with one model) from one level into another; the sections
       involved (1, 2, 4, 5, 6) and the type table; one boot per attempt.
-- [ ] C06 Detect the script class per file (`src/igz/script.mjs`, `script-diagnostics.mjs`), the known defect.
+- [x] C06 Detect the script class per file (`src/igz/script.mjs`, `script-diagnostics.mjs`) from the header-table
+      layout; recognise clone lists and owner expressions structurally. An offline corpus pass read all scripts
+      without a layout issue in 75 levels (20 distinct class indices); Tutorial (92), Mining and Castle (86)
+      also find clone resources. This is read-only and does not establish cross-level script import.
 - [ ] C07 Experiment C3: one scripted enemy library imported, with its script and sound bank; boots as needed.
 - [ ] C08 Gate M4A and the findings; the Project browser offers other levels' objects when C2 holds.
 

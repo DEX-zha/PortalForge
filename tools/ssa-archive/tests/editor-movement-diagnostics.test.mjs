@@ -4,11 +4,17 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openSession, applyEdit, undo, redo } from '../src/editor/session.mjs';
 import { scriptDiagnostics, cloneAtOwner } from '../src/editor/script-diagnostics.mjs';
+import { auditScripts } from '../src/igz/script.mjs';
 import { renderPlacement } from '../src/view/inspector.mjs';
 
 const file = new URL('../../../.local/workspaces/tutorial-bld/entries/3-level.bld.decoded', import.meta.url);
 const skip = !fs.existsSync(file) && 'local game sample absent';
 const tutorial = () => openSession(fileURLToPath(file));
+const miningFile = new URL(
+  '../../../.local/workspaces/level_000_mining-all/entries/3-level.bld.decoded',
+  import.meta.url,
+);
+const miningSkip = !fs.existsSync(miningFile) && 'local Mining sample absent';
 const at = (s, offset) => s.placements.find(p => p.offset === offset);
 
 test('clone anchor accepts only a bounded singleton me expression, never a variable or a truncated list', () => {
@@ -25,15 +31,28 @@ test('clone anchor accepts only a bounded singleton me expression, never a varia
   buffer.writeUInt32BE(0x80000004, list + 16);
   buffer.writeUInt32BE(array - sec.offset, list + 20);
   buffer.writeUInt32BE(0x8000005b, array);
+  buffer.writeUInt32BE(0xffffffff, array + 16);
   assert.equal(cloneAtOwner(session, op), true);
-  buffer.writeUInt32BE(0x8000000a, array);
+  buffer.writeUInt32BE(0, array + 16);
   assert.equal(cloneAtOwner(session, op), false);
-  buffer.writeUInt32BE(0x8000005b, array);
+  buffer.writeUInt32BE(0xffffffff, array + 16);
+  buffer.writeUInt32BE(0x8000000a, array);
+  assert.equal(cloneAtOwner(session, op), true, 'the expression class index differs between files');
   buffer.writeUInt32BE(2, list + 8);
   assert.equal(cloneAtOwner(session, op), false);
   buffer.writeUInt32BE(9999 - sec.offset, op + 0x28);
   assert.equal(cloneAtOwner(session, op), false);
   assert.equal(cloneAtOwner(session, 250), false);
+});
+
+test('Mining detects its own script and expression classes and finds clone resources', { skip: miningSkip }, () => {
+  const session = openSession(fileURLToPath(miningFile), { archive: 'level/Level_000_Mining.bld', entry: 3 });
+  const audit = auditScripts(session.buffer, session.graph, session.fixups);
+  assert.equal(audit.script_class, 86);
+  assert.equal(audit.scripts, 194);
+  assert.equal(audit.model_ok, 194);
+  const owners = session.placements.filter(p => p.behavior?.offset != null);
+  assert.ok(owners.some(p => scriptDiagnostics(session, p).clones.length > 0));
 });
 
 test('Barrel resource links to active counterparts; a shared model does not share their positions', { skip }, () => {
