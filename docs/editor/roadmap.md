@@ -14,6 +14,15 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 | 5 | Patch lands in the chosen level | **CONFIRMED on Mining** (archive redirect: the level's `.bld` and `.arc` served under the tutorial's names through the confirmed tutorial checkpoint; two identical boots on 2026-09-17), LIKELY for the other families | two identical boots per level family | `level.entry.archive-redirect`; a family moves to CONFIRMED in `docs/level-entry-status.json` when two boots land in one of its levels |
 | 6 | Native additions outside the tutorial, and gameplay of added objects (M5) | Research | unknown | the addition recipe is anchored on the tutorial's readiness and activation observers; survival, collection and combat have no proof anywhere |
 
+## The main objective: add any object, anywhere, as many times as wanted
+
+Specified on 2026-09-17 in [spec 007](../../specs/007-unlimited-additions/spec.md) with its
+[plan](../../specs/007-unlimited-additions/plan.md): the native factory on every level with a measured capacity
+instead of eight (phase A), the activation flag as an on/off switch to remove or reveal objects without a victim
+(phase B), libraries imported between levels for the enemies that exist in a dozen levels only (phase C, gate
+M4A), and campaigns that prove hundreds of sources without hand work (phase V). It supersedes steps 3, 4 and 6
+of the table above.
+
 ## Readability of the view (asked on 2026-09-17, measured, not started)
 
 | Item | Finding | Cost | Recommendation |
