@@ -9,7 +9,12 @@ import { compileNativeProbe, NATIVE_BASE, NATIVE_MAGIC, NATIVE_STRIDE } from './
 import { installNativePatch, verifyNativeFactory, verifyNativeInstances, readNativeBytes } from './native-run.mjs';
 import { classifyAddition, PROBE_VERSION } from './addition-compatibility.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
+import { ATTEMPT_CREATED, GECKO_AREA, HEAP, INSTANCE, INSTANCE_BYTES, SLOT, readVector } from './native-layout.mjs';
+import { ORIGINAL_TUTORIAL_SHA256 } from './levels.mjs';
 export const reportsDir = path.join(local, 'addition-validation');
+
+// The probe keeps a margin below the end of MEM1 when it accepts a pointer the factory returned.
+const MAX_INSTANCE_POINTER = 0x817fff00;
 export function readFamilyReport(family) {
   if (!/^[a-f0-9]{64}$/.test(family ?? '')) return null;
   try {
@@ -19,7 +24,7 @@ export function readFamilyReport(family) {
   }
 }
 export async function inspectProbe(additions, read = readNativeBytes) {
-  const memory = await read(0x80001800, 0x1800),
+  const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
     results = [];
   for (const a of additions) {
     const row = { source: a.source, id: a.id, runtime: 'failed', visual: 'pending', gameplay: 'pending' };
@@ -27,8 +32,8 @@ export async function inspectProbe(additions, read = readNativeBytes) {
     for (let o = 0; o + NATIVE_STRIDE <= memory.length; o += 4)
       if (
         memory.readUInt32BE(o) === NATIVE_MAGIC &&
-        memory.readInt32BE(o + 0x1c) === a.id &&
-        memory.readUInt32BE(o + 0x2c) === NATIVE_BASE + a.source
+        memory.readInt32BE(o + SLOT.id) === a.id &&
+        memory.readUInt32BE(o + SLOT.source) === NATIVE_BASE + a.source
       ) {
         at = o;
         break;
@@ -37,24 +42,24 @@ export async function inspectProbe(additions, read = readNativeBytes) {
       results.push({ ...row, reason: 'Probe payload was not consumed.' });
       continue;
     }
-    row.attempt = memory.readUInt32BE(at + 4);
-    row.pointer = memory.readUInt32BE(at + 8);
-    if (row.attempt !== 2 || row.pointer < 0x80003000 || row.pointer > 0x817fff00) {
+    row.attempt = memory.readUInt32BE(at + SLOT.attempt);
+    row.pointer = memory.readUInt32BE(at + SLOT.pointer);
+    if (row.attempt !== ATTEMPT_CREATED || row.pointer < HEAP.start || row.pointer > MAX_INSTANCE_POINTER) {
       results.push({
         ...row,
         reason: row.attempt ? 'Native factory returned no valid instance.' : 'Source guards have not passed yet.',
       });
       continue;
     }
-    const b = await read(row.pointer, 0xf8);
+    const b = await read(row.pointer, INSTANCE_BYTES);
     row.bytes_hex = b.toString('hex');
-    row.state = b.readUInt32BE(0x54);
-    row.actor = b.readUInt32BE(0xf4);
-    row.position = [0, 4, 8].map(o => b.readFloatBE(0x24 + o));
-    row.heading = b.readFloatBE(0x34);
-    row.parent = b.readUInt32BE(0x5c);
-    row.model = b.readUInt32BE(0xdc);
-    row.script = b.readUInt32BE(0xa8);
+    row.state = b.readUInt32BE(INSTANCE.state);
+    row.actor = b.readUInt32BE(INSTANCE.actor);
+    row.position = readVector(b, INSTANCE.position);
+    row.heading = b.readFloatBE(INSTANCE.heading);
+    row.parent = b.readUInt32BE(INSTANCE.parent);
+    row.model = b.readUInt32BE(INSTANCE.model);
+    row.script = b.readUInt32BE(INSTANCE.script);
     try {
       row.creation = await verifyNativeInstances([a], read);
       row.runtime = 'passed';
@@ -75,7 +80,7 @@ export async function runAdditionProbe(
   sources,
   { signal, onProgress = () => {}, repeat = 2, gameFactory = () => new GameSession() } = {},
 ) {
-  if (s.original_sha256 !== '2976f3597df5f7aa8f3ba564b6f54c6170a08cabb204753d2bf3c70206a32e3f')
+  if (s.original_sha256 !== ORIGINAL_TUTORIAL_SHA256)
     throw Error(
       'This probe currently requires the original tutorial level. Open the unmodified tutorial to test its source families.',
     );

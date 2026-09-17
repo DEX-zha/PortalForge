@@ -11,6 +11,17 @@ import {
   NATIVE_BASE,
 } from './native-patch.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
+import {
+  ATTEMPT_CREATED,
+  GECKO_AREA,
+  HEAP,
+  INSTANCE,
+  INSTANCE_BYTES,
+  PLACEMENT_CLASS,
+  SLOT,
+  STATE_ACTIVE,
+  readVector,
+} from './native-layout.mjs';
 export const readNativeBytes = async (address, length) =>
   Buffer.from(await bridgeCall('memory.read_bytes', [address, length]), 'hex');
 
@@ -89,46 +100,51 @@ export async function verifyNativeFactory(read = readNativeBytes) {
 // A consumed code is not enough: demand distinct live placements and their actors.
 // Render visibility is still judged from screenshots, never inferred here.
 export async function verifyNativeInstances(additions, read = readNativeBytes) {
-  const memory = await read(0x80001800, 0x1800),
+  const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
     rows = [];
-  const valid = p => p % 4 === 0 && p >= 0x80003000 && p + 0xf8 <= 0x81800000;
+  const valid = p => p % 4 === 0 && p >= HEAP.start && p + INSTANCE_BYTES <= HEAP.end;
   for (const a of additions) {
     const matches = [];
     for (let off = 0; off + NATIVE_STRIDE <= memory.length; off += 4) {
       if (
         memory.readUInt32BE(off) === NATIVE_MAGIC &&
-        memory.readInt32BE(off + 0x1c) === a.id &&
-        memory.readUInt32BE(off + 0x2c) === NATIVE_BASE + a.source
+        memory.readInt32BE(off + SLOT.id) === a.id &&
+        memory.readUInt32BE(off + SLOT.source) === NATIVE_BASE + a.source
       )
         matches.push(off);
     }
     if (matches.length !== 1) throw Error(`Added object ${a.id}: native recipe was not uniquely consumed.`);
     const at = matches[0],
-      pointer = memory.readUInt32BE(at + 8);
-    if (memory.readUInt32BE(at + 4) !== 2 || !valid(pointer) || pointer === NATIVE_BASE + a.source)
+      pointer = memory.readUInt32BE(at + SLOT.pointer);
+    if (
+      memory.readUInt32BE(at + SLOT.attempt) !== ATTEMPT_CREATED ||
+      !valid(pointer) ||
+      pointer === NATIVE_BASE + a.source
+    )
       throw Error(`Added object ${a.id}: native creation did not complete.`);
-    const b = await read(pointer, 0xf8),
-      source = await read(NATIVE_BASE + a.source, 0xf8);
+    const b = await read(pointer, INSTANCE_BYTES),
+      source = await read(NATIVE_BASE + a.source, INSTANCE_BYTES);
     // Native metadata identifies +24 as the initial transform, +3c as current.
     // AI movement and coin animation may change the latter after creation.
-    const position = [0, 4, 8].map(n => b.readFloatBE(0x24 + n)),
-      heading = b.readFloatBE(0x34);
-    const current_position = [0, 4, 8].map(n => b.readFloatBE(0x3c + n)),
-      current_heading = b.readFloatBE(0x4c);
-    if (b.readUInt32BE(0xa8) !== (a.script == null ? 0 : NATIVE_BASE + a.script))
+    const position = readVector(b, INSTANCE.position),
+      heading = b.readFloatBE(INSTANCE.heading);
+    const current_position = readVector(b, INSTANCE.current_position),
+      current_heading = b.readFloatBE(INSTANCE.current_heading);
+    if (b.readUInt32BE(INSTANCE.script) !== (a.script == null ? 0 : NATIVE_BASE + a.script))
       throw Error(`Added object ${a.id}: source script was not retained.`);
     const sourceValid =
       a.script == null
-        ? valid(source.readUInt32BE(0xf4))
-        : source.readUInt32BE(0) === 0x80481674 && source.readUInt32BE(0xa8) === NATIVE_BASE + a.script;
+        ? valid(source.readUInt32BE(INSTANCE.actor))
+        : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS &&
+          source.readUInt32BE(INSTANCE.script) === NATIVE_BASE + a.script;
     if (
-      b.readUInt32BE(0) !== 0x80481674 ||
-      b.readUInt32BE(0x54) !== 1 ||
-      b.readUInt32BE(0x5c) !== NATIVE_BASE + a.source ||
-      b.readUInt32BE(0xdc) !== NATIVE_BASE + a.model ||
-      !valid(b.readUInt32BE(0xf4)) ||
+      b.readUInt32BE(INSTANCE.class) !== PLACEMENT_CLASS ||
+      b.readUInt32BE(INSTANCE.state) !== STATE_ACTIVE ||
+      b.readUInt32BE(INSTANCE.parent) !== NATIVE_BASE + a.source ||
+      b.readUInt32BE(INSTANCE.model) !== NATIVE_BASE + a.model ||
+      !valid(b.readUInt32BE(INSTANCE.actor)) ||
       !sourceValid ||
-      b.readUInt32BE(0xf4) === source.readUInt32BE(0xf4) ||
+      b.readUInt32BE(INSTANCE.actor) === source.readUInt32BE(INSTANCE.actor) ||
       position.some((n, i) => !Number.isFinite(n) || Math.abs(n - a.position[i]) > 0.002) ||
       !Number.isFinite(heading) ||
       Math.abs(heading - a.heading) > 0.02
