@@ -9,12 +9,13 @@ import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { here, local, evidence, profile, delay, bridgeCall } from './runtime.mjs';
+import { requireSetting } from './config.mjs';
 
 const proofDirectory = path.join(local, 'riivolution-proof');
 const manifestPath = path.join(proofDirectory, 'manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-const { game } = JSON.parse(fs.readFileSync(path.join(local, 'dolphin-config.json'), 'utf8'));
-const figure = process.argv[2] ?? 'C:/Users/romai/Desktop/skylanders/skylanders/custom/Sonic Boom.sky';
+const game = requireSetting('game');
+const figure = process.argv[2] ?? requireSetting('figure');
 const logFile = path.join(profile, 'Logs', 'dolphin.log');
 const report = {
   started: new Date().toISOString(),

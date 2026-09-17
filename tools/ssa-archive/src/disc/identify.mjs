@@ -3,12 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { requireSetting } from '../../../dolphin-mcp/config.mjs';
 
 const SUPPORTED_GAME_ID = 'SSPP52';
-const dolphinTool =
-  process.env.PORTALFORGE_DOLPHINTOOL ?? 'C:/Users/romai/Desktop/dolphin-2606a-x64/Dolphin-x64/DolphinTool.exe';
 
 export async function runDolphinTool(args, timeout = 600000) {
+  const dolphinTool = requireSetting('dolphin_tool');
   if (!fs.existsSync(dolphinTool))
     throw Object.assign(new Error('DolphinTool.exe not found: ' + dolphinTool), { exitCode: 3 });
   const { stdout } = await promisify(execFile)(dolphinTool, args, {
