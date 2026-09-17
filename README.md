@@ -57,10 +57,11 @@ layers, shared state, evidence and safety flags), and the **Project** browser at
 3D thumbnails generated from the level's own geometry. The **Level** tab next to it lists the 76 levels of the
 disc, each with its state and what the editor is allowed to do there; the header picker opens any of them.
 
-Each card in Project carries its verdict rather than a guess: **Add** for a source with a confirmed native
-recipe, **Needs test** for one that is structurally eligible but never booted, **Related source tested** when a
-sibling of the same family was the one actually proven. The counters read the same way — 673 objects,
-9 that can be added, 234 testable families, and the addition budget used out of 8.
+Every object of a level can be added, enemies and objects with nothing to draw included, and each card says
+what stands behind its **Add**: a confirmed recipe, *verified in game* with the number of launches, *related
+source tested*, *failed in game* with the reason, or *not verified*. The proof follows the addition instead of
+gating it: every launch reads each added object back from the game's memory and files the result on its card.
+Up to 59 additions fit in one patch; eight is the count two identical boots confirmed.
 
 The view shows the level as the game stores it: placed objects in the default layers, stored templates and
 disabled objects (the ones a script clones or activates later) in a hidden layer of their own. While the level
@@ -101,7 +102,8 @@ scope stating what the run does **not** prove.
 | Boot straight into the chosen level from Patch (the level served under the tutorial's file names) | **CONFIRMED** (Mining, two identical boots); LIKELY for the other levels | [`docs/level-entry-status.json`](docs/level-entry-status.json) |
 | Tell stored templates and disabled objects from placed ones, on every level | **LIKELY** (read in the running game on Mining) | [`docs/findings/`](docs/findings/) `igz.placement.inactive-flag` |
 | Draw the scene as the game runs it: states, actors and the objects scripts create | **LIKELY**, read-only (Mining, one run) | [`docs/findings/`](docs/findings/) `level.runtime.scene-snapshot` |
-| Any object of any level, as many times as wanted; objects from other levels | **UNKNOWN** — specified, gates M4A / M5 | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
+| Add any object of a level, stored templates and enemies included, verified by every launch | **LIKELY** (Mining: 8 of 8, 32 of 32 and six moving enemies, two identical boots each; seen on screen for the enemies only) | [`specs/007-unlimited-additions/validation.md`](specs/007-unlimited-additions/validation.md) |
+| Objects from other levels; thousands of additions in plain play | **UNKNOWN** — specified, gate M4A | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
 | New geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
 
 `node tools/ssa-archive/cli.mjs gates` prints the current state of every gate with its evidence.
