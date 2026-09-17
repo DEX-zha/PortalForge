@@ -47,13 +47,17 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       launch measures the level at the first capture of it (or, in classic play, once its archive has been read),
       keeps the measure as the level's scene snapshot, and writes rows, anchor, then count. No level needs a
       snapshot beforehand any more; a measured level still compiles its table in.
-- [ ] S05b Refill: write the next 59 rows once the first are created, keeping each batch's instance pointers for
-      the readings; the savestate loop of a level campaign.
+- [x] S05b Refill (`writeLiveBatches` in `native-live.mjs`): a scene larger than the table is written batch by
+      batch; each batch but the last is waited for, read (attempt word and instance) and kept in `options.rows`
+      before it is overwritten, so every later reading still finds it. A scene of more than 59 additions patches
+      the live routine even on a measured level; the editor accepts 590 (`ADDITION_LIMIT`, a guard).
 - [x] S06 Experiment L1 on 2026-09-17: two identical boots on Undead Volcano, never measured before, 8 of 8
       created by the live routine (6 alive at every reading, 2 removed by their scripts); one boot on
       `Challenge_Level_005` ([validation](validation.md)).
-- [ ] S07 Level campaign in one boot: every family of the level in batches with the arrival savestate between
-      them; families that hang the level filed as unsafe.
+- [x] S06b Experiment R1 on 2026-09-17: two boots of 152 additions on Mining (every family with a visible model)
+      through three tables of 59; the factory returned an instance for 152 of 152 on both boots.
+- [ ] S07 Level campaign with a savestate between batches, for the families R1 left out: objects with nothing to
+      draw, among which a level's singletons; a family that hangs the level is filed as unsafe.
 - [ ] S08 Experiment M1, two boots: MEM2 arena end lowered by a Riivolution memory patch, marker block intact.
 - [ ] S09 Table in the reserved block, delivered by `<memory valuefile>` and rewritten after a checkpoint
       restore; experiment M2, two boots, 200 additions.

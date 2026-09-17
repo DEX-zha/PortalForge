@@ -9,6 +9,12 @@
 //
 // The snapshot this leaves behind is the level's measure from then on: the next patch of that level compiles its
 // table in (native-params.mjs), which also works when the game is played without the editor attached.
+//
+// The table is also how a scene holds more additions than the Gecko area has rows for. Once the routine has
+// attempted every row, the launcher reads what it wrote (the attempt word and the instance the factory returned),
+// keeps it, and writes the next rows over them. The Gecko budget bounds a batch, not a scene; what bounds a scene
+// is the game itself, and the readings say so row by row.
+import { setTimeout as sleep } from 'node:timers/promises';
 import { bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import { GECKO_AREA } from './native-layout.mjs';
 import {
@@ -16,6 +22,7 @@ import {
   LIVE_HEADER_BYTES,
   LIVE_HEADER_MAGIC,
   NATIVE_STRIDE,
+  TABLE,
   TABLE_STRIDE,
   assertAdditions,
   tableRowWords,
@@ -73,6 +80,52 @@ export async function writeLiveTable({ additions, base, anchor, read = readNativ
   return { header, capacity: table.capacity, written: additions.length };
 }
 
+// How long a batch is given to be attempted before the next one takes its place. The routine attempts every row
+// in one pass of the activation manager, so this is a margin, not a wait; a row still untouched after it is one
+// whose guards do not pass (a source that is not what the row says), and it is recorded as such.
+const SETTLE = { everyMs: 250, timeoutMs: 5000 };
+
+// What the routine wrote in the rows of the table: for each addition, its attempt word and its instance.
+async function readBatch(batch, table, read) {
+  const memory = await read(GECKO_AREA.start + table.rows, batch.length * TABLE_STRIDE);
+  return batch.map((addition, i) => ({
+    id: addition.id,
+    attempt: memory.readUInt32BE(i * TABLE_STRIDE + TABLE.attempt),
+    pointer: memory.readUInt32BE(i * TABLE_STRIDE + TABLE.pointer),
+  }));
+}
+
+// Writes a scene of any size through the table, one batch of `capacity` rows at a time. Every batch but the last
+// is waited for, read and kept in `rows` before it is overwritten; the last one stays in the table, where the
+// readings find it like any other. Resolves to what the rest of the run needs to read every addition back.
+export async function writeLiveBatches({
+  additions,
+  base,
+  anchor,
+  read = readNativeBytes,
+  write = bridgeWriter,
+  settle = SETTLE,
+  wait = sleep,
+}) {
+  assertAdditions(additions, { base });
+  const table = locateLiveTable(await read(GECKO_AREA.start, GECKO_AREA.size));
+  if (!table) throw Error('The live addition routine is not installed in this game.');
+  const batches = [];
+  for (let i = 0; i < additions.length; i += table.capacity) batches.push(additions.slice(i, i + table.capacity));
+  const rows = {};
+  for (const [index, batch] of batches.entries()) {
+    await writeLiveTable({ additions: batch, base, anchor, read, write });
+    if (index === batches.length - 1) break;
+    let seen = await readBatch(batch, table, read);
+    for (let waited = 0; seen.some(row => !row.attempt) && waited < settle.timeoutMs; waited += settle.everyMs) {
+      await wait(settle.everyMs);
+      seen = await readBatch(batch, table, read);
+    }
+    for (const row of seen) rows[row.id] = { attempt: row.attempt, pointer: row.pointer };
+  }
+  return { capacity: table.capacity, batches: batches.length, written: additions.length, rows };
+}
+
 // What a launch does when it reaches a level whose patch carries the live routine: measure, keep the measure,
 // write the table. `additions` may be a function of the measure, for a campaign that chooses its batch once it
 // knows what is active around the player. Returns what the rest of the run needs to read the additions back.
@@ -95,20 +148,23 @@ export function liveArrival(session, additions, services = {}) {
     const params = nativeParamsFor(session, { snapshot });
     if (!params.available) throw Error(params.reason);
     const rows = typeof additions === 'function' ? await additions({ snapshot, params }) : additions;
-    const written = await writeLiveTable({
+    const written = await writeLiveBatches({
       additions: rows,
       base: params.base,
       anchor: params.anchor.address,
       read,
       write,
+      ...(services.settle ? { settle: services.settle } : {}),
+      ...(services.wait ? { wait: services.wait } : {}),
     });
     return {
       additions: rows,
-      options: { ...params.options, layout: 'live', capacity: written.capacity },
+      options: { ...params.options, layout: 'live', capacity: written.capacity, rows: written.rows },
       base: params.base,
       anchor: params.anchor,
       snapshot: file,
       written: written.written,
+      batches: written.batches,
     };
   };
 }

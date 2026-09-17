@@ -9,7 +9,7 @@ import { interchangeable, planReplace, applyEdit } from './session.mjs';
 import { classifyAddition, groupCandidates } from './addition-compatibility.mjs';
 import { readFamilyReport } from './addition-probe.mjs';
 import { NATIVE_LIMIT, nativeCapacity } from './native-patch.mjs';
-import { nativeParamsFor } from './native-params.mjs';
+import { ADDITION_LIMIT } from './native-additions.mjs';
 
 const TOKEN_BYTES = 24;
 
@@ -77,8 +77,6 @@ function catalogEntry(session, placement, inactiveOffsets) {
 }
 
 let measured = null;
-let liveRows = null;
-const liveCapacity = () => (liveRows ??= nativeCapacity({ layout: 'live' }));
 const measuredCapacity = () =>
   (measured ??= {
     slot: nativeCapacity({}, { scripted: true }),
@@ -96,8 +94,9 @@ export function catalog(session) {
     // (level.prop.native-addition-capacity). Past it a scene is experimental, like its unverified sources.
     addition_capacity: {
       used: session.additions?.length ?? 0,
-      // A level never measured patches the live routine, which holds as many rows as the table.
-      limit: nativeParamsFor(session).available ? measuredCapacity().table : liveCapacity(),
+      // What the editor accepts in a scene. Up to `fits.table` additions are compiled into the patch of a measured
+      // level; past that, and on a level never measured, the launch writes them into the running game.
+      limit: ADDITION_LIMIT,
       confirmed: NATIVE_LIMIT,
       fits: measuredCapacity(),
     },

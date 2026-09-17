@@ -108,7 +108,7 @@ try {
   );
   // Feature 007: every object of the level can be added; eight is what two boots confirmed, 59 what a patch holds.
   assert.deepEqual(capacity, {
-    capacity: { used: 0, limit: 59, confirmed: 8, fits: { slot: 18, table: 59 } },
+    capacity: { used: 0, limit: 590, confirmed: 8, fits: { slot: 18, table: 59 } },
     available: 673,
   });
   assert.equal(await evaluate(`document.getElementById('skip-intro').checked`), false, 'opening is kept by default');
@@ -377,7 +377,7 @@ try {
     for (let count = 3; count <= 8; count++) {
       await drop({ x: 0.35 + (count % 3) * 0.12, y: 0.5 + (count % 2) * 0.18 });
       await waitFor(
-        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/59 added')`,
+        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/590 added')`,
       );
       assert.equal(session.additions.length, count);
     }

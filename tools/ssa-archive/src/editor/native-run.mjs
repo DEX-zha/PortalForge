@@ -106,8 +106,13 @@ export async function verifyNativeFactory(read = readNativeBytes) {
 
 // Where each addition's bookkeeping sits in a dump of the Gecko area: the words the compiled code writes as it
 // runs. One list of matches per addition, in the order given; a consumed patch has exactly one match each.
+//
+// A live table is refilled once its rows are created (native-live.mjs), which overwrites them: what the routine
+// had written for those additions was read before the refill and travels in `options.rows`, by addition id. An
+// addition named there is answered from there, never from whatever row now sits in its place.
 export function locateAdditionRows(memory, additions, options = {}) {
   const { base, layout } = nativeOptions(options);
+  const kept = options.rows ?? {};
   const found = [];
   if (layout === 'table' || layout === 'live') {
     // Both keep 40-byte rows after a header and the shared argument block; the live header is two words longer.
@@ -139,7 +144,11 @@ export function locateAdditionRows(memory, additions, options = {}) {
       });
     }
   }
-  return additions.map(a => found.filter(row => row.id === a.id && row.source === base + a.source));
+  return additions.map(a =>
+    kept[a.id]
+      ? [{ at: null, id: a.id, source: base + a.source, attempt: kept[a.id].attempt, pointer: kept[a.id].pointer }]
+      : found.filter(row => row.id === a.id && row.source === base + a.source),
+  );
 }
 
 // A consumed code is not enough: demand distinct live placements and their actors.

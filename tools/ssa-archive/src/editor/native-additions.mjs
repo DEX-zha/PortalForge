@@ -24,6 +24,9 @@ const ADDITION_FINDING = 'level.prop.native-addition';
 const SIDECAR_SUFFIX = '.portalforge.json';
 const SIDECAR_VERSION = 1;
 const ORIGINAL_SCALE = 100; // the file stores 100 for unit scale; the recipe is only proven at that scale
+// What the editor accepts in one scene. It is a guard against a runaway scene, not a measure: what the game
+// itself can hold is what the readings of a launch say (specs/007-unlimited-additions/validation.md).
+export const ADDITION_LIMIT = 590;
 
 // Fields an intent may carry. Anything else is refused rather than ignored, so a caller cannot believe a
 // property was applied when the recipe does not support it (scale, for one).
@@ -103,12 +106,12 @@ export function additionSource(session, offset) {
 export function additionCompileOptions(session, additions) {
   const params = nativeParamsFor(session);
   const count = additions.length;
-  if (!params.available) {
-    const capacity = nativeCapacity({ layout: 'live' });
-    if (count > capacity) throw Error(`This patch holds at most ${capacity} added objects.`);
+  if (count > ADDITION_LIMIT) throw Error(`This editor holds at most ${ADDITION_LIMIT} added objects in a scene.`);
+  const live = () => {
     assertAdditions(additions);
-    return { layout: 'live', capacity };
-  }
+    return { layout: 'live', capacity: nativeCapacity({ layout: 'live' }) };
+  };
+  if (!params.available) return live();
   const attempt = layout => {
     try {
       compileNativePatch(additions, { ...params.options, layout, limit: Math.max(count, 1) });
@@ -120,9 +123,9 @@ export function additionCompileOptions(session, additions) {
   };
   if (!count || attempt('slot')) return { ...params.options, layout: 'slot', limit: Math.max(count, 1) };
   if (attempt('table')) return { ...params.options, layout: 'table', limit: count };
-  throw Error(
-    `This patch holds at most ${nativeCapacity({ ...params.options, layout: 'table' }, { scripted: true })} added objects.`,
-  );
+  // More than a compiled table holds: the live routine, refilled by the launch while the game runs. Such a scene
+  // needs a launch from the editor; played without it, the routine finds an empty table and creates nothing.
+  return live();
 }
 
 // Every addition must still match its source, and the whole set must compile into the Gecko budget.

@@ -23,6 +23,13 @@ and the count is unbounded while the editor drives (S2), reserve MEM2 through th
 additions in plain play (S3). S1 to S3 come before phases B and C; A1 and A2 stay the first boots, because S2
 builds on the compact table.
 
+State on 2026-09-17, late: S1 and S2 are done and booted ([validation](validation.md)): the experimental addition,
+the live routine that serves every level, and the refill that took 152 additions through three tables. What is
+left of this plan, in order: S3 (a table outside the Gecko area, for play without the editor), the campaign with
+savestates for objects with nothing to draw, phase B (the activation flag, its probe is ready), phase C (objects
+of other levels). How the whole mechanism works is written for users and maintainers in
+[docs/editor/adding-objects.md](../../docs/editor/adding-objects.md).
+
 ## Technical Context
 
 - The native recipe (`src/editor/native-patch.mjs`) is PowerPC emitted as Gecko lines: a fixed prologue, guards

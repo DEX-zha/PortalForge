@@ -11,8 +11,9 @@ record the level already holds.
 
 Every object of the open level can be added, from the **Project** browser or the hierarchy: placed objects, stored
 templates (the hidden "Templates and disabled objects" layer), and objects with nothing to draw (triggers, spawners,
-cameras). Drop it where you want it; move or rotate the copy like any other object. Up to 59 additions fit in one
-patch.
+cameras). Drop it where you want it; move or rotate the copy like any other object. A scene takes up to 590
+additions: the first 59 can be compiled into the patch, and a larger scene is written into the running game by the
+launch, batch after batch, so it needs to be launched from the editor.
 
 The card says what is known about that source, and never more:
 
@@ -74,7 +75,7 @@ as base plus its file offset) and the anchor. Three layouts carry the rows:
 |---|---:|---:|---|
 | `slot` | 144 bytes: the factory's argument block lives in the slot | 18 | up to 18 additions on a measured level; the only layout the nine confirmed recipes were proven with |
 | `table` | 40 bytes, one shared argument block rebuilt before each call | 59 | past 18 additions on a measured level |
-| `live` | the same rows, empty at boot | 59 | a level that was never measured |
+| `live` | the same rows, empty at boot | 59 per batch, refilled | a level that was never measured; any scene of more than 59 additions |
 
 The ceiling is Dolphin's Gecko area: its code handler leaves 3 256 bytes for codes (the code list starts at
 `0x80002338`), routine included.
@@ -93,6 +94,14 @@ The ceiling is Dolphin's Gecko area: its code handler leaves 3 256 bytes for cod
   so it never sees half a table. From then on the level is measured, and its next patch compiles the table in.
 
 So additions work on a level the first time it is launched from the editor, with nothing to prepare.
+
+**More than 59.** The routine attempts every row of its table in one pass, and the launcher can then read what it
+wrote (for each row, the attempt word and the instance the factory returned), keep it, and write the next 59 rows
+over them. The Gecko area bounds a batch, not a scene. The kept rows travel with the run (`options.rows`) so that
+every later reading still finds the additions of the earlier batches. A patch that relies on this carries the live
+routine even on a measured level; played without the editor, that routine finds an empty table and creates nothing.
+The editor accepts 590 additions in a scene, which is a guard, not a measure of what the game can hold: 152 went in
+on Mining through three tables, twice, and the game played on.
 
 ## What a launch checks
 
@@ -134,7 +143,7 @@ node research-probes/native-level-probe.mjs --level Level_039_UndeadVolcano --au
 ## Not proven, not done
 
 - Rendering was looked at for the added enemies only; combat, damage, loot and defeat are not judged.
-- More than 59 additions per patch: refilling the live table while the game runs, and a table outside the Gecko
-  area for plain play ([study](../../specs/007-unlimited-additions/study-add-anything.md), steps S05b and S08).
+- More than 59 additions when the game is played without the editor: a table outside the Gecko area
+  ([study](../../specs/007-unlimited-additions/study-add-anything.md), step S08).
 - Objects whose template is not in the level (an enemy of another level): phase C, gate M4A.
 - Scales other than 100 %.

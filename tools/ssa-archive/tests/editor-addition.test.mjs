@@ -6,7 +6,7 @@ import path from 'node:path';
 import { syntheticLevel } from './helpers/synthetic-level.mjs';
 import { openSession, applyEdit, undo, redo, resetScene, authorisedWords } from '../src/editor/session.mjs';
 import { save, patch, launch, buildSavePlan } from '../src/editor/save.mjs';
-import { loadAdditionSidecar } from '../src/editor/native-additions.mjs';
+import { loadAdditionSidecar, additionCompileOptions, ADDITION_LIMIT } from '../src/editor/native-additions.mjs';
 import { compileNativePatch, nativeCapacity, NATIVE_LIMIT } from '../src/editor/native-patch.mjs';
 import { installNativePatch, verifyNativeInstances, verifyNativeLifecycle } from '../src/editor/native-run.mjs';
 import { createHash } from 'node:crypto';
@@ -206,11 +206,17 @@ test('unsupported templates, nonfinite transforms, scales, duplicate IDs and cap
   assert.throws(() => compileNativePatch([a, a]), /distinct/);
   assert.throws(() => compileNativePatch([{ ...a, scale: 200 }]), /100%/);
   assert.ok(compileNativePatch(Array.from({ length: NATIVE_LIMIT }, (_, i) => ({ ...a, id: -i - 1 }))).bytes <= 3256);
-  // Past the proven slot layout the scene compiles as the compact table; the Gecko budget is the only ceiling.
+  // Past the proven slot layout the scene compiles as the compact table, and past the table as the live routine,
+  // which the launch refills while the game runs: the Gecko budget bounds a batch, not a scene.
   const capacity = nativeCapacity({ layout: 'table' });
   assert.ok(capacity > NATIVE_LIMIT);
   for (let i = 1; i < capacity; i++) add();
-  assert.throws(() => add(), /at most/);
+  assert.equal(additionCompileOptions(s, s.additions).layout, 'table');
+  add();
+  assert.equal(additionCompileOptions(s, s.additions).layout, 'live');
+  // What the editor accepts in a scene is a guard, stated in the refusal.
+  const crowd = Array.from({ length: ADDITION_LIMIT + 1 }, (_, i) => ({ ...a, id: -i - 1 }));
+  assert.throws(() => additionCompileOptions(s, crowd), new RegExp(`at most ${ADDITION_LIMIT}`));
   source.scale = 200;
   assert.equal(buildSavePlan(s).status, 'INVALID');
 });

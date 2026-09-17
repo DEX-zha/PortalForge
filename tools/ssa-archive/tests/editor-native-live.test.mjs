@@ -18,7 +18,13 @@ import {
   TABLE,
   TABLE_STRIDE,
 } from '../src/editor/native-patch.mjs';
-import { locateLiveTable, liveRows, writeLiveTable, liveArrival } from '../src/editor/native-live.mjs';
+import {
+  locateLiveTable,
+  liveRows,
+  writeLiveTable,
+  writeLiveBatches,
+  liveArrival,
+} from '../src/editor/native-live.mjs';
 import { locateAdditionRows } from '../src/editor/native-run.mjs';
 import { watchAdditions } from '../src/editor/native-watch.mjs';
 import { latestSnapshot } from '../src/editor/scene-snapshot.mjs';
@@ -179,7 +185,7 @@ test('a level never measured patches the live routine, and its launch measures i
   const [crate, barrel] = s.placements;
   applyEdit(s, { kind: 'add', source: crate.offset, position: [4, 5, 6] });
   // The Project pane counts against what the live routine holds, not against nothing.
-  assert.deepEqual(catalog(s).addition_capacity, { used: 1, limit: 59, confirmed: 8, fits: { slot: 18, table: 59 } });
+  assert.deepEqual(catalog(s).addition_capacity, { used: 1, limit: 590, confirmed: 8, fits: { slot: 18, table: 59 } });
   assert.ok(save(s, { out: path.join(dir, 'edited.decoded') }).written);
   patch(s, { deps: { build: () => ({ dir, replacements: [] }) } });
   const native = s.lastPatch.native_additions;
@@ -228,6 +234,7 @@ test('a level never measured patches the live routine, and its launch measures i
     context: 'activation',
     layout: 'live',
     capacity: 59,
+    rows: {}, // one batch: nothing was overwritten, the table answers for every addition
   });
   const table = locateLiveTable(area);
   assert.deepEqual([table.count, table.anchor], [1, 0x80d00000 + barrel.offset]);
@@ -407,4 +414,68 @@ test('a batch on a level never measured is laid out by the run, beside the ancho
   reached = false;
   const lost = await runLevelBatch(s, { sources: [crate.offset], layout: 'live', deps, ...places });
   assert.deepEqual([lost.additions, lost.results, lost.params], [[], [], null]);
+});
+
+test('a scene larger than the table is written batch by batch, and what each batch created is kept before it is overwritten', async () => {
+  const routine = compileNativePatch([], { layout: 'live', capacity: 4 });
+  const area = geckoArea(routine);
+  const game = memory(area);
+  const table = locateLiveTable(area);
+  const base = 0x80dc6f48;
+  const additions = Array.from({ length: 10 }, (_, i) => ({
+    id: -i - 1,
+    source: 0x1000 + i * 0x100,
+    model: 0x2340,
+    position: [i, 0, 0],
+    heading: 0,
+    scale: 100,
+  }));
+
+  // The game's part: on every wait, the routine attempts the rows it finds. Addition -6 names a source that is
+  // not what the row says, so its guards never pass and its row is never touched.
+  let instance = 0x81200000;
+  const routineRuns = async () => {
+    const count = area.readUInt32BE(table.at + LIVE_HEADER.count);
+    for (let i = 0; i < count; i++) {
+      const row = table.rows + i * TABLE_STRIDE;
+      if (area.readUInt32BE(row + TABLE.attempt) || area.readInt32BE(row + TABLE.id) === -6) continue;
+      area.writeUInt32BE(2, row + TABLE.attempt);
+      area.writeUInt32BE((instance += 0x100), row + TABLE.pointer);
+    }
+  };
+  const written = await writeLiveBatches({
+    additions,
+    base,
+    anchor: base + 0x500,
+    ...game,
+    settle: { everyMs: 1, timeoutMs: 3 },
+    wait: routineRuns,
+  });
+  assert.deepEqual([written.batches, written.written, written.capacity], [3, 10, 4]);
+
+  // The first two batches were read before being overwritten; the last one is still in the table.
+  assert.deepEqual(
+    Object.keys(written.rows)
+      .map(Number)
+      .sort((a, b) => b - a),
+    [-1, -2, -3, -4, -5, -6, -7, -8],
+  );
+  assert.deepEqual(written.rows[-1], { attempt: 2, pointer: 0x81200100 });
+  assert.deepEqual(written.rows[-6], { attempt: 0, pointer: 0 }, 'a row whose guards never passed says so');
+  assert.equal(locateLiveTable(area).count, 2);
+  assert.equal(area.readInt32BE(table.rows + TABLE.id), -9);
+
+  // Reading back: kept rows answer for their additions, the table answers for the last batch.
+  await routineRuns();
+  const options = { base, anchor: base + 0x500, layout: 'live', capacity: 4, rows: written.rows };
+  const located = locateAdditionRows(area, additions, options);
+  assert.deepEqual(
+    located.map(rows => rows.length),
+    Array(10).fill(1),
+  );
+  assert.equal(located[0][0].pointer, 0x81200100);
+  assert.deepEqual([located[5][0].attempt, located[5][0].pointer], [0, 0]);
+  assert.equal(located[8][0].attempt, 2, 'the last batch is read from the table itself');
+  // Without the kept rows, the overwritten additions would be read as never consumed.
+  assert.equal(locateAdditionRows(area, additions, { ...options, rows: {} })[0].length, 0);
 });

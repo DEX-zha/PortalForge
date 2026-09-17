@@ -122,6 +122,36 @@ first reading. One boot proves nothing by the project's rule; it says the path h
 **Not proven**: rendering; classic play, where the level is reached by hand and the measure is triggered by the
 archive being read; hub and PvP levels; refilling the table while the game runs.
 
+## R1 — more than the table holds: 152 additions, the whole level in one boot (2026-09-17)
+
+Every family of Mining with a visible model, one source each: 152 additions on a grid of twelve columns from
+(75, 10.8, -46), through the live routine. The launch measured the level (first attempt), wrote 59 rows, waited for
+the routine to attempt them, read and kept what it had written, wrote the next 59 over them, then the last 34.
+
+| | Boot 1 | Boot 2 |
+|---|---|---|
+| batches written | 3 (59, 59, 34) | 3 (59, 59, 34) |
+| rows for which the factory returned an instance | 152 of 152 | 152 of 152 |
+| alive at the four readings | 115, 109, 109, 108 | 115, 108, 107, 107 |
+| created then removed | 44 | 45 |
+
+Runs `editor-direct-test-1789675453809-e2bce8db` and `editor-direct-test-1789675647260-f7aa929c`, the same routine
+(sha256 `971662e6a2…`) and the same batch. The additions of the first two batches were read from the kept rows at
+every reading, those of the last batch from the table. The game went through its opening dialogue with 152 more
+objects around the start, stopped cleanly, and the profile was restored. Creation is identical on both boots;
+survival differs by one source (`Wagon(2)`, destroyed in the second boot only): the batch puts every enemy of the
+level next to every breakable, and what follows is a fight, which is not reproducible to the object. The others
+that are gone are the same on both boots: debris, projectiles, rock bits, food, dead automaton parts, cutscene
+actors, the enemies that died. Every source 30 units from the start was created active with an actor, like those
+beside it: within this range an addition is not left dormant.
+
+This is also a level campaign: after these boots 156 families of Mining carry a report (107 verified in game, 49
+created then removed), where six boots of 59 would have been needed with a compiled table and 300 with the
+one-source rule.
+
+**Not proven**: rendering; the ceiling of the game's actor pools (152 did not reach it); objects with nothing to
+draw, left out because a level's singletons are among them (a savestate between batches is the way to take them).
+
 ## What these boots change
 
 - Success criteria SC-001 (additions on a second level) and SC-002 (at least 32 in one patch) are met as far as
@@ -130,5 +160,6 @@ archive being read; hub and PvP levels; refilling the table while the game runs.
   templates alike on a level it had never run on.
 - The editor's switch to the table layout past 18 additions rests on A2.
 - Additions no longer need a level to have been measured (L1): the first launch from the editor measures it.
+- A scene is no longer bounded by the Gecko area (R1): 152 additions went in through three tables of 59.
 - To add an enemy, add its template (E2), not the set-up record that places it (E1). Mining's cards carry 44
   family reports after these ten boots: 30 verified in game, 14 created then removed by their own script.

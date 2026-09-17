@@ -9,10 +9,10 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 |---|---|---|---|---|
 | 1 | Open any level and move its objects | **Delivered and CONFIRMED on Mining** ([spec 006](../../specs/006-multi-level-editing/spec.md)): two identical boots showed a lowered lantern where the original hung | done | `level.transform.other-levels` CONFIRMED; a level reads CONFIRMED once it was booted with an edit (its row in `docs/level-entry-status.json`), LIKELY otherwise |
 | 2 | Runtime maps per level, on demand | Tooling exists (`experiment ptr-scan`, `igz fixups`); folder and config lookup wired by step 1 | one boot per level plus navigation to it | a map is a runtime read, not a guess: the resident section diffed against the file |
-| 3 | Family campaign on the tutorial: from 9 Add sources towards 234 families | Tooling exists (**Test next 2 types**); waits for a decision on the promotion rule | about 9 minutes of Dolphin per family; over 30 hours at the current per-source rule | two identical boots per exact source today; promoting a script-less family from one member is a constitution change the user has to make |
-| 4 | More than eight additions per patch | Not started | rewrite the Gecko recipe as a loop over a data table instead of one code block per addition, then two boots | the reserved code area is 3 256 bytes; eight additions use 2 344 |
+| 3 | Family campaign: from 9 Add sources towards every family | **Replaced** by [spec 007](../../specs/007-unlimited-additions/spec.md): every object is addable and each launch verifies what it carried; a batch of one source per family verifies a level in one boot (156 families of Mining carry a report) | done for Mining; one boot per level | constitution 1.2.0: an experimental addition is verified by every run that carries it and never called confirmed; a family becomes a finding through two identical boots and review |
+| 4 | More than eight additions per patch | **Delivered, LIKELY** (spec 007): 18 with the proven slot, 59 with the compact table, and more through the live table refilled while the game runs (152 on Mining, two boots) | done; play without the editor stays at 59 | `level.prop.native-addition-table-layout`, `level.prop.native-addition-refill`; Dolphin leaves 3 256 bytes for codes |
 | 5 | Patch lands in the chosen level | **CONFIRMED on Mining** (archive redirect: the level's `.bld` and `.arc` served under the tutorial's names through the confirmed tutorial checkpoint; two identical boots on 2026-09-17), LIKELY for the other families | two identical boots per level family | `level.entry.archive-redirect`; a family moves to CONFIRMED in `docs/level-entry-status.json` when two boots land in one of its levels |
-| 6 | Native additions outside the tutorial, and gameplay of added objects (M5) | Research | unknown | the addition recipe is anchored on the tutorial's readiness and activation observers; survival, collection and combat have no proof anywhere |
+| 6 | Native additions outside the tutorial, and gameplay of added objects (M5) | Additions outside the tutorial **delivered, LIKELY** (spec 007: Mining, Undead Volcano, one challenge level; a level never measured is measured by its first launch). Gameplay of added objects: research | gameplay unknown | `level.prop.native-addition-other-levels`, `-live-table`, `-enemy-templates`; added enemies move and were seen on screen, but combat, loot and defeat have no proof anywhere |
 
 ## The main objective: add any object, anywhere, as many times as wanted
 
@@ -22,6 +22,14 @@ instead of eight (phase A), the activation flag as an on/off switch to remove or
 (phase B), libraries imported between levels for the enemies that exist in a dozen levels only (phase C, gate
 M4A), and campaigns that prove hundreds of sources without hand work (phase V). It supersedes steps 3, 4 and 6
 of the table above.
+
+State on 2026-09-17: every object of every level can be added from the editor, stored templates, enemies and
+objects with nothing to draw included, and each launch verifies what it carried
+([how it works](adding-objects.md) · [what was booted](../../specs/007-unlimited-additions/validation.md)). A level
+never opened before is measured by its first launch; a scene takes more additions than the Gecko area holds (152
+on Mining); added enemies move and fight. All of it is LIKELY: memory proves creation on two identical boots each,
+and only the enemies were looked at on screen. Next: a table for play without the editor, the activation flag as a
+remove/reveal switch, then objects of other levels.
 
 ## Readability of the view (asked on 2026-09-17, measured, not started)
 

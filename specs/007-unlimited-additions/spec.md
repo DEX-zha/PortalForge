@@ -5,11 +5,12 @@
 
 **Created**: 2026-09-17
 
-**Status**: Phase A booted and S01 to S03 implemented (2026-09-17): additions work on Mining from placed objects
-and stored templates (8 of 8, two boots), 32 fit in one patch (32 of 32, two boots), and every object of a level
-can be added, verified by each launch, on levels that were never measured too: the launch measures the level and
-writes the additions into the running game (Undead Volcano, two boots). Rendering was looked at for the added
-enemies only. See
+**Status**: Phases A and S (S01 to S06b) implemented and booted on 2026-09-17. Every object of a level can be
+added and is verified by each launch; a level never measured is measured by its first launch, which writes the
+additions into the running game (Undead Volcano, two boots); a scene is not bounded by the Gecko area (152 additions
+on Mining through three tables, two boots); added enemies move and were seen on screen. Open: a table for play
+without the editor (S08, S09), a campaign with savestates for objects with nothing to draw (S07), the activation
+flag (phase B), objects of other levels (phase C). Rendering was looked at for the added enemies only. See
 [validation](validation.md) and [tasks](tasks.md).
 
 **Input**: User request (translated from French): "Analyse the project and everything we did. We still cannot add
