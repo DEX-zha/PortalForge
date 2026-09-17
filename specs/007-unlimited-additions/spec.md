@@ -71,22 +71,57 @@ gets it in the level with its model, textures, script and sounds.
 **Independent Test**: bring `Enemy_Chompy` into a level that has no Chompy library; the level loads, the template
 is listed, a native addition of it stands and moves in game on two boots.
 
+### User Story 5 - Find any object of the game in the Project tab (Priority: P1)
+
+Asked on 2026-09-17, late (translated): "Any object must be addable in any map, so potentially objects that come
+from other levels. The Project tab will have to be organised better, with folders. Think of an implementation
+without conflicts."
+
+The user browses the Project tab like a content tree: enemies, game elements, loot, destructibles, the level's own
+objects, logic. The folders come from what the game itself says about each record (the library it was compiled
+from, the directory of its script), never from guesses on display names. A switch widens the tree from **This
+level** to the **Whole game**: every kind of object of the 76 levels, with the levels that hold it. A kind that
+also exists in the open level is added from this level's own copy; a kind that does not says where it lives.
+
+**Independent Test**: on Mining, *Enemies / Elemental_Swarmer* holds the swarmer template and its set-ups and
+nothing else; every one of the 617 objects sits in exactly one folder; under **Whole game** the Chompy shows the
+levels that hold it and, on a level that has the Chompy library, offers this level's copy.
+
+**Acceptance Scenarios**:
+
+1. **Given** any level, **When** the Project tab opens, **Then** every object sits in exactly one folder, and two
+   different kinds never share a card because their display names are equal.
+2. **Given** the Whole game scope, **When** a kind exists in the open level, **Then** its card adds this level's
+   own record; **When** it does not, **Then** the card names the levels that hold it and adds nothing.
+3. **Given** two levels with a record at the same file offset, **When** reports, additions or catalogue entries
+   are stored, **Then** none of them can be read as the other level's.
+
+### User Story 6 - Additions never cost the level its own objects (Priority: P1)
+
+The user fears that adding many objects makes the game drop others. A launch can count the level's own objects
+that are active with an actor, before and after the additions.
+
+**Independent Test**: two boots of Mining, one addition and 152 additions: the count of the level's own active
+objects is read at every reading of both and compared.
+
 ### User Story 4 - Proof without hand work (Priority: P1)
 
-Validation runs as campaigns: many sources per boot, machine judgement from memory and captures, families
-promoted by evidence, results kept as findings. Nobody boots one object at a time.
+Validation runs as campaigns: many sources per boot, machine judgement from memory and captures, and family
+reports kept with their run ids. Findings follow the usual two-boot review; a family result does not confirm
+every source in that family. Nobody has to boot one object at a time.
 
 ## Requirements *(mandatory)*
 
-- **FR-001**: The native recipe takes its base and anchor from the level's scene snapshot; a level without a
-  snapshot cannot patch additions and says so.
-- **FR-002**: The addition capacity is measured by compiling against the Gecko budget, not assumed; the editor's
-  limit stays the number two boots confirmed (eight) and rises only with a capacity finding; a refusal states
-  the number.
+- **FR-001**: The native recipe takes its base and anchor from the level's newest scene snapshot when one exists.
+  On a level without a snapshot, the editor patches the empty live table, measures the level at its first capture,
+  and writes the base, anchor and addition rows into the running game. It keeps that measure as the scene snapshot.
+- **FR-002**: The capacity of a self-contained Gecko patch is measured by compiling against its budget, not
+  assumed. The editor can refill the live table while it drives a run; its 590-addition guard is not a measured
+  game capacity. A refusal states which limit was reached.
 - **FR-003**: Any resident placement record of the level is an admissible source: placed or template, with or
   without a model, scripted or not. Its card states the evidence (verified in game n times, not verified yet,
   failed with the reason); the evidence never blocks the addition (user decision of 2026-09-17, see the
-  [study](study-add-anything.md); needs the constitution amendment written there).
+  [study](study-add-anything.md) and constitution 1.2.0).
 - **FR-003a**: Every launch verifies from memory the additions it carries and files the result per family, so
   that evidence accumulates from ordinary use.
 - **FR-003b**: The table of additions can be written into the running game, so that one boot verifies a whole
@@ -98,8 +133,24 @@ promoted by evidence, results kept as findings. Nobody boots one object at a tim
 - **FR-006**: Cross-level import is gated by M4A and specified as experiments (plan.md, phase C); until a level
   loads with an imported library, the catalogue offers other levels' objects as "not in this level" with the
   levels that hold them.
-- **FR-007**: Every capability keeps the evidence rule: two identical boots, consumption proven, visible result;
-  a family is promoted from a batch, an object from its family, and any failure demotes the family.
+- **FR-008**: An object kind is identified across levels by its model and script paths within the game's Content
+  tree (by its bare name when it has neither), never by its display name alone or its file offset; the libraries
+  that carry it are
+  attributes of the kind. A record outside the open level is always named with its level.
+- **FR-009**: Project folders derive from the record's library and script directory (the game's own content
+  tree); display names decide nothing. Every entry falls in exactly one folder.
+- **FR-010**: The game-wide catalogue is built from the decoded levels, kept under `.local/` with each level's
+  digest, rebuilt for a level whose digest changed, and never committed.
+- **FR-011**: A kind absent from the open level is never patched into it before phase C has loaded an imported
+  library twice; until then its card states the levels that hold it.
+- **FR-012**: A launch can count the level's own active objects before and after its additions (the census), so
+  that "additions push originals out" is a measured statement.
+- **FR-013**: More than one table of additions in plain play needs storage outside the Gecko area, reserved
+  through the OS arena (plan, S08 and S09); until it is proven such a scene says it needs the editor's launch.
+- **FR-007**: Every confirmed capability keeps the evidence rule: two identical boots, consumption proven, and a
+  visible result. A family report groups runtime results; it does not grant Add or CONFIRMED to its members.
+  An experimental source remains labelled experimental even when its family has successful boots, until its own
+  recipe receives a reviewed CONFIRMED finding.
 
 ## Success Criteria *(mandatory)*
 
@@ -109,6 +160,9 @@ promoted by evidence, results kept as findings. Nobody boots one object at a tim
   and yields findings for each.
 - **SC-004**: The activation flag removes and reveals objects on two boots each.
 - **SC-005**: One library imported from one level into another loads and its template is cloneable, two boots.
+- **SC-006**: The census of a boot with 152 additions is compared with a control boot's, reading by reading.
+- **SC-007**: On every one of the 76 levels each object falls in exactly one Project folder, with no folder decided
+  by a display name; the Whole game scope lists every kind with its levels.
 
 ## Out of scope
 

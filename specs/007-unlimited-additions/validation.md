@@ -152,6 +152,48 @@ one-source rule.
 **Not proven**: rendering; the ceiling of the game's actor pools (152 did not reach it); objects with nothing to
 draw, left out because a level's singletons are among them (a savestate between batches is the way to take them).
 
+## Census — do additions push the level's own objects out? (2026-09-17)
+
+The user's worry: many additions might make the game drop other objects. The probe read the level's own
+placements at every reading of two boots of Mining, one with a single addition, one with the 152 of R1.
+
+| Reading | One addition | 152 additions |
+|---|---|---|
+| before the additions were written | 53 active | 53 active |
+| second capture | 60 active, 313 dormant, 8 other | 59 active, 314 dormant, 8 other |
+| third capture | 60, 313, 8 | 61, 312, 8 |
+| end of the run | 60, 313, 8 | 62, 311, 8 |
+
+Runs `editor-direct-test-1789677445633-f7b43e43` and `editor-direct-test-1789677598054-72c01d2c`. The level's own
+records are 381 in both at every reading. Every object active at the end of the control boot is active at the end
+of the other; `Barrel(11)` and `Fan_Hint` are active only with 152 additions, woken because the fight moved the
+Skylander into their range. No original object lost its actor. One boot each: the pair has to be repeated before
+it is more than a measurement (task T007).
+
+## M1 — memory reserved from the game through the OS arena (2026-09-17)
+
+For a table of additions that does not live in the Gecko area, memory has to be taken from the game without
+guessing that it is free. The game's OS reads the end of usable MEM2 from the word at `0x80003128` when it starts
+(`0x935E0000` here), and Dolphin applies Riivolution memory patches after the executable is loaded and before its
+first instruction (`Boot.cpp`). One patch lowered the word to `0x935A0000`; a second filled the 256 KB above it
+with a pattern (a tag and the index of each word) from a value file.
+
+| Boot | Word at `0x80003128` in the running game | The 256 KB block, at the four readings |
+|---|---|---|
+| reservation, `editor-direct-test-1789678712449-aaa9d8b7` | `0x935A0000` | intact, word for word |
+| reservation, `editor-direct-test-1789679147543-71adac31` | `0x935A0000` | intact, word for word |
+| control, no lowering, `editor-direct-test-1789678882121-ed05e74a` | `0x935E0000` | all 65 536 words overwritten at the first reading |
+
+The level played as usual on the three boots (patch consumption proven, macro completed). The control is what
+makes the result mean something: that block is memory the game uses, and the lowered word is what keeps the game
+out of it. A checkpoint restores all of memory, so what a patch writes into memory became part of the
+checkpoint's identity (`level-entry.mjs`); the reservation was made with its checkpoint and survived the restore.
+A first boot played correctly but read nothing, because the bridge reads at most 64 KB per call; the probe now
+reads in chunks. Finding `runtime.memory.mem2-arena-reservation`, LIKELY.
+
+**Not proven**: a table of additions living there and read by the routine (S09); other levels; larger blocks;
+memory pressure late in a long level; real hardware, where this word and this region belong to IOS.
+
 ## What these boots change
 
 - Success criteria SC-001 (additions on a second level) and SC-002 (at least 32 in one patch) are met as far as
@@ -161,5 +203,8 @@ draw, left out because a level's singletons are among them (a savestate between 
 - The editor's switch to the table layout past 18 additions rests on A2.
 - Additions no longer need a level to have been measured (L1): the first launch from the editor measures it.
 - A scene is no longer bounded by the Gecko area (R1): 152 additions went in through three tables of 59.
+- 152 additions cost the level none of its own objects (census, one boot each).
+- Memory can be taken from the game honestly (M1): the way is open for a table of thousands of rows that works
+  when the game is played without the editor.
 - To add an enemy, add its template (E2), not the set-up record that places it (E1). Mining's cards carry 44
   family reports after these ten boots: 30 verified in game, 14 created then removed by their own script.

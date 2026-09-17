@@ -12,6 +12,11 @@ export const monitorSize = bytes => `${Math.floor(bytes / 1000)} kB`;
 
 // replacements: [{disc_path, file, original?}] ; identical files (same sha256 as original) are
 // skipped unless force is set (an experiment may want Dolphin to serve an identical rebuild).
+//
+// memory: [{offset, value}] or [{offset, bytes}] ; Riivolution memory patches, which Dolphin applies once the
+// executable is loaded and before the game's first instruction (Boot.cpp, ApplyGeneralMemoryPatches). `value` is a
+// short hex string written inline; `bytes` is a Buffer written to a file of the workspace and named by
+// `valuefile`. Research only (feature 007, S08): the editor never adds one by itself.
 export function buildPatchWorkspace({
   experimentId,
   game,
@@ -19,6 +24,7 @@ export function buildPatchWorkspace({
   outDir,
   displayName = 'PortalForge experiment',
   force = false,
+  memory = [],
 }) {
   if (!/^[A-Za-z0-9._-]+$/.test(experimentId)) throw new Error('experimentId must match [A-Za-z0-9._-]+');
   const out = path.resolve(outDir);
@@ -46,6 +52,27 @@ export function buildPatchWorkspace({
       r => `    <file disc="/${xmlAttr(r.disc_path)}" external="/${xmlAttr(r.file)}" resize="true" create="false" />`,
     )
     .join('\n');
+  const address = n => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(8, '0');
+  const memoryPatches = memory.map((patch, i) => {
+    if (!Number.isInteger(patch.offset) || patch.offset < 0x80000000 || patch.offset >= 0x94000000)
+      throw new Error('a memory patch needs an address in MEM1 or MEM2');
+    if (patch.bytes) {
+      const rel = path.posix.join('memory', `${address(patch.offset)}.bin`);
+      const dest = path.join(out, ...rel.split('/'));
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, patch.bytes);
+      return { offset: patch.offset, file: rel, size: patch.bytes.length, sha256: sha256File(dest) };
+    }
+    if (!/^([0-9a-f]{2})+$/i.test(patch.value ?? '')) throw new Error(`memory patch ${i} needs hex bytes or a buffer`);
+    return { offset: patch.offset, value: patch.value.toUpperCase() };
+  });
+  const memoryLines = memoryPatches
+    .map(p =>
+      p.file
+        ? `    <memory offset="${address(p.offset)}" valuefile="/${xmlAttr(p.file)}" />`
+        : `    <memory offset="${address(p.offset)}" value="${p.value}" />`,
+    )
+    .join('\n');
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <wiidisc version="1">
   <id game="SSP" developer="52"><region type="P" /></id>
@@ -57,7 +84,7 @@ export function buildPatchWorkspace({
     </section>
   </options>
   <patch id="${xmlAttr(experimentId)}">
-${files}
+${[files, memoryLines].filter(Boolean).join('\n')}
   </patch>
 </wiidisc>
 `;
@@ -74,6 +101,7 @@ ${files}
     game: path.resolve(game),
     dir: out,
     replacements: included,
+    ...(memoryPatches.length ? { memory: memoryPatches } : {}),
     skipped_identical: skipped,
     xml: xmlPath,
     descriptor: descriptorPath,

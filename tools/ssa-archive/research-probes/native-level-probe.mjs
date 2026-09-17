@@ -20,6 +20,8 @@
 //        [--spacing 2.5] [--columns 8] [--mode direct-test|direct-play]
 //        [--scan 12]                               list the placement instances the game created within that
 //                                                  distance of the batch (what a spawner left behind)
+//        [--census]                                count the level's own objects that are active with an actor at
+//                                                  every reading: do additions make original objects disappear?
 //        [--dry]                                   plan and compile only: no patch, no boot
 //
 // One Dolphin boot per invocation; run it twice for the two-boot rule.
@@ -28,7 +30,7 @@ import { editorDeps } from '../src/cli/commands/edit.mjs';
 import { nativeParamsFor } from '../src/editor/native-params.mjs';
 import { compileNativeProbe, nativeCapacity } from '../src/editor/native-patch.mjs';
 import { readNativeBytes } from '../src/editor/native-run.mjs';
-import { scanCreatedInstances } from '../src/editor/scene-snapshot.mjs';
+import { scanCreatedInstances, readResidentSection, placementStates } from '../src/editor/scene-snapshot.mjs';
 import { batchAdditions, campaignSources, runLevelBatch } from '../src/editor/addition-campaign.mjs';
 
 const arg = (name, fallback = null) => {
@@ -115,6 +117,24 @@ const scan = async ({ params, additions, capture }) => {
     }));
 };
 
+// The level's own placements, read again at each reading: which are active with an actor, which are dormant. A
+// control boot with one addition and a boot with many, compared, say whether additions push originals out.
+const census = async ({ params }) => {
+  const states = placementStates(s, await readResidentSection(s, params.base, readNativeBytes));
+  const active = states.filter(row => row.state === 1 && row.actor);
+  return {
+    active: active.length,
+    dormant: states.filter(row => row.state === 2).length,
+    templates: states.filter(row => row.state === 5).length,
+    other: states.filter(row => ![1, 2, 5].includes(row.state)).length,
+    active_offsets: active.map(row => row.offset),
+  };
+};
+const readings = async context => ({
+  ...(radius > 0 ? { created: await scan(context) } : {}),
+  ...(flag('--census') ? { census: await census(context) } : {}),
+});
+
 const batch = await runLevelBatch(s, {
   sources,
   auto,
@@ -126,16 +146,21 @@ const batch = await runLevelBatch(s, {
   mode: arg('--mode'),
   deps: editorDeps({}),
   log,
-  ...(radius > 0 ? { inspect: scan } : {}),
+  ...(radius > 0 || flag('--census') ? { inspect: readings } : {}),
 });
 if (batch.live && batch.additions.length) describe(batch.additions);
 for (const r of batch.results)
   log(`  ${r.runtime.padEnd(9)} ${String(r.name).padEnd(34)} ${r.verification_error ?? r.reason}`);
 for (const reading of batch.inspections ?? []) {
-  log(
-    `created near the batch at ${reading.capture ? basename(reading.capture) : 'the end'}: ${reading.error ?? reading.result.length}`,
-  );
-  for (const c of reading.result ?? [])
+  const at = reading.capture ? basename(reading.capture) : 'the end';
+  if (reading.error) log(`reading at ${at}: ${reading.error}`);
+  const { created, census: counted } = reading.result ?? {};
+  if (counted)
+    log(
+      `census at ${at}: ${counted.active} of the level's own objects active with an actor, ${counted.dormant} dormant, ${counted.other} in another state`,
+    );
+  if (created) log(`created near the batch at ${at}: ${created.length}`);
+  for (const c of created ?? [])
     log(
       `    ${String(c.template ?? c.model ?? '?').padEnd(34)} ${c.state.padEnd(9)} actor ${c.actor ? 'yes' : 'no '} at ${c.position.join(', ')}`,
     );

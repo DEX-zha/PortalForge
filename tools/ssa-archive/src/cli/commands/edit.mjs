@@ -1,5 +1,6 @@
 // `edit <subcommand> ...`: the placement editor.
 //   levels            list the levels of the disc as the editor can open them
+//   catalogue         read every decoded level once and write the game-wide catalogue of object kinds
 //   open <level>      open a level by name or disc path, extracting and decoding it when needed, and serve it
 //   serve, preview    open an editor session on a decoded file; the runtime fixup map is optional
 //   list, show        read placements; the fixup map is required
@@ -25,7 +26,7 @@ export function editorDeps(o = {}, legacy = undefined) {
   // Until feature 006 this took (session, options); a local script written against that form still works.
   if (o && typeof o === 'object' && Array.isArray(o.placements)) o = legacy ?? {};
   return {
-    build: ({ experimentId, replacements, session, redirect = null }) => {
+    build: ({ experimentId, replacements, session, redirect = null, memory = [] }) => {
       const game = o.game ?? setting('game');
       if (!game) {
         throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), {
@@ -35,7 +36,7 @@ export function editorDeps(o = {}, legacy = undefined) {
       const outDir = o['patch-out'] ?? path.join(localDir, 'patches', experimentId);
       const original = sampleOf(session.archive);
       if (!fs.existsSync(original)) throw new Error('Original archive sample is missing: ' + original);
-      return buildEditorPatch({ experimentId, game, replacements, outDir, original, session, redirect });
+      return buildEditorPatch({ experimentId, game, replacements, outDir, original, session, redirect, memory });
     },
     // The archive to monitor is the session's, unless the launch redirected the level onto other file names.
     run: args =>
@@ -253,7 +254,34 @@ async function replace({ E, level, pos, o }) {
 
 // levels and open work from the catalogue; serve and preview open their own session on a file; the others work
 // on a level opened with its fixup map.
-const CATALOG_SUBCOMMANDS = { levels, open };
+// `edit catalogue`: every kind of object of the game with the levels that hold it, for the Project tab's
+// "Whole game" scope. Kept under .local/; a level whose digest did not change is not read again.
+async function catalogue({ o }) {
+  const { levelCatalog } = await levelCatalogModule();
+  const { openLevel } = await import('../../editor/level-open.mjs');
+  const { buildCatalogue, libraryFor, catalogueFile } = await import('../../editor/game-catalogue.mjs');
+  const lines = [];
+  const built = await buildCatalogue({
+    levels: levelCatalog().levels.filter(level => level.ready),
+    open: level => openLevel(level.name, { game: null, log: () => {} }),
+    ...(o.fresh ? { previous: null } : {}),
+    log: line => lines.push(line),
+  });
+  const read = Object.values(built.levels).filter(level => level.kinds);
+  const failed = Object.values(built.levels).filter(level => level.error);
+  const kinds = libraryFor(null, built).kinds;
+  return {
+    result: { file: catalogueFile, levels: read.length, kinds: kinds.length, failed: failed.map(l => l.name) },
+    text: [
+      ...lines,
+      ...failed.map(level => `${level.name}: not read (${level.error})`),
+      `${kinds.length} kind(s) of object in ${read.length} level(s); ${kinds.filter(k => k.levels.length === 1).length} exist in one level only`,
+      `written ${catalogueFile}`,
+    ].join('\n'),
+  };
+}
+
+const CATALOG_SUBCOMMANDS = { levels, open, catalogue };
 const SESSION_SUBCOMMANDS = { serve, preview };
 const LEVEL_SUBCOMMANDS = { list, show, set, replace };
 
@@ -270,7 +298,7 @@ export async function edit(pos, o) {
   const handler = pickSubcommand(
     LEVEL_SUBCOMMANDS,
     sub,
-    name => `Unknown edit subcommand ${name} (levels|open|serve|preview|list|show|set|replace)`,
+    name => `Unknown edit subcommand ${name} (levels|catalogue|open|serve|preview|list|show|set|replace)`,
   );
   return handler({ E, level, pos, o });
 }

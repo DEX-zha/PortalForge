@@ -158,6 +158,11 @@ async function entryBinding(patch, figure) {
           .sort(),
       ),
     ),
+    // A checkpoint restores all of memory, so what a patch writes into memory at boot belongs to its identity.
+    // The key is absent for a patch that writes nothing, which keeps every existing checkpoint valid.
+    ...(patch.memory?.length
+      ? { memory: hash(JSON.stringify(patch.memory.map(m => [m.offset, m.value ?? m.sha256]))) }
+      : {}),
   };
 }
 export async function readEntryFst(

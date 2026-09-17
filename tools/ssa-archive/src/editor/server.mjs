@@ -35,6 +35,7 @@ import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } 
 import { capabilitiesOf, levelKey } from './level-catalog.mjs';
 import { isTutorial } from './levels.mjs';
 import { captureSceneSnapshot, saveSnapshot, latestSnapshot, snapshotSummary } from './scene-snapshot.mjs';
+import { buildCatalogue, libraryFor, readCatalogue, catalogueFile } from './game-catalogue.mjs';
 import { readNativeBytes } from './native-run.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -292,8 +293,25 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     return json(res, 200, { snapshot: snapshotSummary({ file, ...snapshot }, session), capturable: true });
   }
 
+  // Every kind of object of the game, seen from the open level (feature 007, phase P). Building reads each
+  // decoded level once, a few seconds in all; it never opens the game image and never switches the session.
+  const libraryFile = deps.catalogueFile ?? catalogueFile;
+  const library = res => json(res, 200, libraryFor(session.archive, readCatalogue(libraryFile)));
+  async function buildLibrary(res) {
+    if (!deps.levels || !deps.open)
+      return json(res, 409, { error: 'LIBRARY_UNAVAILABLE', reason: 'start the editor with `edit open <level>`' });
+    const { levels } = await deps.levels();
+    const built = await buildCatalogue({
+      levels: levels.filter(level => level.ready),
+      open: level => deps.open(level.name, { game: null }),
+      file: libraryFile,
+    });
+    return json(res, 200, libraryFor(session.archive, built));
+  }
+
   const GET_ROUTES = {
     '/api/session': res => json(res, 200, sessionSummary(session)),
+    '/api/library': library,
     '/api/levels': levelList,
     '/api/snapshot': snapshotState,
     '/api/catalog': res => json(res, 200, catalog(session)),
@@ -351,6 +369,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
 
   const POST_ROUTES = {
     '/api/open': openLevel,
+    '/api/library': buildLibrary,
     '/api/snapshot': captureSnapshot,
     '/api/addition-validation': startValidation,
     '/api/addition-validation/stop': res => {

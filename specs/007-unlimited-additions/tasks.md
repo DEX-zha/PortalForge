@@ -58,9 +58,24 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       through three tables of 59; the factory returned an instance for 152 of 152 on both boots.
 - [ ] S07 Level campaign with a savestate between batches, for the families R1 left out: objects with nothing to
       draw, among which a level's singletons; a family that hangs the level is filed as unsafe.
-- [ ] S08 Experiment M1, two boots: MEM2 arena end lowered by a Riivolution memory patch, marker block intact.
+- [x] S08 Experiment M1 on 2026-09-17: the MEM2 arena end lowered by a Riivolution memory patch, a 256 KB block
+      intact at every reading of two boots, and overwritten entirely in the control boot that did not lower it.
+      The patch builder writes memory patches (`riivolution.mjs`, research only) and a checkpoint's identity covers
+      them (`level-entry.mjs`). Probe: `research-probes/arena-reserve-boot.mjs`.
 - [ ] S09 Table in the reserved block, delivered by `<memory valuefile>` and rewritten after a checkpoint
       restore; experiment M2, two boots, 200 additions.
+
+## Phase P — The Project tab and the game-wide catalogue
+
+- [x] P01 `object-kinds.mjs`: the kind of a record (model path and script path; bare name when it has neither) and
+      its folder, from its library layer and its script directory. No display name decides anything.
+- [x] P02 Every entry of `/api/catalog` carries `folder` and `kind`; `src/view/asset-folders.mjs` draws what it is
+      given and the regex on names is gone.
+- [x] P03 `game-catalogue.mjs`, `edit catalogue`, `GET` and `POST /api/library`: 8 800 kinds in 75 levels in about
+      seven seconds, kept under `.local/catalogue/` with each level's digest.
+- [x] P04 The Project pane's scope switch: This level, Whole game. A kind held here is this level's own entry; a
+      kind held elsewhere is a read-only card without an offset, naming the levels that hold it.
+- [x] P05 The census reading of the probe (`--census`) and its two boots on Mining (one addition, 152 additions).
 
 ## Phase B — The activation flag as a switch
 
@@ -111,3 +126,21 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 
 A01 → A02 → A03 → A04 → A05 → A06. S01 → S02 → S03; S04 → S05 → S06 → S07, after A05; S08 → S09. B01 → B02 → B03/B04 → B05, independent of A. C01 and C02 first; C03 decides
 C04; C05 after C03 loads; C06 before C07; C08 closes. V01 → V02 → V03 → V04, and V03 needs A03.
+
+## Phase 6: Convergence
+
+Appended on 2026-09-17 by a convergence pass (`speckit-converge`): what `spec.md`, `plan.md` and the constitution
+ask for and the code does not do yet, beyond the tasks still open above (B01 to B05, C02 to C08, S07 to S09, V02 to
+V04). Existing tasks were not renumbered or rewritten.
+
+- [x] T001 Reword FR-001 in `spec.md`: a level without a snapshot is no longer refused, its first launch measures it (`native-live.mjs`); the requirement now matches the code per FR-001.
+- [ ] T002 Take the census in the editor's own launch, not only in `research-probes/native-level-probe.mjs`: count the level's own active objects at arrival and at each reading in `native-watch.mjs`, keep it in the run record and show it in the launch note per FR-012 (partial)
+- [ ] T003 Reserve the table's memory through the OS arena in a patch the editor builds, and deliver a compiled table there for play without the editor, in `native-patch.mjs`, `save.mjs` and `patch-build.mjs`, once experiment M1 has held on two boots per FR-013 (missing)
+- [ ] T004 Amend constitution III for storage reserved through the OS arena (today it names "handler-owned storage" only), with `AGENTS.md` and the plan's Constitution Check, in the change that lands T003 per Constitution III (missing)
+- [ ] T005 Make the Project pane's Test buttons run a level batch (`addition-campaign.mjs`) on a level other than the tutorial instead of refusing with the probe's name, in `server.mjs` and `src/view/catalog.mjs` per plan: Phase V (partial)
+- [ ] T006 Show on a kind's card the evidence seen on other levels ("verified on N other levels") apart from this level's verdict, from the family reports, in `game-catalogue.mjs` and `src/view/asset-folders.mjs` per plan: Phase P (missing)
+- [ ] T007 Boot the census a second time for each side (one addition, 152 additions) and record both pairs in `validation.md` per SC-006 (partial)
+- [ ] T008 Boot the classic-play path of the live routine, where the level is reached by hand and the measure is triggered by the archive being read, and one hub and one PvP level through the redirect, and record them in `validation.md` and `docs/level-entry-status.json` per US1/AC1 (partial)
+- [ ] T009 Add a corpus check that skips without local samples: on every decoded level each record falls in exactly one folder and the game catalogue covers every level but the title screen, in `tests/` per SC-007 (partial)
+- [ ] T010 Add a command that turns a family's report into a finding draft with its run ids for review, in `src/cli/commands/` per FR-004 (partial)
+- [ ] T011 Close or re-scope V02, V03 and V04: the promotion rule they wait for was replaced by the experimental addition of constitution 1.2.0, and R1 ran Mining's campaign per plan: Phase V (unrequested)

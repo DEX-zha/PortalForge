@@ -334,6 +334,29 @@ select {
   flex: 1;
   min-height: 0;
 }
+#project-scope {
+  display: inline-flex;
+  border: 1px solid #3a4150;
+  border-radius: 6px;
+  overflow: hidden;
+}
+#project-scope button {
+  border: 0;
+  border-radius: 0;
+  padding: 3px 10px;
+  background: transparent;
+  color: inherit;
+}
+#project-scope button.on {
+  background: #2f6fde;
+  color: #fff;
+}
+[data-compatibility='elsewhere'] {
+  color: #9aa3b2;
+}
+.object-item.elsewhere {
+  opacity: 0.78;
+}
 #folder-tree {
   overflow: auto;
   padding: 7px 0;

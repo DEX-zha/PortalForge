@@ -25,10 +25,51 @@ builds on the compact table.
 
 State on 2026-09-17, late: S1 and S2 are done and booted ([validation](validation.md)): the experimental addition,
 the live routine that serves every level, and the refill that took 152 additions through three tables. What is
-left of this plan, in order: S3 (a table outside the Gecko area, for play without the editor), the campaign with
+left of this plan, in order: S3 (a table outside the Gecko area, for play without the editor; its first half, the
+reservation of memory through the OS arena, held on two boots with a control on 2026-09-17), the campaign with
 savestates for objects with nothing to draw, phase B (the activation flag, its probe is ready), phase C (objects
 of other levels). How the whole mechanism works is written for users and maintainers in
 [docs/editor/adding-objects.md](../../docs/editor/adding-objects.md).
+
+## Phase P — The Project tab and the game-wide catalogue (added 2026-09-17, late)
+
+Goal: any object of the game can be found, and nothing the editor stores can be mistaken for another level's.
+
+**Identity, three depths.** A *record* is `(level archive, file offset)`: unique on the disc, and the only thing an
+addition's `source` may name. A *family* is per level (archive, model, script, scale): the key of a report, which
+therefore never leaks between levels. A *kind* is new and crosses levels: the record's model and script paths
+within the game's Content tree, lower-cased and hashed, so that a placed instance and the template it was cloned
+from are one kind; a
+record with neither is its own kind under its bare name, so that marks and positions are never merged. The
+libraries that carry a kind are attributes of it. Offsets are in no key. Anything that points outside the open
+level carries its level. Recounted on 2026-09-17 with full Content paths: 8 800 kinds in 75 levels (the title screen
+has no placement),
+6 578 of them in one level only, 83 in thirty levels or more; Mining holds 323, and 382 enemy kinds with a model
+live only in other levels.
+
+**Folders from the game's content tree.** A record says where it comes from: its library layer, and the
+directory of its script (`Levels/_Enemies/Elemental_Swarmer`, `Levels/Includes/GameElement_PushBlock`,
+`Levels/Level_000/Scripts`). Measured on Mining: 57 library layers, 49 script directories, 240 of 617 records in a
+library. The tree: *Enemies / name*, *Game elements / name*, *Loot and treasure*, *Destructibles*, *Shared
+libraries / name*, *This level / its own layer*, *Logic / layer* for records with nothing to draw. The server
+computes the folder of each catalogue entry (`object-kinds.mjs`); the view draws what it is given and the regex on
+names in `asset-folders.mjs` goes away.
+
+**The game-wide catalogue** (`game-catalogue.mjs`, `edit catalogue`): one pass over the decoded levels, one entry
+per kind with the levels that hold it, how many records, and whether a stored template exists; cached in
+`.local/catalogue/kinds.json` with each level's digest, rebuilt per level on a digest change. `GET /api/library`
+serves it against the open level: *here* (with this level's record to add from) or *elsewhere* (with the levels).
+
+**No conflict by construction.** Foreign kinds are read-only cards: they cannot be dragged, and no intent carries
+a record of another level. The day phase C imports a library, the imported records get offsets in the open level
+and are ordinary sources. Evidence seen on other levels shows as "verified on N other levels", apart from this
+level's verdict.
+
+Built on 2026-09-17: `object-kinds.mjs`, `game-catalogue.mjs`, `edit catalogue`, `GET` and `POST /api/library`,
+the scope switch of the Project pane. The whole catalogue builds in about seven seconds.
+
+**The census** (FR-012) is a reading of the probe and of the launch: the level's own placements that are active
+with an actor, at arrival and at each reading; a control boot gives the level's own drift.
 
 ## Technical Context
 
@@ -97,9 +138,9 @@ never reported as confirmed, and a family still becomes a finding only through t
 
 The only route to "any enemy anywhere". Staged so that each step either loads or teaches something.
 
-1. **C0 — Catalogue of what exists where.** From the census: for every library, the levels holding it and its
-   templates; the editor's Project shows, for an object not in the current level, "in 12 levels: Castle, Dungeon…".
-   Zero boots.
+1. **C0 — Catalogue of what exists where.** Phase P: for every kind, the levels holding it and its templates; the
+   Project tab shows, for a kind not in the open level, the levels that hold it. Zero boots. It also tells how
+   much of "any object anywhere" needs no import at all: a kind present in the open level is added from there.
 2. **C1 — Table growth on copies.** Rebuild a level with its header table enlarged by k entries pointing at k
    appended copies of an existing placement blob at the end of section 1, every pointer word rebased from that
    level's runtime fixup map (taken from the snapshot's resident dump), section-5 words included. One boot tells

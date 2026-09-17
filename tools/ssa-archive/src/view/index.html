@@ -214,6 +214,7 @@
   </div>
   <div id="project-body"><nav id="folder-tree" aria-label="Object categories"></nav><div id="asset-browser">
     <div id="object-tools">
+      <span id="project-scope" role="group" aria-label="Scope"><button id="scope-level" class="on" title="The objects of the open level">This level</button><button id="scope-game" title="Every kind of object of the 76 levels, with the levels that hold it">Whole game</button></span>
       <input id="object-search" type="search" placeholder="Search name, model or layer…" aria-label="Search objects">
       <select id="object-category" aria-label="Availability"><option value="all">All objects</option><option value="available">Can add</option><option value="confirmed">Confirmed</option><option value="runtime_passed">Verified in game</option><option value="family_tested">Related source tested</option><option value="needs_test">Not verified</option><option value="needs_script_test">Script not verified</option><option value="inconclusive">Lifecycle unclear</option><option value="test_failed">Failed in game</option><option value="blocked">Blocked</option><option value="scripted">Scripted</option><option value="resource">Resources / inactive</option><option value="marker">No model</option></select>
       <label class="drop-plane">Drop plane Y <input id="drop-height" type="number" value="0" step="0.1" aria-label="Drop plane height" title="Fallback height when no surface is hit"></label>

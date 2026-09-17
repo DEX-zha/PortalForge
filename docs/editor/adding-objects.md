@@ -43,6 +43,44 @@ Things that the boots taught:
 - **A level's singletons** (its Level Master, its cutscene directors) can be added like anything else, and copying
   one may hang the level. The launch records it; undo the addition.
 
+## Finding an object: the Project tab
+
+The folders of the Project tab come from what the game says about each record, never from its display name: the
+library it was compiled from (`Enemy_Elemental_Swarmer.lvl`) and the directory of its script in the game's own
+content tree (`Levels/_Enemies/Elemental_Swarmer`, `Levels/Includes/GameElement_PushBlock`). Every object sits in
+exactly one folder:
+
+| Folder | What files there |
+|---|---|
+| **Enemies** / name | enemy libraries and everything scripted under `Levels/_Enemies`: the templates, their set-ups, macros and intros |
+| **Game elements** / name | `GameElement_*` libraries and includes: walls, push blocks, doors and keys, food, bridges, lanterns |
+| **Loot and treasure** | loot includes and treasure chest libraries |
+| **Destructibles** | the shared destructibles include: barrels, crates, pots |
+| **Shared libraries** / name | any other library compiled into the level |
+| **This level** / layer | the level's own objects, by the layer its authors put them in |
+| **Logic** / layer | records with nothing to draw: triggers, cameras, sounds, the level's scripts |
+
+A switch widens the tab from **This level** to the **Whole game**: every *kind* of object of the 76 levels, 8 800
+of them, with the levels that hold each. A kind is a model path and a script path within the game's Content tree,
+so a placed instance and the template it was cloned from are one kind, and two objects that merely share a name
+are not. The catalogue is built
+once (`edit catalogue`, or the button the tab offers; about seven seconds) and kept under `.local/`.
+
+- A kind the open level holds is shown as this level's own object: select it, drag it, add it. Looking for "a
+  Chompy" in a level that has the Chompy library finds that level's Chompy.
+- A kind held only by other levels is a read-only card: it names the levels that hold it and cannot be dragged.
+  Nothing of another level can reach a scene, because a record of another level has no offset in this one.
+  Bringing such an object in is phase C of the [plan](../../specs/007-unlimited-additions/plan.md): 6 578 kinds
+  exist in one level only, and Mining lacks 382 enemy kinds that other levels have.
+
+## Do additions cost the level its own objects?
+
+Measured on Mining, one boot each: with one addition the level has 60 of its own objects active with an actor at
+every reading, 313 dormant, 381 in all; with 152 additions it has 59, 61 and 62 active, still 381 in all. Every
+object active in the control boot is active with 152 additions too; the two more that woke up are a barrel and a
+hint near the start, because the fight moved the Skylander. Nothing was pushed out. `--census` on the probe takes
+this reading.
+
 ## Save, Patch, Launch
 
 - **Save** writes the level (unchanged by additions) and a sidecar `<level>.portalforge.json` holding the additions:
@@ -139,6 +177,8 @@ node research-probes/native-level-probe.mjs --level Level_039_UndeadVolcano --au
 | `addition-compatibility.mjs` | the evidence on a card: checks, status, family key |
 | `addition-reports.mjs` | one verdict per addition per run, filed per family with its launches |
 | `addition-campaign.mjs` | batches of sources in one boot, for experiments and campaigns |
+| `object-kinds.mjs` | what an object is across levels (kind) and the folder it files under, from its library and script directory |
+| `game-catalogue.mjs` | every kind of the game with the levels that hold it; `edit catalogue`, `/api/library` |
 
 ## Not proven, not done
 

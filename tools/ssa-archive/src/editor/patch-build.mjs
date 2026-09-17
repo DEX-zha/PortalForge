@@ -11,7 +11,17 @@ import { sha256 as hash } from '../util/hash.mjs';
 // `redirect` (feature 006) asks for a second descriptor next to the first: the same rebuilt archive served under
 // the tutorial's file name, with the level's voice pack under the tutorial's, so the tutorial checkpoint loads
 // this level. It is a separate workspace under outDir/redirect, chosen by the launch mode, never by default.
-export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir, redirect = null }) {
+// `memory` (research, feature 007 S08) adds Riivolution memory patches to both descriptors.
+export function buildEditorPatch({
+  experimentId,
+  session,
+  replacements,
+  original,
+  game,
+  outDir,
+  redirect = null,
+  memory = [],
+}) {
   const source = fs.readFileSync(original),
     edited = fs.readFileSync(replacements[0].file);
   const workspace = path.join(outDir, 'archive-workspace');
@@ -49,6 +59,7 @@ export function buildEditorPatch({ experimentId, session, replacements, original
     outDir,
     force: true,
     replacements: [{ disc_path: session.archive, file: rebuilt, original }],
+    memory,
   });
   let redirected = null;
   if (redirect) {
@@ -60,6 +71,7 @@ export function buildEditorPatch({ experimentId, session, replacements, original
       outDir: path.join(outDir, 'redirect'),
       force: true,
       displayName: `PortalForge ${redirect.level} via the tutorial slot`,
+      memory,
       replacements: [
         { disc_path: redirect.archive, file: rebuilt },
         { disc_path: redirect.companion, file: redirect.companion_file },
