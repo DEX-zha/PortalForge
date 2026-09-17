@@ -6,6 +6,7 @@ import {
   FOV,
   VIEW_DIR,
   extentOf,
+  levelExtent,
   proxySize,
   bulkBox,
   viewAxes,
@@ -71,6 +72,23 @@ test('the trim keeps two distant strays from deciding the zoom for the whole lev
   assert.ok(bulk.lo[0] > full.lo[0] && bulk.hi[0] < full.hi[0]);
   assert.ok(bulk.hi[0] - bulk.lo[0] < (full.hi[0] - full.lo[0]) / 2, 'the strays are excluded, not merely nudged');
   assert.deepEqual(bulkBox(WITH_STRAYS, 0), { lo: full.lo, hi: full.hi }, 'no trim means the true extent');
+});
+
+test('parked objects are excluded from the level extent, distant content is not', () => {
+  // The boss parking constant, three level-widths and more away on every axis.
+  const parkedAt = [30480, 30480, 30480];
+  const withParked = [...RIDGE, parkedAt, parkedAt, parkedAt];
+  const e = levelExtent(withParked);
+  assert.deepEqual(e.parked, [200, 201, 202], 'the three parked objects are named by index');
+  assert.deepEqual({ lo: e.lo, hi: e.hi, reach: e.reach }, extentOf(RIDGE), 'the extent is the level without them');
+  // Content sitting within two widths of the bulk, a far island or a power gem, is level content and stays in.
+  const island = [...RIDGE, [900, 4, 700], [920, 6, 720]];
+  const i = levelExtent(island);
+  assert.deepEqual(i.parked, []);
+  assert.deepEqual({ lo: i.lo, hi: i.hi, reach: i.reach }, extentOf(island));
+  // The tutorial-shaped level, with its handful of cameras well outside the island, parks nothing either.
+  assert.deepEqual(levelExtent(WITH_STRAYS).parked, []);
+  assert.deepEqual(levelExtent([]), { ...extentOf([]), parked: [] });
 });
 
 test('an empty level does not divide by zero or produce a NaN camera', () => {

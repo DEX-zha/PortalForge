@@ -54,6 +54,27 @@ export function extentOf(points) {
 
 export const proxySize = reach => Math.max(reach * PROXY_FRACTION, MIN_PROXY);
 
+// Some levels park objects out of the way: six boss levels keep BossCamera, PhaseDirector and EvilPortalMaster
+// at (30480, 30480, 30480), and a shared set of switch templates sits near (30, 0, -815) whatever the level
+// around it. They are real records, selectable and editable, but sizing the proxies, the grid and the framing
+// from them made Haunted Castle a 31 000-unit level with 284-unit boxes. A placement is parked when it lies more
+// than PARKED_GAPS level-widths outside the bulk box; distant islands and power gems sit under two widths on
+// every level measured, and the tutorial parks nothing, so its view is unchanged.
+export const PARKED_GAPS = 3;
+export function levelExtent(points, { trim = TRIM, gaps = PARKED_GAPS } = {}) {
+  if (!points.length) return { ...extentOf(points), parked: [] };
+  const bulk = bulkBox(points, trim);
+  const span = Math.max(...[0, 1, 2].map(i => bulk.hi[i] - bulk.lo[i])) || 1;
+  const parked = [],
+    kept = [];
+  points.forEach((p, i) => {
+    const gap = Math.max(...[0, 1, 2].map(a => Math.max(0, bulk.lo[a] - p[a], p[a] - bulk.hi[a])));
+    if (gap > gaps * span) parked.push(i);
+    else kept.push(p);
+  });
+  return { ...extentOf(kept), parked };
+}
+
 // The middle 1-2*trim of the objects on each axis. Framing the true extremes lets a handful of distant markers
 // decide the zoom for the whole level, which is how 673 proxies once ended up three pixels wide.
 export function bulkBox(points, trim = TRIM) {

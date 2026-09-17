@@ -24,7 +24,7 @@ import {
   GRADE_COLOUR,
   MARKER_COLOUR,
   SELECTED_COLOUR,
-  extentOf,
+  levelExtent,
   proxySize,
   bulkBox,
   viewAxes,
@@ -201,7 +201,9 @@ export function createScene(canvas) {
     const markers = placements.filter(p => !p.model || p.model.offset === null);
 
     // Extent first: it sets the proxy size, the grid and the camera, so every level reads at the same scale.
-    const { lo, hi, reach } = extentOf(placements.map(p => mapping.toView(p.position)));
+    // Parked objects are drawn like any other but do not take part in it (feature 006).
+    const { lo, hi, reach, parked } = levelExtent(placements.map(p => mapping.toView(p.position)));
+    state.parked = parked.length;
     const extent = new THREE.Box3(new THREE.Vector3(...lo), new THREE.Vector3(...hi));
     state.proxy = proxySize(reach);
     state.reach = reach;

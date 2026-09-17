@@ -16,7 +16,7 @@ import {
   GRID_MINOR,
   GRADE_COLOUR,
   MARKER_COLOUR,
-  extentOf,
+  levelExtent,
   proxySize,
   bulkBox,
   viewAxes,
@@ -51,7 +51,7 @@ export function renderPreview(
     });
 
   const points = chosen.map(p => mapping.toView(p.position));
-  const { lo, reach } = extentOf(points);
+  const { lo, reach, parked } = levelExtent(points);
   const proxy = proxySize(reach);
   const bulk = bulkBox(points);
   const centre = [0, 1, 2].map(i => (bulk.lo[i] + bulk.hi[i]) / 2);
@@ -195,6 +195,7 @@ export function renderPreview(
     scenery_units: sceneryUnits,
     on_screen: onScreen.length,
     extent: Math.round(reach),
+    parked: parked.length,
     proxy_units: Math.round(proxy * 100) / 100,
     proxy_px_median: sizes.length ? Math.round(sizes[Math.floor(sizes.length / 2)] * 10) / 10 : 0,
     proxy_px_min: sizes.length ? Math.round(sizes[0] * 10) / 10 : 0,
@@ -216,7 +217,8 @@ export function formatPreview(r) {
     `${r.placements} placements, ${r.drawn} proxies in front of the camera, ${pct}% inside the picture` +
       (r.meshed ? `, ${r.meshed} drawn as real meshes` : '') +
       (r.scenery_units ? `, ${r.scenery_units} scenery units` : ''),
-    `extent ${r.extent} units, proxy ${r.proxy_units} units`,
+    `extent ${r.extent} units, proxy ${r.proxy_units} units` +
+      (r.parked ? `, ${r.parked} object${r.parked === 1 ? '' : 's'} parked far away and left out of the extent` : ''),
     `proxy on screen: ${r.proxy_px_median} px median, ${r.proxy_px_min} to ${r.proxy_px_max}` +
       (r.proxy_px_median < LEGIBLE_PX ? '  <-- below the legible floor, the view will look empty' : ''),
     `camera ${r.camera.join(', ')} at ${r.distance} units, looking at ${r.target.join(', ')}`,

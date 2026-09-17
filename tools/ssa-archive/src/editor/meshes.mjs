@@ -6,7 +6,7 @@
 // session and cached. It needs no runtime map: on a level without one the ownership climb uses structural
 // pointers, and on the tutorial that gives the same assignment as the runtime map does.
 import { decodeGeometry, assignUnits } from '../igz/gxmesh.mjs';
-import { extentOf, largeSurfaceLimit } from '../view/framing.mjs';
+import { levelExtent, largeSurfaceLimit } from '../view/framing.mjs';
 import { scriptedPreviews } from './scripted-previews.mjs';
 import { sceneRoles } from './scene-roles.mjs';
 
@@ -144,7 +144,7 @@ export function modelMeshes(session) {
     });
   }
   const partition = partitionGeometry(geo.units, a, {
-    largeSurfaceLimit: largeSurfaceLimit(extentOf(session.placements.map(p => p.position)).reach),
+    largeSurfaceLimit: largeSurfaceLimit(levelExtent(session.placements.map(p => p.position)).reach),
   });
   session._meshes = {
     models: out,
