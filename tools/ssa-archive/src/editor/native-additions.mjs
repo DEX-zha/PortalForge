@@ -9,6 +9,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { NATIVE_LIMIT, compileNativePatch } from './native-patch.mjs';
+import { nativeParamsFor } from './native-params.mjs';
 import { sha256 } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
 
@@ -104,7 +105,9 @@ function validateAdditions(session, additions) {
   }
   if (!additions.length) return;
   try {
-    compileNativePatch(additions);
+    const params = nativeParamsFor(session);
+    if (!params.available) throw Error(params.reason);
+    compileNativePatch(additions, params.options);
   } catch (e) {
     fail('BAD_ADDITIONS', e.message);
   }

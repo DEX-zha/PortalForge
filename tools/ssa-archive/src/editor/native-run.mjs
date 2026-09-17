@@ -4,11 +4,14 @@ import path from 'node:path';
 import { profile, portOccupied, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import {
   compileNativePatch,
+  nativeOptions,
   FACTORY_HASH,
   ACTIVATION_HASH,
   NATIVE_MAGIC,
+  NATIVE_HEADER_MAGIC,
   NATIVE_STRIDE,
-  NATIVE_BASE,
+  TABLE,
+  TABLE_STRIDE,
 } from './native-patch.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 import {
@@ -29,7 +32,9 @@ export async function installNativePatch(
   native,
   { directory = profile, occupied = portOccupied, compiler = compileNativePatch } = {},
 ) {
-  const recipe = compiler(native.additions);
+  // The patch names the options it was compiled with (another level's base and anchor, the layout); a patch
+  // without them is a tutorial patch from before they existed.
+  const recipe = compiler(native.additions, native.options ?? {});
   if (
     hash(recipe.ini) !== native.sha256 ||
     !fs.existsSync(native.file) ||
@@ -97,51 +102,78 @@ export async function verifyNativeFactory(read = readNativeBytes) {
     throw Error('Native activation manager fingerprint differs: this game revision is not supported.');
 }
 
+// Where each addition's bookkeeping sits in a dump of the Gecko area: the words the compiled code writes as it
+// runs. One list of matches per addition, in the order given; a consumed patch has exactly one match each.
+export function locateAdditionRows(memory, additions, options = {}) {
+  const { base, layout } = nativeOptions(options);
+  const found = [];
+  if (layout === 'table') {
+    for (let off = 0; off + 0x10 + NATIVE_STRIDE <= memory.length; off += 4) {
+      if (memory.readUInt32BE(off) !== NATIVE_HEADER_MAGIC || memory.readUInt32BE(off + 12) !== TABLE_STRIDE) continue;
+      const count = memory.readUInt32BE(off + 8),
+        first = off + 0x10 + NATIVE_STRIDE;
+      if (!count || first + count * TABLE_STRIDE > memory.length) continue;
+      for (let at = first; at < first + count * TABLE_STRIDE; at += TABLE_STRIDE)
+        found.push({
+          at,
+          id: memory.readInt32BE(at + TABLE.id),
+          source: memory.readUInt32BE(at + TABLE.source),
+          attempt: memory.readUInt32BE(at + TABLE.attempt),
+          pointer: memory.readUInt32BE(at + TABLE.pointer),
+        });
+    }
+  } else {
+    for (let at = 0; at + NATIVE_STRIDE <= memory.length; at += 4) {
+      if (memory.readUInt32BE(at) !== NATIVE_MAGIC) continue;
+      found.push({
+        at,
+        id: memory.readInt32BE(at + SLOT.id),
+        source: memory.readUInt32BE(at + SLOT.source),
+        attempt: memory.readUInt32BE(at + SLOT.attempt),
+        pointer: memory.readUInt32BE(at + SLOT.pointer),
+      });
+    }
+  }
+  return additions.map(a => found.filter(row => row.id === a.id && row.source === base + a.source));
+}
+
 // A consumed code is not enough: demand distinct live placements and their actors.
 // Render visibility is still judged from screenshots, never inferred here.
-export async function verifyNativeInstances(additions, read = readNativeBytes) {
+export async function verifyNativeInstances(additions, read = readNativeBytes, options = {}) {
+  const { base, context } = nativeOptions(options);
   const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
+    located = locateAdditionRows(memory, additions, options),
     rows = [];
   const valid = p => p % 4 === 0 && p >= HEAP.start && p + INSTANCE_BYTES <= HEAP.end;
-  for (const a of additions) {
-    const matches = [];
-    for (let off = 0; off + NATIVE_STRIDE <= memory.length; off += 4) {
-      if (
-        memory.readUInt32BE(off) === NATIVE_MAGIC &&
-        memory.readInt32BE(off + SLOT.id) === a.id &&
-        memory.readUInt32BE(off + SLOT.source) === NATIVE_BASE + a.source
-      )
-        matches.push(off);
-    }
+  for (const [index, a] of additions.entries()) {
+    const matches = located[index];
     if (matches.length !== 1) throw Error(`Added object ${a.id}: native recipe was not uniquely consumed.`);
-    const at = matches[0],
-      pointer = memory.readUInt32BE(at + SLOT.pointer);
-    if (
-      memory.readUInt32BE(at + SLOT.attempt) !== ATTEMPT_CREATED ||
-      !valid(pointer) ||
-      pointer === NATIVE_BASE + a.source
-    )
+    const { attempt, pointer } = matches[0];
+    if (attempt !== ATTEMPT_CREATED || !valid(pointer) || pointer === base + a.source)
       throw Error(`Added object ${a.id}: native creation did not complete.`);
     const b = await read(pointer, INSTANCE_BYTES),
-      source = await read(NATIVE_BASE + a.source, INSTANCE_BYTES);
+      source = await read(base + a.source, INSTANCE_BYTES);
     // Native metadata identifies +24 as the initial transform, +3c as current.
     // AI movement and coin animation may change the latter after creation.
     const position = readVector(b, INSTANCE.position),
       heading = b.readFloatBE(INSTANCE.heading);
     const current_position = readVector(b, INSTANCE.current_position),
       current_heading = b.readFloatBE(INSTANCE.current_heading);
-    if (b.readUInt32BE(INSTANCE.script) !== (a.script == null ? 0 : NATIVE_BASE + a.script))
+    const script = a.script == null ? 0 : base + a.script;
+    if (b.readUInt32BE(INSTANCE.script) !== script)
       throw Error(`Added object ${a.id}: source script was not retained.`);
+    // The validated context creates a script-less copy only from a source that is itself active. In the
+    // activation context the source may be a stored template, which never has an actor: it is identified by
+    // its class and its script instead.
     const sourceValid =
-      a.script == null
+      a.script == null && context === 'validated'
         ? valid(source.readUInt32BE(INSTANCE.actor))
-        : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS &&
-          source.readUInt32BE(INSTANCE.script) === NATIVE_BASE + a.script;
+        : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS && source.readUInt32BE(INSTANCE.script) === script;
     if (
       b.readUInt32BE(INSTANCE.class) !== PLACEMENT_CLASS ||
       b.readUInt32BE(INSTANCE.state) !== STATE_ACTIVE ||
-      b.readUInt32BE(INSTANCE.parent) !== NATIVE_BASE + a.source ||
-      b.readUInt32BE(INSTANCE.model) !== NATIVE_BASE + a.model ||
+      b.readUInt32BE(INSTANCE.parent) !== base + a.source ||
+      b.readUInt32BE(INSTANCE.model) !== base + a.model ||
       !valid(b.readUInt32BE(INSTANCE.actor)) ||
       !sourceValid ||
       b.readUInt32BE(INSTANCE.actor) === source.readUInt32BE(INSTANCE.actor) ||
@@ -186,14 +218,14 @@ export async function verifyNativeInstances(additions, read = readNativeBytes) {
 
 // Scripts may destroy a successfully created actor during the macro. Preserve
 // the earlier proof separately from final survival; never relax static checks.
-export async function verifyNativeLifecycle(additions, observations, verify = verifyNativeInstances) {
+export async function verifyNativeLifecycle(additions, observations, verify = verifyNativeInstances, options = {}) {
   try {
-    return { ...(await verify(additions)), lifecycle: 'present_at_end' };
+    return { ...(await verify(additions, undefined, options)), lifecycle: 'present_at_end' };
   } catch (error) {
     const earlier = observations.find(o => o.verified && additions.every(a => o.objects.some(p => p.id === a.id)));
     if (!additions.some(a => a.script != null) || !earlier) throw error;
     const statics = additions.filter(a => a.script == null);
-    if (statics.length) await verify(statics);
+    if (statics.length) await verify(statics, undefined, options);
     return { ...earlier, lifecycle: 'changed_after_creation', final_verified: false, final_error: error.message };
   }
 }

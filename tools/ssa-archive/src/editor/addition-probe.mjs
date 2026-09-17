@@ -5,12 +5,18 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { GameSession, gameFromConfig, defaultScript, readScript, local } from '../experiments/run-game.mjs';
 import { defaultFigure } from './dolphin-run.mjs';
-import { compileNativeProbe, NATIVE_BASE, NATIVE_MAGIC, NATIVE_STRIDE } from './native-patch.mjs';
-import { installNativePatch, verifyNativeFactory, verifyNativeInstances, readNativeBytes } from './native-run.mjs';
+import { compileNativeProbe } from './native-patch.mjs';
+import {
+  installNativePatch,
+  verifyNativeFactory,
+  verifyNativeInstances,
+  readNativeBytes,
+  locateAdditionRows,
+} from './native-run.mjs';
 import { classifyAddition, PROBE_VERSION } from './addition-compatibility.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
-import { ATTEMPT_CREATED, GECKO_AREA, HEAP, INSTANCE, INSTANCE_BYTES, SLOT, readVector } from './native-layout.mjs';
-import { ORIGINAL_TUTORIAL_SHA256 } from './levels.mjs';
+import { ATTEMPT_CREATED, GECKO_AREA, HEAP, INSTANCE, INSTANCE_BYTES, readVector } from './native-layout.mjs';
+import { ORIGINAL_TUTORIAL_SHA256, isTutorial } from './levels.mjs';
 export const reportsDir = path.join(local, 'addition-validation');
 
 // The probe keeps a margin below the end of MEM1 when it accepts a pointer the factory returned.
@@ -23,27 +29,19 @@ export function readFamilyReport(family) {
     return null;
   }
 }
-export async function inspectProbe(additions, read = readNativeBytes) {
+export async function inspectProbe(additions, read = readNativeBytes, options = {}) {
   const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
+    located = locateAdditionRows(memory, additions, options),
     results = [];
-  for (const a of additions) {
+  for (const [index, a] of additions.entries()) {
     const row = { source: a.source, id: a.id, runtime: 'failed', visual: 'pending', gameplay: 'pending' };
-    let at = -1;
-    for (let o = 0; o + NATIVE_STRIDE <= memory.length; o += 4)
-      if (
-        memory.readUInt32BE(o) === NATIVE_MAGIC &&
-        memory.readInt32BE(o + SLOT.id) === a.id &&
-        memory.readUInt32BE(o + SLOT.source) === NATIVE_BASE + a.source
-      ) {
-        at = o;
-        break;
-      }
-    if (at < 0) {
+    const found = located[index][0];
+    if (!found) {
       results.push({ ...row, reason: 'Probe payload was not consumed.' });
       continue;
     }
-    row.attempt = memory.readUInt32BE(at + SLOT.attempt);
-    row.pointer = memory.readUInt32BE(at + SLOT.pointer);
+    row.attempt = found.attempt;
+    row.pointer = found.pointer;
     if (row.attempt !== ATTEMPT_CREATED || row.pointer < HEAP.start || row.pointer > MAX_INSTANCE_POINTER) {
       results.push({
         ...row,
@@ -61,7 +59,7 @@ export async function inspectProbe(additions, read = readNativeBytes) {
     row.model = b.readUInt32BE(INSTANCE.model);
     row.script = b.readUInt32BE(INSTANCE.script);
     try {
-      row.creation = await verifyNativeInstances([a], read);
+      row.creation = await verifyNativeInstances([a], read, options);
       row.runtime = 'passed';
     } catch (e) {
       row.runtime = 'inconclusive';
@@ -80,6 +78,10 @@ export async function runAdditionProbe(
   sources,
   { signal, onProgress = () => {}, repeat = 2, gameFactory = () => new GameSession() } = {},
 ) {
+  if (!isTutorial(s.archive))
+    throw Error(
+      'On this level, source families are tested in batches through the level itself: run research-probes/native-level-probe.mjs.',
+    );
   if (s.original_sha256 !== ORIGINAL_TUTORIAL_SHA256)
     throw Error(
       'This probe currently requires the original tutorial level. Open the unmodified tutorial to test its source families.',

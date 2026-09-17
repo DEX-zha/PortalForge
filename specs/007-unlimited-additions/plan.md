@@ -9,7 +9,7 @@ of them. Everything is read from the game before it is written to the file, and 
 
 | Phase | Mechanism | What it gives | Cost | Risk |
 |---|---|---|---|---|
-| A | Native factory on every level, with a compact slot | any record of the current level, dozens per patch | 3 to 5 days, about 10 boots | low: the code is proven, only two addresses and a slot layout change |
+| A | Native factory on every level, with a compact row | any record of the current level, up to 59 per patch | code done; 4 boots for A1 and A2 | low for the level parameters (data only); medium for the compact row, whose shared argument block is a hypothesis until A2 |
 | B | The activation flag as an on/off switch | remove any placed object; reveal any stored template at a chosen spot, one instance each | half a day, 4 boots | low: a one-word, same-size edit |
 | C | Library import between levels | any enemy or object of the game in any level | 2 to 4 weeks of research, tens of boots | high: appending to the IGZ has never loaded; gate M4A |
 | V | Campaign validation | proof for hundreds of sources without hand work | 2 to 3 days, then unattended boots | none |
@@ -25,9 +25,13 @@ of them. Everything is read from the game before it is written to the file, and 
 - The scene snapshot (`src/editor/scene-snapshot.mjs`) locates a level's resident section (Mining
   `0x80DC6F48`) and reads every record's state and actor: it gives the base and a set of always-active records
   to anchor on, per level, in one boot.
-- The Gecko area is 6 144 bytes (`GECKO_AREA`), of which 3 256 are reserved today for the additions; eight
-  additions use 2 344 bytes because a slot is 144 bytes. The slot holds words the code writes at run time (attempt,
-  pointer, ids) next to the request (position, heading, source, model, script).
+- The Gecko area is 6 144 bytes (`GECKO_AREA`); Dolphin's code handler takes the start of it and 3 256 bytes
+  are left for codes (`GECKO_CODE_BUDGET`), a hard budget. Eight mixed additions use 2 344 of them because a slot
+  is 144 bytes: it is the factory's argument block itself (the position, and a native orientation expression
+  object evaluated through `0x8005C4D0`), next to the words the code writes at run time.
+- On the tutorial a script-less source is created from a hook at `0x800445C8`, the return of the game's own
+  clone call, and a scripted one from the activation manager (`0x80062B88`). The first only runs when a script
+  clones something; the second runs with the level. Other levels use the second for every source.
 - The IGZ loader constructs records by walking each header-table record's blob positionally; reflection rebases
   pointers but constructs nothing; the header table cannot grow in place; a runtime fixup map (`igz fixups`) lists
   every pointer word of a level once a resident dump exists, which the snapshot can now write.
@@ -43,14 +47,18 @@ and needs the user's decision. No IGZ insertion is attempted outside phase C's e
 
 ## Phase A — Native additions on every level, without the cap of eight
 
-1. **Per-level parameters from the snapshot.** `base` from the snapshot; `anchor` = the first record that is
-   active with an actor on every snapshot of the level (Mining: `MineTrain`, `Level Master`); both stored with
-   the level (`.local/dolphin-evidence/scene-snapshots/<level>/params.json`) and read by `compileNativePatch`.
-   A level without them refuses to patch additions with the reason "take a scene snapshot first".
-2. **Compact slot.** Split the request (source, model, script, position, heading, id: 32 bytes) from the run-time
-   words (attempt, pointer, ids: 16 bytes) and pack them; measure the prologue once; capacity = floor((area −
-   code) / slot). With the full 6 144-byte area and a 48-byte slot the expectation is above 90 additions; the
-   number is measured, not assumed, and the view shows it.
+1. **Per-level parameters from the snapshot** (`native-params.mjs`, done). `base` is the snapshot's; `anchor`
+   is a placement the snapshot saw active with an actor, a still, visible, script-less prop first because that
+   is what the tutorial's anchor is (Mining: `MineTrain`). They are derived from the newest snapshot every time,
+   not stored apart, so they cannot drift from it; a snapshot of another version of the level is refused. A level
+   without them refuses with "take a scene snapshot first". A wrong base cannot do harm: the compiled code checks
+   the class pointer, the model and the script of every source before it calls the factory.
+2. **Compact row** (`layout: 'table'`, done, unproven). The request (id, position, source, heading, model,
+   script) and the two result words make a 40-byte row; one shared 144-byte argument block is zeroed and rebuilt
+   from the row before every call, so the factory sees what the proven slot showed it. Measured capacity: 18
+   additions with the proven slot, 59 with the table. The hypothesis to prove in A2 is that the factory keeps
+   no pointer into the argument block after it returns; the heading check on every instance would show it.
+   The tutorial's compiled bytes are pinned by a test against the output recorded before the change.
 3. **Any resident source.** Drop the nine-source whitelist: a source is admissible when its record is resident
    (placed or template) and has a model; its card shows its family's status. Templates are the natural sources
    (the game clones them itself), placed records are what the tutorial proved.
@@ -101,7 +109,9 @@ The only route to "any enemy anywhere". Staged so that each step either loads or
    passed; a level's campaign report lists families passed, failed with the failing check, and untested.
 3. **Findings.** One record per family per level (`level.prop.native-addition.<level>.<family>`), CONFIRMED on two
    boots; a later failure of any member demotes the family to UNKNOWN with the run kept.
-4. **Cost.** Mining: 234 families, 32 per boot, two boots per batch → 16 boots, about 40 minutes unattended.
+4. **Cost.** Mining has 153 testable families (108 of them stored templates only, 29 dormant only, 16 with an
+   active member): three batches of 59 with the table layout, six boots, about 20 minutes unattended; nine
+   batches and 18 boots with the proven slot.
 5. **Rule change.** Today a family result never promotes its members ("Family tests do not grant Add
    automatically"). The proposal: a family is promoted when every tested member passed on two boots and the
    family shares model and script; the constitution and `AGENTS.md` record it if accepted.
@@ -118,7 +128,7 @@ The only route to "any enemy anywhere". Staged so that each step either loads or
 
 - Phase C is where the weeks go. C1 is the decisive experiment and costs one boot once the fixup map of a level
   exists; the plan spends nothing on C2 before C1 loads.
-- The Gecko area is a hard budget of 6 144 bytes; if a compact slot does not reach the count the user wants, the
-  next step is the flag of phase B, which costs nothing in code, and phase C, which needs no code at all.
+- The Gecko budget is 3 256 bytes and 59 additions is its measured ceiling with this recipe; beyond that, the
+  flag of phase B costs nothing in code and phase C needs no code at all.
 - Cross-level objects that already exist in the target level (the 25 libraries present in thirty or more levels,
   Chompies in 16 to 19) need no import; the catalogue must say so before anyone waits for phase C.

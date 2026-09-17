@@ -203,19 +203,23 @@ export function saveSnapshot(snapshot, { dir = snapshotsDir } = {}) {
 }
 
 // The newest snapshot of a level, or null. Its placements are keyed by offset for the view.
-export function latestSnapshot(archive, { dir = snapshotsDir } = {}) {
+export function latestSnapshotFile(archive, { dir = snapshotsDir } = {}) {
   const folder = path.join(dir, levelName(archive).toLowerCase());
-  let files;
   try {
-    files = fs
+    const newest = fs
       .readdirSync(folder)
       .filter(f => f.endsWith('.json'))
-      .sort();
+      .sort()
+      .at(-1);
+    return newest ? path.join(folder, newest) : null;
   } catch {
     return null;
   }
-  if (!files.length) return null;
-  const file = path.join(folder, files.at(-1));
+}
+
+export function latestSnapshot(archive, { dir = snapshotsDir } = {}) {
+  const file = latestSnapshotFile(archive, { dir });
+  if (!file) return null;
   try {
     return { file, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
   } catch {

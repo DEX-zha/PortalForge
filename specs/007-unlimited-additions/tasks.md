@@ -5,13 +5,16 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 
 ## Phase A — Native additions on every level
 
-- [ ] A01 Per-level parameters: `params.json` next to the level's snapshots (base, anchor offset, anchor name,
-      snapshot run ids); `compileNativePatch` reads them and refuses without them. Tests on synthetic params.
-- [ ] A02 Compact slot: request (32 bytes) and results (16 bytes) packed; the prologue measured; capacity
-      computed from the Gecko area; the view shows `n/N` with the measured N. Tests: assembled bytes per count,
-      refusal at N+1, round trip of the sidecar.
-- [ ] A03 Any resident source: drop the whitelist; a source's card shows its family status; the drop is refused
-      only when the record has no model or is not resident. Tests on Mining's catalogue counts.
+- [x] A01 Per-level parameters (`src/editor/native-params.mjs`): base and anchor derived from the newest scene
+      snapshot, never stored apart; `compileNativePatch(additions, { base, anchor, context, layout, limit })`
+      refuses without an anchor; the options travel with the patch so the installer recompiles the same bytes;
+      the runtime verification reads from the level's base. The tutorial's output is pinned byte for byte.
+- [x] A02 Compact row (`layout: 'table'`): 40 bytes per addition and one shared argument block; `nativeCapacity`
+      measures 18 (slot) and 59 (table); the catalogue reports the confirmed limit and what fits. The editor's
+      limit stays eight until a capacity finding says otherwise.
+- [x] A03 Any resident source as a test candidate: a level with snapshot parameters classifies its objects as
+      "Needs test" instead of "Blocked" (Mining: 153 testable families); Add stays reserved to confirmed
+      recipes. The one-source probe of the tutorial refuses other levels and names the batch probe.
 - [ ] A04 Experiment A1, two boots: eight sunflower-class additions on Mining with the snapshot's base and anchor.
 - [ ] A05 Experiment A2, two boots: 32 additions across eight families on Mining, all verified in memory.
 - [ ] A06 Findings `level.prop.native-addition.<level>` per level booted; the tutorial keeps its own.
@@ -46,11 +49,14 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 
 ## Phase V — Validation without hand work
 
-- [ ] V01 Batch campaigns in `addition-probe.mjs`: one patch of up to the capacity, two boots, memory checks at
-      three moments, captures, a report per family. Tests with a fake runner.
+- [x] V01 Batch campaigns (`src/editor/addition-campaign.mjs`, `research-probes/native-level-probe.mjs`): one
+      patch of up to the capacity through the editor's builder and launcher, every addition inspected from memory
+      at each capture of the level and at the end, one result file per boot, family reports from two boots of the
+      same batch. Tests with a fake builder and runner. The editor's Test button still drives the tutorial only.
 - [ ] V02 The promotion rule (family passes when every tested member passed on two boots, same model and
       script) proposed to the constitution; applied only once accepted.
-- [ ] V03 Campaign over Mining's templates (about 16 boots, unattended); findings written by the tool.
+- [ ] V03 Campaign over Mining's 153 families (six boots with the table layout, unattended); reports written by the
+      tool, findings after review.
 - [ ] V04 Campaign over the tutorial's 234 families with the same tool; the nine hand-confirmed sources become
       family findings.
 

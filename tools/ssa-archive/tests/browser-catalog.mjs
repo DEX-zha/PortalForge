@@ -106,7 +106,7 @@ try {
   const capacity = await evaluate(
     `(async()=>{const b=await(await fetch('/api/catalog')).json();return {capacity:b.addition_capacity,available:b.entries.filter(e=>e.addition.available).length};})()`,
   );
-  assert.deepEqual(capacity, { capacity: { used: 0, limit: 8 }, available: 9 });
+  assert.deepEqual(capacity, { capacity: { used: 0, limit: 8, fits: { slot: 18, table: 59 } }, available: 9 });
   assert.equal(await evaluate(`document.getElementById('skip-intro').checked`), false, 'opening is kept by default');
   await evaluate(`document.getElementById('skip-intro').click()`);
   await send('Page.reload');

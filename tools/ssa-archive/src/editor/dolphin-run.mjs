@@ -44,6 +44,9 @@ export async function runEditorGame({
   pollMs = 3000,
   entryServices = { confirmed: directEntryConfirmed, prepare: ensureLevelEntry, restore: restoreLevelEntry },
   redirect = null,
+  // A campaign's view of its additions, one row each, taken at every capture of the level and at the end. With
+  // it a source that fails is a result, not a failed run: the batch carries many sources and judges each.
+  nativeInspect = null,
 } = {}) {
   figure ??= defaultFigure();
   validateSkipIntro(archive, mode, skip_intro);
@@ -141,12 +144,23 @@ export async function runEditorGame({
         labelPrefix: id,
         onShot: async f => {
           record.screenshots.push(f);
-          if (patch.native_additions?.additions.some(a => a.script != null) && /tutorial/.test(f)) {
+          // Scripted additions may transform or destroy themselves, and additions on another level are judged
+          // at every capture once the level is reached: both keep a timeline, not only the final state.
+          const native = patch.native_additions;
+          const timeline = native?.additions.some(a => a.script != null) || native?.options?.context === 'activation';
+          if (nativeInspect && native && /tutorial|arrived/.test(f)) {
+            record.native_samples ??= [];
+            record.native_samples.push({
+              capture: f,
+              rows: await nativeInspect(native.additions, native.options ?? {}),
+            });
+          }
+          if (timeline && /tutorial|arrived/.test(f)) {
             record.native_observations ??= [];
             try {
               record.native_observations.push({
                 capture: f,
-                ...(await verifyNativeInstances(patch.native_additions.additions)),
+                ...(await verifyNativeInstances(native.additions, undefined, native.options ?? {})),
               });
             } catch (e) {
               record.native_observations.push({ capture: f, verified: false, reason: e.message });
@@ -161,10 +175,28 @@ export async function runEditorGame({
       consumption();
       if (!record.consumption.verified)
         throw new Error('The file monitor did not prove that Dolphin consumed this rebuilt archive');
-      if (patch.native_additions)
+      if (patch.native_additions && nativeInspect) {
+        record.native_samples ??= [];
+        record.native_samples.push({
+          capture: null,
+          rows: await nativeInspect(patch.native_additions.additions, patch.native_additions.options ?? {}),
+        });
+        try {
+          record.native_additions = await verifyNativeLifecycle(
+            patch.native_additions.additions,
+            record.native_observations ?? [],
+            undefined,
+            patch.native_additions.options ?? {},
+          );
+        } catch (e) {
+          record.native_additions = { verified: false, reason: e.message };
+        }
+      } else if (patch.native_additions)
         record.native_additions = await verifyNativeLifecycle(
           patch.native_additions.additions,
           record.native_observations ?? [],
+          undefined,
+          patch.native_additions.options ?? {},
         );
       record.status = 'MACRO_COMPLETED';
     }

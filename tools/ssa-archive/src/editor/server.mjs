@@ -261,6 +261,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
       });
     const next = await deps.open(body.archive.trim());
     session = next;
+    if (deps.snapshotDir) session.snapshots_dir = deps.snapshotDir;
     validation = null;
     return json(res, 200, { opened: sessionSummary(session) });
   }
@@ -269,6 +270,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
   // and whether one can be taken now, which needs an editor-owned run that has reached play.
   const playing = () => !!session.lastLaunch?.running && session.lastLaunch?.progress?.phase === 'playing';
   const snapshotOptions = deps.snapshotDir ? { dir: deps.snapshotDir } : {};
+  if (deps.snapshotDir) session.snapshots_dir = deps.snapshotDir; // native-params.mjs reads the same folder
   function snapshotState(res) {
     return json(res, 200, {
       snapshot: snapshotSummary(latestSnapshot(session.archive, snapshotOptions), session),

@@ -44,7 +44,9 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     const families = new Set(entries.filter(p => p.addition?.testable).map(p => p.addition.family)).size;
     $('object-count').textContent =
       `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families` +
-      (capacity ? ` · ${capacity.used}/${capacity.limit} added` : '');
+      (capacity
+        ? ` · ${capacity.used}/${capacity.limit} added${capacity.fits ? ` (up to ${capacity.fits.table} fit, unproven)` : ''}`
+        : '');
     const fragment = document.createDocumentFragment();
     if (!rows.length) {
       const empty = document.createElement('p');

@@ -5,7 +5,8 @@
 
 **Created**: 2026-09-17
 
-**Status**: Specified. Nothing here is implemented; every capability below is UNKNOWN until its experiments run.
+**Status**: Phase A implemented and tested without a boot (2026-09-17); every capability below stays UNKNOWN
+until its experiments run. See [tasks](tasks.md).
 
 **Input**: User request (translated from French): "Analyse the project and everything we did. We still cannot add
 as many objects as we want, and we cannot add objects from other levels, which is limiting. Make that possible:
@@ -17,8 +18,8 @@ is found."
 
 | Limit | Cause | Evidence |
 |---|---|---|
-| At most 8 additions per patch | the native recipe keeps one 144-byte slot per addition inside the 3 256 bytes reserved in Dolphin's Gecko area; the code itself is already a loop over those slots | `native-patch.mjs`: `NATIVE_LIMIT = 8`, `bytes > 3256` |
-| Additions on the tutorial only | two absolute addresses: the tutorial's resident section base (`0x80DBC020`) from which every source is addressed, and a tutorial placement used as the "level is ready" anchor (`0x81105604`) | `native-patch.mjs` lines 4 and 166; the snapshot located Mining's base at `0x80DC6F48` |
+| At most 8 additions per patch | eight is what two boots confirmed, not what fits: the recipe keeps one 144-byte slot per addition in the 3 256 bytes that Dolphin's Gecko area leaves once its code handler is installed, and the code is already a loop over those slots. Measured: 18 fit with that slot, 59 with a 40-byte row | `native-patch.mjs`: `NATIVE_LIMIT`, `GECKO_CODE_BUDGET`, `nativeCapacity` |
+| Additions on the tutorial only | two absolute addresses: the tutorial's resident section base (`0x80DBC020`) from which every source is addressed, and a tutorial placement used as the "level is ready" anchor (`0x81105604`, the sunflower source). A third binding is the call context: script-less sources are created at the return of a script's own clone call, which needs a script cloning something when the level starts | `native-patch.mjs`; the snapshot located Mining's base at `0x80DC6F48` |
 | Nine sources only | every exact source needs two boots by rule; 234 testable families on the tutorial alone | `specs/005/compatibility.md` |
 | No object from another level | a level archive is a compiled merge of libraries (`*.lvl` layers) holding their own models, textures, scripts and sounds; what is not compiled into the level is not in memory | census below |
 | Duplication needs a victim | the header table cannot grow without shifting every record, and inserting inside a record's blob gets stomped by its constructor | `igz.loader.head-span-count-walk`, `igz.loader.blob-walk-stomps-insertions` |
@@ -74,8 +75,9 @@ promoted by evidence, results kept as findings. Nobody boots one object at a tim
 
 - **FR-001**: The native recipe takes its base and anchor from the level's scene snapshot; a level without a
   snapshot cannot patch additions and says so.
-- **FR-002**: The addition capacity is derived from the Gecko area and a compact slot, not a constant; the code
-  and the slots are measured and the refusal states the number.
+- **FR-002**: The addition capacity is measured by compiling against the Gecko budget, not assumed; the editor's
+  limit stays the number two boots confirmed (eight) and rises only with a capacity finding; a refusal states
+  the number.
 - **FR-003**: Any resident placement record of the level, placed or template, is an admissible source; its
   status is its family's status (Add, Needs test, Test failed) and the campaign, not a hand-made list, sets it.
 - **FR-004**: A campaign boots batches of sources (target: 20 to 40 per boot), verifies each instance in memory

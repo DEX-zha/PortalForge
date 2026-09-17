@@ -12,8 +12,16 @@ instance and its ids in the slot. Everything level-specific is data:
 |---|---|---|
 | resident section base | `NATIVE_BASE = 0x80DBC020` (tutorial) | the snapshot's `base` (Mining `0x80DC6F48`) |
 | readiness anchor | `0x81105604`, a tutorial placement | any record active with an actor on the level's snapshots |
-| slot | 144 bytes, request and run-time words interleaved | 32 bytes of request plus 16 of results |
-| capacity | 8, a constant; 2 344 of 3 256 bytes used | measured from the 6 144-byte area |
+| call context | script-less sources at the return of a script's clone call (`0x800445C8`), scripted ones in the activation manager (`0x80062B88`) | the activation manager for every source: it does not wait for a script to clone something |
+| slot | 144 bytes: the factory's argument block itself | a 40-byte row, and one shared argument block rebuilt before each call |
+| capacity | 8 confirmed; 2 344 of 3 256 bytes used by a mixed batch | measured by compiling: 18 with the slot, 59 with the row |
+
+Measured on 2026-09-17 with the implementation: one addition costs 712 bytes (script-less) or 768 (scripted) of
+the 3 256 that the Gecko area leaves after Dolphin's code handler, 144 of which are the slot; the rest is the
+routine and the line framing. Mining's parameters from its snapshot: base `0x80DC6F48` (the same on the two
+runs that measured it), anchor `MineTrain`, a still script-less prop active with an actor at the first playable
+frame. Mining has 153 testable families: 108 exist as stored templates only, 29 as dormant placements only, 16
+have an active member; 111 carry a script.
 
 The hooks, the factory and the class pointer are executable addresses, identical on every level of SSPP52 Rev1.
 

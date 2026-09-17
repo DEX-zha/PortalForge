@@ -12,6 +12,7 @@ import { authorisedWords } from './session.mjs';
 import { FIELDS } from '../igz/model-resolve.mjs';
 import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
+import { nativeParamsFor } from './native-params.mjs';
 import { validateSkipIntro } from './level-entry.mjs';
 import { isTutorial } from './levels.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
@@ -249,7 +250,11 @@ export function patch(session, { deps = {} } = {}) {
   });
   let native_additions = null;
   if (session.lastSave.additions?.length) {
-    const recipe = compileNativePatch(session.lastSave.additions),
+    // The level's own base and anchor; the tutorial's are the compiler's defaults. The options are kept with the
+    // patch so that the installer recompiles the very same bytes.
+    const params = (deps.nativeParams ?? nativeParamsFor)(session);
+    if (!params.available) fail('NO_NATIVE_PARAMETERS', params.reason);
+    const recipe = compileNativePatch(session.lastSave.additions, params.options),
       file = path.join(result.dir, 'portalforge-additions.ini');
     fs.writeFileSync(file, recipe.ini);
     native_additions = {
@@ -257,6 +262,7 @@ export function patch(session, { deps = {} } = {}) {
       file,
       sha256: hash(recipe.ini),
       additions: structuredClone(session.lastSave.additions),
+      options: recipe.options,
     };
     fs.writeFileSync(path.join(result.dir, 'portalforge-additions.json'), JSON.stringify(native_additions, null, 2));
   }
@@ -325,7 +331,10 @@ export async function launch(
       'NO_REDIRECT_PATCH',
       'direct entry on this level serves it under the tutorial file names and needs its voice pack: open the level by name with the game image configured, then save and patch again',
     );
-  const runPatch = redirected ? session.lastPatch.redirect : session.lastPatch;
+  // The redirect descriptor serves other files, but the additions belong to the level either way.
+  const runPatch = redirected
+    ? { ...session.lastPatch.redirect, native_additions: session.lastPatch.native_additions }
+    : session.lastPatch;
   for (const p of [session.lastPatch, runPatch]) {
     for (const r of p.replacements ?? []) {
       if (

@@ -7,6 +7,7 @@
 import { additionSource } from './native-additions.mjs';
 import { sha256 } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
+import { nativeParamsFor } from './native-params.mjs';
 
 // Part of the family key: bumping it retires every stored report, which is how a change of recipe stops an
 // old failure (or an old success) from being reused.
@@ -45,15 +46,20 @@ export const familyKey = (session, placement) =>
 
 const check = (id, passes, detail) => ({ id, status: passes ? 'pass' : 'blocked', detail });
 
+// The recipe needs to know where the level sits in memory: the tutorial's runtime map says so for the tutorial,
+// a scene snapshot for any other level (native-params.mjs).
+function levelCheck(session) {
+  if (isTutorial(session.archive))
+    return check('level', !!session.has_runtime_map, 'Tutorial runtime map required for this recipe.');
+  const params = nativeParamsFor(session);
+  return check('level', params.available, params.reason ?? 'Level parameters read from its scene snapshot.');
+}
+
 function structuralChecks(session, placement) {
   const { model, behavior } = placement;
   const visibleModel = Number.isInteger(model?.offset) && !!model?.path && !INVISIBLE_MODEL.test(model.path);
   return [
-    check(
-      'level',
-      session.has_runtime_map && isTutorial(session.archive),
-      'Tutorial runtime map required for this recipe.',
-    ),
+    levelCheck(session),
     check('model', visibleModel, 'A resolved visible model is required.'),
     check('scale', placement.scale === ORIGINAL_SCALE, 'This recipe currently supports the original 100% scale.'),
     check('identity', !placement.native_addition, 'Tests use an original level object as their source.'),
