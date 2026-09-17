@@ -212,7 +212,7 @@ export function renderGrades(grades) {
 
 // A duplication consumes a slot: the object that was there stops existing. So the panel names the candidates and
 // what each one costs, and nothing is confirmable until the plan has been prepared and read.
-export function renderDuplicate(p, targets = [], hasRuntimeMap = true) {
+function renderDuplicate(p, targets = [], hasRuntimeMap = true) {
   // Reading a level structurally is enough to move an object; rewriting its pointer fields is not. Saying so here
   // is the difference between a disabled control and an unexplained one.
   if (!hasRuntimeMap)

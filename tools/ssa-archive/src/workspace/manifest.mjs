@@ -11,7 +11,7 @@ import { parseArchive, entryStoredBytes } from '../iga/reader.mjs';
 export const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, '../../../..');
 export const contracts = path.join(root, 'specs/001-ssa-level-research/contracts');
-export const TOOL_VERSION = 'portalforge-ssa-archive/0.1.0';
+const TOOL_VERSION = 'portalforge-ssa-archive/0.1.0';
 
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);

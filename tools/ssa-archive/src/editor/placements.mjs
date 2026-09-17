@@ -31,7 +31,7 @@ export const FIELDS = {
   name: 0x08,
   companions: [0xc4, 0xe0],
 };
-export const COMPANION_TYPES = new Set([65, 66, 67, 147]);
+const COMPANION_TYPES = new Set([65, 66, 67, 147]);
 const WRAPPER_EMBED = 0x48;
 
 // The placement class is per file, so it is detected once per level rather than assumed (igz.types.per-file-indices).
@@ -62,7 +62,7 @@ export function openLevel(file, fixupsFile) {
 }
 
 // header-table record: type from word 0, size = distance to the next table entry (no heuristic header detection)
-export function tableRecord(level, offset, buf = level.buf) {
+function tableRecord(level, offset, buf = level.buf) {
   const i = level.table.indexOf(offset);
   if (i < 0) return null;
   const end = level.table[i + 1] ?? level.sec.offset + level.sec.size;

@@ -1,6 +1,5 @@
 // ObjectGraph assembly with 100 % area accounting (spec 002 FR-002, SC-001), validated against
 // specs/002-igz-entity-model/contracts/object-graph.schema.json.
-import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { parseIgzHeader } from './header.mjs';
@@ -69,8 +68,4 @@ export function histogram(graph) {
       return { type_name, count: e.count, bytes: e.bytes, median_size: s[Math.floor(s.length / 2)], min_size: s[0] };
     })
     .sort((a, b) => b.count - a.count);
-}
-
-export function loadGraph(file, opts = {}) {
-  return buildGraph(fs.readFileSync(file), { file, ...opts });
 }

@@ -85,7 +85,7 @@ const fileHash = async file => {
   for await (const b of fs.createReadStream(file)) h.update(b);
   return h.digest('hex');
 };
-export async function entryBinding(patch, figure) {
+async function entryBinding(patch, figure) {
   const descriptor = JSON.parse(fs.readFileSync(patch.descriptor, 'utf8'));
   const game = descriptor['base-file'];
   if (!game) throw Error('Direct entry requires a game-mod descriptor.');

@@ -11,7 +11,7 @@ const basename = s =>
     .toLowerCase();
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-export const ADDITION_FINDING = 'level.prop.native-addition';
+const ADDITION_FINDING = 'level.prop.native-addition';
 const fail = (error, reason) => {
   throw Object.assign(new Error(`${error}: ${reason}`), { error });
 };
@@ -20,7 +20,7 @@ export const additionsDigest = rows =>
     .createHash('sha256')
     .update(JSON.stringify(rows ?? []))
     .digest('hex');
-export function additionConfirmed(id = ADDITION_FINDING) {
+function additionConfirmed(id = ADDITION_FINDING) {
   try {
     const f = JSON.parse(fs.readFileSync(path.join(root, 'docs/findings/records', id + '.json')));
     return f.confidence === 'CONFIRMED' && f.editable === true;

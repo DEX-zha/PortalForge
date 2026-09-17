@@ -89,7 +89,7 @@ export function existingFile(filename) {
 // Dolphin splits the patch XML path only on '/' (and ':' on Windows) to find the folder that
 // relative 'external' files resolve against. A backslash path therefore yields the root "C:"
 // and every file patch silently resolves to a missing file. Descriptor paths must use '/'.
-export const dolphinPath = p => path.resolve(p).replace(/\\/g, '/');
+const dolphinPath = p => path.resolve(p).replace(/\\/g, '/');
 export function buildDescriptor(game, xml, patchRoot, options) {
   return {
     type: 'dolphin-game-mod-descriptor',

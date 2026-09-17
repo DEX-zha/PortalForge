@@ -17,9 +17,9 @@ export const MIN_INSTANCE_SCALE = 0.25; // the record's own scale, floored so a 
 
 export const FOV = 55; // degrees, vertical
 export const VIEW_DIR = [1, 0.8, 1]; // the camera sits along this direction from what it is looking at
-export const MARGIN = 1.06;
+const MARGIN = 1.06;
 export const TRIM = 0.04; // frame the middle 92% on each axis
-export const FIT_PERCENTILE = 0.98;
+const FIT_PERCENTILE = 0.98;
 
 // A survey drawing of a dig, not an editor theme: deep ink ground, bone objects, and colour spent only where it
 // encodes something the researcher has to respect, which here is how dangerous an object is to touch.

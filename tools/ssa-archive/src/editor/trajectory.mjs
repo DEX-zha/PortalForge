@@ -1,6 +1,6 @@
 // Translation support is deliberately scoped to the tutorial Drifting_Piece path layout.
 // No script opcodes, timing, collision or list sizes are changed.
-export const TRAJECTORY_FINDING = 'level.drifting-piece.waypoint-translation';
+const TRAJECTORY_FINDING = 'level.drifting-piece.waypoint-translation';
 export function driftingPath(session, placement) {
   if (!/\/Level_027\/Scripts\/Drifting_Piece\.ai$/i.test(placement.behavior?.path ?? '')) return null;
   const b = session.buffer,

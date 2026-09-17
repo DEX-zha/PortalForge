@@ -26,7 +26,7 @@ import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
 const sha256 = b => createHash('sha256').update(b).digest('hex');
 const samplesRoot = path.join(local, 'samples');
 
-export async function prepareRebuild({ archive, variant, game, id, log = console.log }) {
+async function prepareRebuild({ archive, variant, game, id, log = console.log }) {
   let source = samplePath(samplesRoot, archive);
   if (!fs.existsSync(source)) {
     log(`extracting ${archive} from the dump`);

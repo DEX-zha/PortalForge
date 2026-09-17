@@ -7,7 +7,7 @@
 
 // How far the pointer may drift and still count as the same click, in pixels. Big enough for hand jitter on a
 // drag-free click, small enough that a deliberate move to another object starts a new selection.
-export const POINTER_TOLERANCE = 4;
+const POINTER_TOLERANCE = 4;
 
 export const samePointer = (a, b) =>
   !!a && !!b && Math.abs(a.x - b.x) <= POINTER_TOLERANCE && Math.abs(a.y - b.y) <= POINTER_TOLERANCE;

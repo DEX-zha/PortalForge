@@ -219,7 +219,7 @@ export function parseArchive(buf) {
 }
 
 // Byte regions used by diff classification (FR-007): METADATA, TABLE, CONTENT, PADDING.
-export function layoutRegions(parsed, total) {
+function layoutRegions(parsed, total) {
   const { header, entries, chunk_area, name_table } = parsed;
   if (!header) return [{ offset: 0, length: total, class: 'CONTENT', label: 'unparsed' }];
   const count = header.count;

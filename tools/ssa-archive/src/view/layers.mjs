@@ -39,7 +39,7 @@ export const hide = (state, name) => {
 };
 export const only = (index, name) => new Set(index.some(l => l.name === name) ? [name] : []);
 
-export const isVisible = (placement, state) => layersOf(placement).some(name => state.has(name));
+const isVisible = (placement, state) => layersOf(placement).some(name => state.has(name));
 
 // The offsets to draw. Returned as a Set because the scene looks placements up by offset, not by position.
 export function visibleSet(placements, state) {

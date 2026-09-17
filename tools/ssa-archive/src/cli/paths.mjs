@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-export const repoRoot = path.resolve(here, '../../../..');
+const repoRoot = path.resolve(here, '../../../..');
 export const docsDir = path.join(repoRoot, 'docs');
 export const localDir = path.join(repoRoot, '.local');
-export const samplesDir = path.join(localDir, 'samples/DATA/files');
+const samplesDir = path.join(localDir, 'samples/DATA/files');
 
 // The extracted original of a disc file, used as the baseline for diffs and identical-file detection.
 export const sampleOf = discPath => path.join(samplesDir, ...String(discPath).split('/'));

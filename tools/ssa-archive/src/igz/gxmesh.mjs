@@ -31,7 +31,7 @@ const OPS = new Set([0x80, 0x90, 0x98, 0xa0, 0xa8, 0xb0, 0xb8]);
 
 // A record header: {type < typeCount, 1 <= refcount < 4096, name word in section 1}. The enumerator's own test
 // demands refcount 1 and so hides every shared record; node records are frequently shared.
-export const recordHeaderTest = (buf, typeCount) => p =>
+const recordHeaderTest = (buf, typeCount) => p =>
   p + 12 <= buf.length &&
   buf.readUInt32BE(p) < typeCount &&
   buf.readUInt32BE(p + 4) >= 1 &&
@@ -230,7 +230,7 @@ export function triangulate(strips) {
   return Uint32Array.from(tri);
 }
 
-export function blockGeometry(buf, block) {
+function blockGeometry(buf, block) {
   const d = block.descriptor,
     sc = Math.pow(2, -block.vat[0]);
   const vertices = new Float32Array(d.count * 3);
@@ -326,7 +326,7 @@ export function boundsIn(buf, graph, rec) {
 }
 
 // A model's declared bounds: the first bounds attribute found from the model record down its node chain.
-export function modelBounds(buf, graph, index, model) {
+function modelBounds(buf, graph, index, model) {
   const OS = graph.sections[graph.object_section],
     isH = index.isH;
   const seen = new Set();

@@ -18,7 +18,7 @@ export const SEVERITY = ['blocking', 'critical', 'high', 'medium', 'info'];
 const rank = s => SEVERITY.indexOf(s);
 
 // Behaviour scripts known to bind an object to level context it cannot find elsewhere.
-export const TRACK_BOUND = [
+const TRACK_BOUND = [
   {
     match: /PushBlock/i,
     why: 'push blocks resolve a track, waypoints and switches at STARTUP (PushBlock_Template.ai, 1415 instructions); two boots froze in game after one was placed on the start island',

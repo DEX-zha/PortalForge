@@ -17,8 +17,8 @@ import { CHUNK_SIZE, ALIGN, alignUp } from './header.mjs';
 import { readManifest, writeManifest } from '../workspace/manifest.mjs';
 
 export const LZMA_PROPS = Buffer.from([0x5d, 0x00, 0x80, 0x00, 0x00]);
-export const CHUNK_HEADER = 7;
-export const chunkCount = size => Math.max(1, Math.ceil(size / CHUNK_SIZE));
+const CHUNK_HEADER = 7;
+const chunkCount = size => Math.max(1, Math.ceil(size / CHUNK_SIZE));
 
 export function validProps(p) {
   return p.length === 5 && p[0] === 0x5d && p.readUInt32LE(1) >= 0x1000 && p.readUInt32LE(1) <= CHUNK_SIZE;

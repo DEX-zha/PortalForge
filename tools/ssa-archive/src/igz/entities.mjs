@@ -4,7 +4,7 @@
 const FOOT_UNIT = 1.524,
   EPS = 1e-3;
 
-export const isFootMultiple = v => v !== 0 && Math.abs(v / FOOT_UNIT - Math.round(v / FOOT_UNIT)) < EPS;
+const isFootMultiple = v => v !== 0 && Math.abs(v / FOOT_UNIT - Math.round(v / FOOT_UNIT)) < EPS;
 export const isDimensionTriple = t => t.every(v => v === 0 || isFootMultiple(v)) && t.some(v => v !== 0);
 export const isBoxPair = (a, b) =>
   a.every((v, i) => Number.isFinite(v) && Number.isFinite(b[i]) && b[i] >= v) && a.some((v, i) => b[i] > v);

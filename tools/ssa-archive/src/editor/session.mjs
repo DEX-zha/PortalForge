@@ -207,7 +207,7 @@ const fail = (error, reason) => {
 // Position, heading and scale are read at fixed offsets of the record, so the evidence that supports editing them
 // is the layout evidence: if the record cannot say where the project's knowledge of that layout comes from, the
 // editor does not write it.
-export const EDITABLE = { position: 'layout', heading: 'layout', scale: 'layout' };
+const EDITABLE = { position: 'layout', heading: 'layout', scale: 'layout' };
 
 export function canEdit(placement, attribute) {
   if (placement.native_addition && attribute === 'scale')
@@ -258,7 +258,7 @@ const putRaw = (buf, offset, attribute, raw) => {
 };
 
 // The words an attribute occupies, so a save can tell an authorised change from any other.
-export const wordsOf = (offset, attribute) =>
+const wordsOf = (offset, attribute) =>
   attribute === 'position'
     ? [offset + FIELDS.position, offset + FIELDS.position + 4, offset + FIELDS.position + 8]
     : [offset + FIELDS[attribute === 'heading' ? 'heading' : 'scale']];
@@ -408,7 +408,7 @@ export function planReplace(session, intent) {
   }
 }
 
-export function applyReplace(session, intent) {
+function applyReplace(session, intent) {
   const victim = findPlacement(session, intent.target);
   if (!victim) fail('NO_SUCH_PLACEMENT', `no placement at 0x${Number(intent.target).toString(16)} to replace`);
   const source = findPlacement(session, intent.source);

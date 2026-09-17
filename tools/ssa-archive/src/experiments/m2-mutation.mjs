@@ -36,7 +36,7 @@ const TYPES = {
   u8: [1, (b, o, v) => b.writeUInt8(v, o), (b, o) => b.readUInt8(o)],
 };
 
-export async function prepareMutation({ archive, entry, offset, type, value, game, id, log = console.log }) {
+async function prepareMutation({ archive, entry, offset, type, value, game, id, log = console.log }) {
   if (!TYPES[type]) throw new Error(`type must be one of ${Object.keys(TYPES).join(', ')}`);
   const [width, write, read] = TYPES[type];
   let source = samplePath(samplesRoot, archive);

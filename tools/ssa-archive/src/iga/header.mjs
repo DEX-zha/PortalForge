@@ -3,15 +3,15 @@
 export const MAGIC = 0x1a414749; // "IGA\x1A" read as little-endian u32
 export const VERSION = 4;
 export const HEADER_SIZE = 0x30;
-export const HASH_SIZE = 4;
+const HASH_SIZE = 4;
 export const ENTRY_SIZE = 12; // u32 start, u32 size, u32 mode
 export const ALIGN = 0x800;
 export const CHUNK_SIZE = 0x8000;
-export const MODE_NONE = 0xff; // high byte of mode
-export const MODE_LZMA = 0x10; // high byte of mode on v4 (community reader remaps to LZMA)
+const MODE_NONE = 0xff; // high byte of mode
+const MODE_LZMA = 0x10; // high byte of mode on v4 (community reader remaps to LZMA)
 
 // Words 0x10, 0x14, 0x20, 0x24, 0x28, 0x2C have UNKNOWN semantics and are preserved verbatim.
-export const WORD_NAMES = [
+const WORD_NAMES = [
   'magic',
   'version',
   'table_size',

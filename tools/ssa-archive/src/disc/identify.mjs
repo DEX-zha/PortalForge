@@ -4,8 +4,8 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-export const SUPPORTED_GAME_ID = 'SSPP52';
-export const dolphinTool =
+const SUPPORTED_GAME_ID = 'SSPP52';
+const dolphinTool =
   process.env.PORTALFORGE_DOLPHINTOOL ?? 'C:/Users/romai/Desktop/dolphin-2606a-x64/Dolphin-x64/DolphinTool.exe';
 
 export async function runDolphinTool(args, timeout = 600000) {

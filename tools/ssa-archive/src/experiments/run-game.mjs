@@ -13,7 +13,7 @@ export const root = path.resolve(here, '../../../..');
 export const local = path.join(root, '.local');
 export const evidence = path.join(local, 'dolphin-evidence');
 export const experimentsDir = path.join(evidence, 'experiments');
-export const mcpDir = path.join(root, 'tools', 'dolphin-mcp');
+const mcpDir = path.join(root, 'tools', 'dolphin-mcp');
 export const profileLog = path.join(local, 'dolphin-user', 'Logs', 'dolphin.log');
 export const gameFromConfig = () => JSON.parse(fs.readFileSync(path.join(local, 'dolphin-config.json'), 'utf8')).game;
 export const gateStatus = name => {

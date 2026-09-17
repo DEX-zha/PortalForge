@@ -64,7 +64,7 @@ export function stringAt(ctx, value) {
 }
 
 // A word is a candidate section-1 pointer when it lands, 4-aligned, inside the object section.
-export function targetOf(ctx, value) {
+function targetOf(ctx, value) {
   const off = value & 0x7fffffff;
   if (off % 4 !== 0 || off === 0 || off >= ctx.sec.size) return null;
   return ctx.sec.offset + off;
@@ -74,7 +74,7 @@ const worldFloat = v => Number.isFinite(v) && Math.abs(v) < 1e4;
 
 // An asset record: any record whose +0x08 string is an asset path. The class index is NOT constrained here,
 // because it differs per file; `detectClasses` then reports which class the file actually uses.
-export function assetAt(ctx, offset) {
+function assetAt(ctx, offset) {
   if (offset === null || offset + 12 > ctx.buf.length) return null;
   const path = stringAt(ctx, ctx.buf.readUInt32BE(offset + 8));
   if (!path || !(ASSET_PATH.test(path) || ASSET_DIR.test(path))) return null;
@@ -82,7 +82,7 @@ export function assetAt(ctx, offset) {
 }
 
 // Model record: an asset record of the file's dominant model class (set by detectClasses).
-export function modelAt(ctx, offset) {
+function modelAt(ctx, offset) {
   const a = assetAt(ctx, offset);
   if (!a) return null;
   if (ctx.modelType !== null && a.type !== ctx.modelType) return null;
@@ -235,7 +235,7 @@ export function layersOf(ctx, offset, refs) {
 }
 
 // The stable placement record. Every attribute carries where its value comes from.
-export function describePlacement(ctx, offset, resolved, layers = []) {
+function describePlacement(ctx, offset, resolved, layers = []) {
   const buf = ctx.buf;
   const behaviorTarget = targetOf(ctx, buf.readUInt32BE(offset + FIELDS.behavior));
   const behavior =

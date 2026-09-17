@@ -7,7 +7,7 @@ import { pickSubcommand } from '../dispatch.mjs';
 import * as inspect from './igz-inspect.mjs';
 import * as modify from './igz-clone.mjs';
 
-export const IGZ_SUBCOMMANDS = {
+const IGZ_SUBCOMMANDS = {
   sections: inspect.sections,
   types: inspect.types,
   objects: inspect.objects,

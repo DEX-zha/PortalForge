@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { mapping, scaleToView, scaleToGame, headingToGame } from './coords.mjs';
+import { mapping, scaleToView, scaleToGame, headingToView, headingToGame } from './coords.mjs';
 // Sizes, camera placement and palette live in framing.mjs, which holds no three.js and is unit tested, so the
 // headless preview command renders exactly what this scene renders rather than an approximation of it.
 import {
@@ -330,7 +330,7 @@ export function createScene(canvas) {
   function setMatrix(obj, p, visible) {
     const [x, y, z] = mapping.toView(p.position);
     obj.position.set(x, y, z);
-    obj.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
+    obj.rotation.set(0, THREE.MathUtils.degToRad(headingToView(p.rotation.heading)), 0);
     const s = visible ? Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE) : 0; // never so small it disappears
     obj.scale.setScalar(s);
     obj.updateMatrix();
@@ -558,7 +558,7 @@ export function createScene(canvas) {
     }
     const [x, y, z] = mapping.toView(p.position);
     state.outline.position.set(x, y, z);
-    state.outline.rotation.set(0, THREE.MathUtils.degToRad(p.rotation.heading), 0);
+    state.outline.rotation.set(0, THREE.MathUtils.degToRad(headingToView(p.rotation.heading)), 0);
     state.outline.scale.setScalar(Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE));
     const bb = p.model && p.model.offset !== null ? state.meshBounds.get(p.model.offset) : null;
     if (bb) {
@@ -661,7 +661,7 @@ export function createScene(canvas) {
   function applyScriptedPose(mesh, owner) {
     const pose = scriptedPose(mesh.userData.preview, owner);
     mesh.position.set(...mapping.toView(pose.position));
-    mesh.rotation.y = THREE.MathUtils.degToRad(pose.heading);
+    mesh.rotation.y = THREE.MathUtils.degToRad(headingToView(pose.heading));
     mesh.scale.setScalar(scaleToView(pose.scale));
   }
   function setScriptedPreviews(previews, meshes) {

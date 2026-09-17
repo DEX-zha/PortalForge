@@ -76,7 +76,3 @@ export function parseIgzHeader(buf) {
   }
   return { magic, version, words, sections, second_header: second, issues };
 }
-
-export function sectionOf(sections, offset) {
-  return sections.find(s => offset >= s.offset && offset < s.offset + s.size) ?? null;
-}

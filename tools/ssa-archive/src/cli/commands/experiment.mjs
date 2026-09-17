@@ -234,7 +234,7 @@ async function m2Judge(pos, o) {
   return { result: r, exitCode: r.status === 'FAIL' ? EXIT.FAILED : EXIT.OK, text: `${r.status}: ${r.notes}` };
 }
 
-export const EXPERIMENT_KINDS = {
+const EXPERIMENT_KINDS = {
   explore,
   play,
   m1,

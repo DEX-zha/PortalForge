@@ -52,7 +52,7 @@ export async function snapshot(start, end, log = null) {
 
 // Floats (big-endian, 4-aligned) that changed between two snapshots by a bounded amount; runs of
 // three consecutive changed floats are reported as triples (position candidates).
-export function diffFloats(a, b, base, { minDelta = 0.2, maxDelta = 500, maxAbs = 1e5 } = {}) {
+function diffFloats(a, b, base, { minDelta = 0.2, maxDelta = 500, maxAbs = 1e5 } = {}) {
   const changed = [];
   for (let o = 0; o + 4 <= Math.min(a.length, b.length); o += 4) {
     if (a.readUInt32BE(o) === b.readUInt32BE(o)) continue;

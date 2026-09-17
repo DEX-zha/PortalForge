@@ -7,7 +7,7 @@ import { readManifest, validateManifest } from '../workspace/manifest.mjs';
 
 const UNSUPPORTED = new Set(['UNSUPPORTED_VERSION', 'UNSUPPORTED_MODE']);
 
-export function reportFrom(failures) {
+function reportFrom(failures) {
   let status = 'VALID';
   if (failures.length) status = failures.every(f => UNSUPPORTED.has(f.reason)) ? 'UNSUPPORTED' : 'INVALID';
   if (
@@ -24,7 +24,7 @@ export function verifyBuffer(buf) {
   return { ...reportFrom(parsed.issues), parsed };
 }
 
-export function verifyFile(file) {
+function verifyFile(file) {
   const buf = fs.readFileSync(file);
   const r = verifyBuffer(buf);
   return { file: path.resolve(file), size: buf.length, ...r };

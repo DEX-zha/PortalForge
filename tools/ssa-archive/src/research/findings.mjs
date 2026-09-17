@@ -10,8 +10,8 @@ import path from 'node:path';
 import { schemaValidator, root } from '../workspace/manifest.mjs';
 import { CATEGORIES, CONFIDENCE, assertCategory } from './categories.mjs';
 
-export const findingsDir = path.join(root, 'docs', 'findings');
-export const recordsDir = path.join(findingsDir, 'records');
+const findingsDir = path.join(root, 'docs', 'findings');
+const recordsDir = path.join(findingsDir, 'records');
 export const experimentsDir = path.join(root, '.local', 'dolphin-evidence', 'experiments');
 
 const validator = () => schemaValidator('finding-record.schema.json');
@@ -58,14 +58,14 @@ export function save(record, { dir = recordsDir } = {}) {
 // Only CONFIRMED findings flagged editable may ever be offered as editable properties.
 export const editableFindings = opts => list(opts).filter(f => f.confidence === 'CONFIRMED' && f.editable === true);
 
-export function experimentStatus(experimentId, { experiments = experimentsDir } = {}) {
+function experimentStatus(experimentId, { experiments = experimentsDir } = {}) {
   const f = path.join(experiments, `${experimentId}.json`);
   if (!fs.existsSync(f)) return null;
   return JSON.parse(fs.readFileSync(f, 'utf8'));
 }
 
 // Evidence is always kept, even when it does not yet justify a promotion.
-export function addEvidence(id, evidence, opts = {}) {
+function addEvidence(id, evidence, opts = {}) {
   const r = load(id, opts);
   const ev = { ...evidence };
   if (!ev.summary) throw new Error('evidence.summary is required');

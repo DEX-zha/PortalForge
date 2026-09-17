@@ -1,7 +1,7 @@
 // Object enumeration by header pattern (research.md R1): {u32 type < typeCount, u32 1, u32 0x01xxxxxx}
 // at 4-byte alignment inside the object section. Each object is bounded by the next header or the
 // section end; bytes before the first header and any known trailing data are reported as unparsed.
-export function findObjectSection(buf, header, typeCount) {
+function findObjectSection(buf, header, typeCount) {
   let best = null;
   for (const s of header.sections) {
     let hits = 0;
@@ -12,7 +12,7 @@ export function findObjectSection(buf, header, typeCount) {
   return best;
 }
 
-export function isHeader(buf, p, typeCount) {
+function isHeader(buf, p, typeCount) {
   return buf.readUInt32BE(p) < typeCount && buf.readUInt32BE(p + 4) === 1 && buf[p + 8] === 1;
 }
 

@@ -5,7 +5,6 @@
 // uses (src/view/framing.mjs), into a PNG with the project's own encoder. It is not three.js: there is no lighting,
 // no depth buffer beyond painter order, and no orbiting. What it does prove is the part that was actually broken:
 // which objects are in frame, where the camera ends up, and how many pixels across a proxy lands.
-import fs from 'node:fs';
 import { encode } from '../evidence/png.mjs';
 import { mapping, scaleToView } from '../view/coords.mjs';
 import { modelMeshes } from './meshes.mjs';
@@ -223,11 +222,5 @@ export function formatPreview(r) {
     `camera ${r.camera.join(', ')} at ${r.distance} units, looking at ${r.target.join(', ')}`,
     `grid ${r.grid.step} unit squares over ${r.grid.span} units`,
     r.file ? `written ${r.file}` : 'not written',
-  ].join(String.fromCharCode(10));
-}
-
-export function previewToFile(session, opts) {
-  const r = renderPreview(session, opts);
-  if (opts?.out && !fs.existsSync(opts.out)) throw new Error(`preview could not be written to ${opts.out}`);
-  return r;
+  ].join('\n');
 }
