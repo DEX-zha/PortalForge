@@ -146,6 +146,61 @@ the nine stored records, the user's three included, read state 5 with no actor, 
 coordinates; `Automaton_Head` and `Spring`, stored 4, read state 2 with no actor: placed, not yet activated.
 Finding `igz.placement.inactive-flag`, LIKELY on the tutorial's earlier comparison plus this read.
 
+## Does the editor show the level before its opening plays? Measured: no
+
+The user's impression was that the view shows the level as it is before the opening cutscene, with objects the
+scripts then move. The all-placements probe (`instance-probe.mjs --all`, run
+`editor-direct-play-1789654775395-b54788b7`, 2026-09-17 14:21) read every one of Mining's 617 records in MEM1 at the
+first playable frame, after the opening:
+
+| Stored word | Runtime state | Count | Meaning |
+|---|---|---:|---|
+| 4 | 2, no actor | 313 | placed, dormant: the game activates objects by distance |
+| 5 | 5, no actor | 236 | stored templates and inactive records, never instantiated by themselves |
+| 4 | 1, with actor | 60 | active around the player |
+| 4 | 3, no actor | 8 | one-shot initialisers that ran and finished (`_Level Definition`, `LootSystem_Init`, `_FoodInit`, `StoryTablet_17`…) |
+
+Objects whose current position differs from their stored one by more than half a unit: **3** of 617
+(`Push_Block_Template(13)` and `(29)` on their tracks, 13.7 and 4.6 units, and `Legendary_Treasure_GoldenLinks(1)`
+raised 1.8); stored positions rewritten by the game: 0. The positions the editor draws are the positions the game
+uses for the other 614. What makes the view hard to read is therefore not a pre-cutscene state; it is what is
+missing or how it is drawn.
+
+**The script layer is tutorial-bound by class index.** `src/igz/script.mjs` selects scripts with
+`readUInt32BE(e) === 92`, the tutorial's index, and `script-diagnostics.mjs` reads the list and instruction
+records by the tutorial's indices too. On Mining `igz scripts` reports zero scripts, so the clone catalogue, the
+movement diagnostics and the resource navigation are empty on every level but the tutorial, silently. This is
+the same defect the placements had (`igz.types.per-file-indices`) and the reason the objects a level clones at
+its controllers (track switches, cannon parts, breakable-rock halves) appear nowhere in the editor once the
+templates are hidden. The class can be detected structurally on every level from the behaviour pointer at +0xA8
+of any scripted placement, which lands on a script record; the instruction kinds can be told by their opcode
+strings ("clone||at|facing||cloned") rather than by index. Doing so unlocks the clone previews the tutorial has
+for its cannons on every level.
+
+## A more faithful view: what the archive holds for textures, lights and effects
+
+Asked whether textures and VFX in the editor would be a good idea, the inventory of Mining's level entry (the
+same nine sections on every level, `igz.sections.roles`) gives the scale:
+
+| Data | Where | Mining |
+|---|---|---:|
+| Texture pixels | section 4, CMPR blocks (two RGB565 words then four index bytes), 32-aligned | 6.7 MB |
+| Image headers | `igImage2` records in section 1 | 224 |
+| Texture attribute lists on render nodes | `igTextureAttr2List`, `igTextureBindAttr2` | 2 667 and 46 |
+| UV animation | `tfbProceduralUVAnimTrack` and `…Data` | 309 and 194 |
+| Particle definitions | `tfbParticleInfo` | 4 500 |
+| Lights | `tfbLightInfo`, `DirectionalLightInfo`, `igLightAttr` | a handful |
+| Audio | section 8, FSB4 banks | 4.7 MB |
+
+The mesh decoder already parses the texcoord attribute (tag 0x1d, two s16 with fraction 14) in every vertex
+layout but emits positions and triangles only; the view draws every mesh with one grey Lambert material under a
+hemisphere light and a directional key. Textures therefore need four pieces: the `igImage2` header layout (width,
+height, format, section-4 offset: not yet read), a CMPR decoder or a re-tiling to standard DXT1 so the browser's
+S3TC extension can consume it without decompression, the UV emission, and the node → attribute list → image
+binding. Particle effects are 4 500 definitions with no static appearance; a marker at the emitter is all a
+static view can honestly show. Lighting is one directional light per level plus ambient: cheap to read once the
+records are mapped, and it changes the look more than textures do on a grey level.
+
 ## What is not established
 
 The game has never been booted with an edited non-tutorial level. The finding `level.transform.other-levels` is

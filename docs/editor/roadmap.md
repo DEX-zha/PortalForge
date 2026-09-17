@@ -14,6 +14,16 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 | 5 | Patch lands in the chosen level | **CONFIRMED on Mining** (archive redirect: the level's `.bld` and `.arc` served under the tutorial's names through the confirmed tutorial checkpoint; two identical boots on 2026-09-17), LIKELY for the other families | two identical boots per level family | `level.entry.archive-redirect`; a family moves to CONFIRMED in `docs/level-entry-status.json` when two boots land in one of its levels |
 | 6 | Native additions outside the tutorial, and gameplay of added objects (M5) | Research | unknown | the addition recipe is anchored on the tutorial's readiness and activation observers; survival, collection and combat have no proof anywhere |
 
+## Readability of the view (asked on 2026-09-17, measured, not started)
+
+| Item | Finding | Cost | Recommendation |
+|---|---|---|---|
+| "The view shows the level before its opening" | Measured false on Mining: 3 of 617 objects move at start-up, 313 are dormant until approached, the stored positions are the game's | done | show the runtime state per object (active, dormant, template, finished) from one probe boot per level |
+| Missing clones at puzzles | the script layer keys on the tutorial's class indices, so no script is read on other levels | 1 to 2 days | detect the script class structurally per file and generalise the clone-at-controller previews |
+| Textures | section 4 is CMPR, 224 images on Mining, UVs already parsed but not emitted, no image header layout yet | 2 to 3 days, read-only | after the two above; re-tile CMPR to DXT1 for the browser's S3TC path |
+| Lights | one directional light and ambient per level | half a day | with textures |
+| VFX | 4 500 particle definitions on Mining, no static appearance | not worth rendering | an emitter marker |
+
 ## Step 1 — what was delivered on 2026-09-17
 
 - `edit levels` lists the 76 levels of the disc with their state; `edit open <level>` extracts, decodes and serves

@@ -6,7 +6,10 @@
 // +0x54 in the file, scene-roles.mjs) and which are placed: a template must not be constructed at its storage
 // coordinates. One Dolphin boot; the game is stopped as soon as the reads are done.
 //
-//   node research-probes/instance-probe.mjs [--level Level_000_Mining] [--names "A,B,C"] [--anchor MineTrain]
+//   node research-probes/instance-probe.mjs [--level Level_000_Mining] [--names "A,B,C"] [--anchor MineTrain] [--all]
+//
+// --all reads every placement of the level instead of the named ones and reports which objects the game moved
+// between its stored position and the first playable frame (the opening cutscene included).
 //
 // The resident copy of section 1 is located by searching MEM1 for the anchor's stored position triple (floats
 // are not rewritten by the loader, pointers are), then checked on a second placement before anything is read.
@@ -26,6 +29,7 @@ const arg = (name, fallback) => {
 };
 const level = arg('--level', 'Level_000_Mining');
 const anchorName = arg('--anchor', 'MineTrain');
+const all = process.argv.includes('--all');
 const names = arg(
   '--names',
   'MineTrain,Lantern_01,MiningWall_1(3),Rock_Breakable_Half,Rock_Breakable_Quarter,Rock_Breakable_Full,Switch_90_Art_Template,Mine_Train_Template,Rock_Bit_1,OilCan_Icon,Elemental_Gate_Template,Automaton_Head,Spring,01_loot - gem_emerald',
@@ -95,7 +99,64 @@ async function probe() {
     if (base === null) throw new Error('the anchor position was not found in MEM1');
     result.base = '0x' + base.toString(16);
     log(`section base 0x${base.toString(16)} (file section offset 0x${sec.offset.toString(16)})`);
-    for (const name of names) {
+    if (all) {
+      // Every placement of the level: the resident section is read once, contiguously, then each record is
+      // compared with the file. What the game moved at start-up shows as a current position away from the
+      // stored one; what it never instantiated shows as state 5 without an actor.
+      const size = sec.offset + sec.size;
+      const resident = Buffer.alloc(size);
+      const CHUNK = 0x10000;
+      for (let at = 0; at < size; at += CHUNK) {
+        const n = Math.min(CHUNK, size - at);
+        (await readBytes(base + at, n)).copy(resident, at);
+      }
+      log(`resident section read: ${size} bytes`);
+      const rows = [];
+      for (const p of s.placements) {
+        if (p.native_addition || p.offset < 0 || p.offset + 0x100 > size) continue;
+        const head = resident.subarray(p.offset, p.offset + 0x100);
+        const pos = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.position + k));
+        const cur = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.current_position + k));
+        const moved = Math.hypot(cur[0] - pos[0], cur[1] - pos[1], cur[2] - pos[2]);
+        const stored = [0, 4, 8].map(k => s.buffer.readFloatBE(p.offset + 0x24 + k));
+        const written = Math.hypot(pos[0] - stored[0], pos[1] - stored[1], pos[2] - stored[2]);
+        rows.push({
+          name: p.name,
+          offset: p.offset,
+          file_state: fileState(p),
+          ram_state: head.readUInt32BE(INSTANCE.state),
+          actor: head.readUInt32BE(INSTANCE.actor) !== 0,
+          stored_position: pos.map(v => Math.round(v * 1000) / 1000),
+          current_position: cur.map(v => Math.round(v * 1000) / 1000),
+          moved: Math.round(moved * 1000) / 1000,
+          rewritten: Math.round(written * 1000) / 1000,
+          script: p.behavior?.path?.replace(/^.*\//, '') ?? null,
+          layers: p.layers,
+        });
+      }
+      result.all = rows;
+      const states = {};
+      for (const r of rows) {
+        const k = `file${r.file_state}->ram${r.ram_state}${r.actor ? '+actor' : ''}`;
+        states[k] = (states[k] ?? 0) + 1;
+      }
+      result.summary = {
+        placements: rows.length,
+        states,
+        moved_over_0_5: rows.filter(r => r.moved > 0.5).length,
+        moved_over_5: rows.filter(r => r.moved > 5).length,
+        rewritten_over_0_01: rows.filter(r => r.rewritten > 0.01).length,
+      };
+      log(`summary ${JSON.stringify(result.summary)}`);
+      for (const r of rows
+        .filter(r => r.moved > 0.5)
+        .sort((a, b) => b.moved - a.moved)
+        .slice(0, 40))
+        log(
+          `moved ${String(r.moved).padStart(8)}  ${r.name.padEnd(32)} state ${r.file_state}->${r.ram_state}${r.actor ? '+actor' : ''} ${r.stored_position.join(',')} -> ${r.current_position.join(',')} ${r.script ?? ''}`,
+        );
+    }
+    for (const name of all ? [] : names) {
       const p = byName(name);
       if (!p) {
         result.instances.push({ name, missing: true });

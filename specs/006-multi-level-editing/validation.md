@@ -78,6 +78,16 @@ tutorial, LIKELY on the levels not booted with an edit yet (SC-004 done). The di
   `igz.placement.inactive-flag`, LIKELY. The editor server on port 7400 was restarted on the new code: the
   catalogue reports 236 resources, 357 scripted, 23 markers and 1 static object for Mining.
 
+## Positions at the first playable frame — 2026-09-17
+
+- One probe boot on Mining reading all 617 records in MEM1 after the opening (`instance-probe.mjs --all`,
+  report `.local/level-check/instance-probe-1789654899968.json`): 313 dormant, 236 templates, 60 active, 8
+  finished initialisers; 3 objects moved by more than half a unit, none rewritten. The stored positions are the
+  game's positions; the "pre-cutscene view" impression is not supported.
+- Found on the way: the script model and diagnostics use the tutorial's class indices (`=== 92` in
+  `src/igz/script.mjs`), so `igz scripts` sees zero scripts on Mining and the clone catalogue is empty on every
+  other level. Recorded in the roadmap as the next step for the view's readability.
+
 ## Limits
 
 - The game has not been booted on any edited non-tutorial level. The only in-game transform proofs are the
