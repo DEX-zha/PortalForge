@@ -198,7 +198,15 @@ export function bindLevels({ api, note, busy = () => false }) {
     try {
       data = await api('/api/levels');
     } catch (e) {
-      note('level list unavailable: ' + e.message);
+      // A server started before this view existed still serves the page from disk but not the new routes: the
+      // fix is a restart, and the message has to say so rather than leave "Opening…" on screen.
+      const stale = /not served by this editor/.test(e.message);
+      const message = stale
+        ? 'The running editor server predates the Level tab: save your work, stop it (Ctrl+C) and start it again with `node cli.mjs edit open <level>`.'
+        : 'level list unavailable: ' + e.message;
+      note(message);
+      $('level-current').innerHTML = `<div class="empty">${esc(message)}</div>`;
+      $('levels').innerHTML = '';
       return data;
     }
     renderPicker();
