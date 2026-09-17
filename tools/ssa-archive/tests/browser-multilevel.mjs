@@ -116,14 +116,19 @@ try {
   const capabilities = await evaluate(
     `[...document.querySelectorAll('#capabilities .row')].map(r => [r.querySelector('.k').textContent, r.querySelector('.v').textContent])`,
   );
-  // Direct entry on Mining is the archive redirect experiment: offered when its voice pack is on disk.
+  // Direct entry on Mining is the archive redirect: offered when its voice pack is on disk, and its confidence
+  // (like the transform's) is the level's row in docs/level-entry-status.json.
   const direct = session.level.capabilities.direct_entry;
+  const move = session.level.capabilities.transform;
   assert.deepEqual(capabilities, [
-    ['Move / rotate / scale', 'LIKELY'],
+    ['Move / rotate / scale', move.confidence],
     ['Duplicate', 'not available'],
     ['Add', 'not available'],
     ['Automatic test', 'not available'],
-    ['Direct entry', direct.available ? 'UNKNOWN · experimental' : 'not available'],
+    [
+      'Direct entry',
+      direct.available ? direct.confidence + (direct.experimental ? ' · experimental' : '') : 'not available',
+    ],
   ]);
   step('capabilities', { capabilities, redirect: direct.available });
   assert.equal(
@@ -137,13 +142,35 @@ try {
   step('mining-drawn', { diag });
   await shot('01-mining');
 
-  // An edit, then Open: the discard dialog must stand between the two.
+  // The Level tab: one card per level, the current one marked, the search narrowing the cards.
+  await evaluate(`document.getElementById('tab-level').click()`);
+  await waitFor(
+    `document.getElementById('level-pane').hidden === false && document.querySelectorAll('.level-card').length === 76`,
+  );
+  const tab = await evaluate(
+    `(() => ({ current: document.querySelector('.level-card.current .level-name')?.textContent, currentDisabled: document.querySelector('.level-card.current .level-open').disabled, chips: [...document.querySelectorAll('.level-card.current .chip')].map(c => c.textContent), side: document.querySelector('#level-current h3')?.textContent, count: document.getElementById('level-count').textContent, projectHidden: document.getElementById('project-body').hidden }))()`,
+  );
+  assert.equal(tab.current, 'Level_000_Mining');
+  assert.equal(tab.currentDisabled, true, 'the current level cannot be opened again');
+  assert.equal(tab.side, 'Level_000_Mining');
+  assert.equal(tab.chips[0], move.confidence === 'CONFIRMED' ? 'Move' : 'Move · likely');
+  assert.equal(tab.chips[1], 'Duplicate · no map');
+  assert.equal(tab.count, '76 / 76 levels');
+  assert.equal(tab.projectHidden, true);
+  await evaluate(
+    `(() => { const s = document.getElementById('level-search'); s.value = 'challenge_level_00'; s.dispatchEvent(new Event('input')); })()`,
+  );
+  await waitFor(`document.querySelectorAll('.level-card').length === 10`);
+  step('level-tab', tab);
+  await shot('01b-level-tab');
+
+  // An edit, then Open from a card: the discard dialog must stand between the two.
   const first = await evaluate(`Number(document.querySelector('[data-object]').dataset.object)`);
   await evaluate(
     `fetch('/api/edit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'transform', target: ${first}, heading: 33 }) }).then(r => r.json())`,
   );
-  await evaluate(`document.getElementById('level-picker').value = 'level/Challenge_Level_005.bld'`);
-  await evaluate(`document.getElementById('level-open').click()`);
+  const card = `document.querySelector('.level-card[data-level="level/Challenge_Level_005.bld"] .level-open')`;
+  await evaluate(`${card}.click()`);
   await waitFor(`document.getElementById('open-dialog').open === true`);
   const summary = await evaluate(`document.getElementById('open-summary').textContent`);
   assert.match(summary, /1 unsaved edit/);
@@ -153,7 +180,7 @@ try {
   assert.equal(await evaluate(`document.getElementById('open-dialog').open`), false);
   assert.equal(await evaluate(`document.querySelectorAll('[data-object]').length`), 617, 'cancel keeps the level');
 
-  await evaluate(`document.getElementById('level-open').click()`);
+  await evaluate(`${card}.click()`);
   await waitFor(`document.getElementById('open-dialog').open === true`);
   await evaluate(`document.getElementById('open-discard').click()`);
   await waitFor(`document.querySelectorAll('[data-object]').length === 411`);

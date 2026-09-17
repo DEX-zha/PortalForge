@@ -104,8 +104,9 @@
   #level-switch { display: inline-flex; gap: 4px; align-items: center; }
   #level-picker { max-width: 280px; background: #0d1218; color: var(--text); border: 1px solid var(--line);
                   border-radius: 4px; padding: 3px 6px; font: inherit; }
-  #capabilities .v.proven { color: var(--proven); }
-  #capabilities .v.withheld { color: var(--dim); }
+  #capabilities .v.proven, #level-side .v.proven { color: var(--proven); }
+  #capabilities .v.likely, #level-side .v.likely { color: var(--medium); }
+  #capabilities .v.withheld, #level-side .v.withheld { color: var(--dim); }
   #open-dialog { color: var(--text); background: var(--panel); border: 1px solid var(--high); border-radius: 8px; width: 520px; max-width: 90vw; }
   #open-dialog::backdrop { background: #0009; }
 </style>
@@ -192,7 +193,20 @@
 
 <div id="project-splitter" role="separator" tabindex="0" aria-label="Project panel height" aria-orientation="horizontal" aria-valuemin="180" aria-valuemax="600" aria-valuenow="300"></div>
 <section id="project-panel" aria-label="Project">
-  <div class="panel-tabs"><b>Project</b><span>Level objects</span><span class="spacer"></span><label class="thumbnail-size">Thumbnails <input id="thumbnail-size" type="range" min="110" max="220" value="150" aria-label="Thumbnail size"></label></div>
+  <div class="panel-tabs"><button id="tab-project" class="on">Project</button><button id="tab-level">Level</button><span id="bottom-tab-note">Level objects</span><span class="spacer"></span><label class="thumbnail-size">Thumbnails <input id="thumbnail-size" type="range" min="110" max="220" value="150" aria-label="Thumbnail size"></label></div>
+  <div id="level-pane" hidden>
+    <aside id="level-side" aria-label="Current level"><div id="level-current"><div class="empty">Opening…</div></div></aside>
+    <div id="level-browser">
+      <div id="level-tools">
+        <input id="level-search" type="search" placeholder="Search levels…" aria-label="Search levels">
+        <select id="level-family" aria-label="Family"><option value="all">All families</option></select>
+        <span id="level-count" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <span class="ev">Open replaces the scene; unsaved edits are guarded by a dialog. Chips say how far the evidence goes for each level.</span>
+      </div>
+      <div id="levels"></div>
+    </div>
+  </div>
   <div id="project-body"><nav id="folder-tree" aria-label="Object categories"></nav><div id="asset-browser">
     <div id="object-tools">
       <input id="object-search" type="search" placeholder="Search name, model or layer…" aria-label="Search objects">

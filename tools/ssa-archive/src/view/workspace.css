@@ -610,3 +610,130 @@ body.placing-object * {
     display: none;
   }
 }
+
+/* The Level tab (feature 006): the current level on the left, one card per level of the disc on the right. */
+#level-pane {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+#level-side {
+  overflow: auto;
+  padding: 8px 12px;
+  border-right: 1px solid var(--line);
+  background: #27282c;
+  font-size: 12px;
+}
+#level-side h3 {
+  margin: 4px 0 6px;
+  font: 400 15px/1.2 var(--serif);
+}
+#level-side h4 {
+  margin: 12px 0 4px;
+  font: 400 12px/1.2 var(--serif);
+  color: var(--dim);
+}
+#level-side .row {
+  padding: 2px 0;
+}
+#level-side .level-why {
+  padding: 0 0 6px;
+}
+#level-side .level-why i {
+  color: var(--dim);
+}
+#level-browser {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+#level-tools {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+#level-tools input,
+#level-tools select {
+  font: inherit;
+  color: var(--text);
+  background: #202125;
+  border: 1px solid #44464d;
+  border-radius: 3px;
+  padding: 4px 6px;
+  min-width: 0;
+}
+#level-tools .ev {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+  align-content: start;
+  padding: 8px 10px 12px;
+}
+.level-card {
+  display: grid;
+  gap: 5px;
+  padding: 8px;
+  background: #2d2f34;
+  border: 1px solid #3d3f46;
+  font-size: 11px;
+}
+.level-card.current {
+  border-color: var(--pick);
+}
+.level-card .level-name {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.level-card .level-family {
+  color: var(--dim);
+}
+.level-card .actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.level-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #3a3d44;
+  color: var(--dim);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.chip.proven {
+  background: #2f4a3a;
+  color: var(--proven);
+}
+.chip.likely {
+  background: #4a3f24;
+  color: var(--medium);
+}
+.chip.experimental {
+  background: #3d3550;
+  color: #c7b7ea;
+}
+@media (max-width: 1280px) {
+  #level-pane {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+}

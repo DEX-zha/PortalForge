@@ -11,6 +11,7 @@ import { gradeOf, levelExtent } from './framing.mjs'; // one definition of what 
 import { decodeMeshPayload } from './mesh-data.mjs';
 import { bindCatalog } from './catalog.mjs';
 import { bindWorkspace } from './workspace.mjs';
+import { bindLevels } from './levels.mjs';
 
 const $ = id => document.getElementById(id);
 const SKIP_INTRO_KEY = 'portalforge.skipOpeningCinematic';
@@ -94,13 +95,15 @@ async function main() {
         'Direct entry skips the menus after one preparation run. A changed disc layout requires preparation again. Your current patch is loaded each time.';
     } else if (redirect) {
       // Feature 006: the level is served under the tutorial's file names, so the tutorial checkpoint loads it.
+      const confidence = entry.redirect.confidence ?? 'UNKNOWN';
+      const suffix = confidence === 'CONFIRMED' ? '' : confidence === 'LIKELY' ? ' (likely)' : ' (experimental)';
       for (const option of directOptions)
         option.textContent =
-          option.value === 'direct-play'
-            ? 'Direct level play via the tutorial slot (experimental)'
-            : 'Direct level test via the tutorial slot (experimental)';
+          (option.value === 'direct-play'
+            ? 'Direct level play via the tutorial slot'
+            : 'Direct level test via the tutorial slot') + suffix;
       $('launch-mode').value = 'direct-play';
-      $('entry-note').textContent = 'Experimental: ' + entry.redirect.why + '.';
+      $('entry-note').textContent = confidence + ': ' + entry.redirect.why + '.';
     } else if (entry.redirect) {
       $('entry-note').textContent = 'Direct entry unavailable: ' + entry.redirect.why + '.';
     }
@@ -128,7 +131,9 @@ async function main() {
   }
 
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
-  await bindLevelPicker();
+  // The Level tab and the header picker (feature 006): every level of the disc, and what this one can do.
+  state.levels = bindLevels({ api, note, busy: () => state.busy || state.running || state.locked });
+  await state.levels.reload();
   // Objects the level parks far away (boss cameras, template spawners) are drawn but left out of the framing.
   const parked = levelExtent(state.placements.map(p => p.position)).parked;
   const parkedNames = parked
@@ -632,8 +637,7 @@ function refreshSaveState() {
   $('undo').disabled = busy || !state.undoDepth;
   $('redo').disabled = busy || !state.redoDepth;
   $('reset-scene').disabled = !!busy;
-  $('level-picker').disabled = !!busy;
-  $('level-open').disabled = !!busy;
+  state.levels?.lock(!!busy);
   $('save-state').textContent = state.dirty
     ? 'unsaved changes'
     : state.running
@@ -765,99 +769,6 @@ async function pollLaunch() {
     refreshSaveState();
   };
   tick();
-}
-
-// ---------------------------------------------------------------------------------------------------------
-// Levels (feature 006). The picker lists every level of the disc this machine holds; Open replaces the session
-// on the server and reloads the page, so nothing on this side is torn down by hand. The capability rows say
-// what this level can do and on which evidence, which is why a withheld action is a reason and not a grey button.
-
-const esc = s =>
-  String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/"/g, '&quot;');
-const FAMILY_LABELS = { story: 'Story', hub: 'Hub', challenge: 'Challenge', pvp: 'PvP', other: 'Other' };
-const CAPABILITY_LABELS = {
-  transform: 'Move / rotate / scale',
-  duplicate: 'Duplicate',
-  add: 'Add',
-  test: 'Automatic test',
-  direct_entry: 'Direct entry',
-};
-
-async function bindLevelPicker() {
-  let levels;
-  try {
-    levels = await api('/api/levels');
-  } catch (e) {
-    return note('level list unavailable: ' + e.message);
-  }
-  renderCapabilities(levels.current);
-  if (!levels.switching || !levels.levels.length) return;
-  const picker = $('level-picker');
-  for (const [family, label] of Object.entries(FAMILY_LABELS)) {
-    const members = levels.levels.filter(l => l.family === family);
-    if (!members.length) continue;
-    const group = document.createElement('optgroup');
-    group.label = label;
-    for (const l of members) {
-      const option = document.createElement('option');
-      option.value = l.archive;
-      option.textContent =
-        l.name +
-        (l.placements != null ? ` · ${l.placements}` : '') +
-        (l.runtime_map ? ' · map' : '') +
-        (l.ready ? '' : ' · decode on open');
-      option.selected = !!l.current;
-      group.appendChild(option);
-    }
-    picker.appendChild(group);
-  }
-  $('level-switch').hidden = false;
-  $('level-open').addEventListener('click', () => openLevel(false));
-  $('open-cancel').addEventListener('click', () => $('open-dialog').close());
-  $('open-discard').addEventListener('click', () => {
-    $('open-dialog').close();
-    openLevel(true);
-  });
-}
-
-async function openLevel(discard) {
-  const archive = $('level-picker').value;
-  if (!archive || state.busy || state.running || state.locked) return;
-  try {
-    note('Opening ' + archive + '…');
-    const r = await fetch('/api/open', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ archive, discard }),
-    });
-    const body = await r.json().catch(() => ({}));
-    if (r.status === 409 && body.error === 'UNSAVED_CHANGES') {
-      $('open-summary').textContent = body.reason;
-      return $('open-dialog').showModal();
-    }
-    if (!r.ok) throw new Error(body.reason ?? body.error ?? r.statusText);
-    location.reload();
-  } catch (e) {
-    note('refused: ' + e.message);
-  }
-}
-
-function renderCapabilities(current) {
-  const c = current?.capabilities;
-  if (!c) return;
-  const rows = Object.entries(CAPABILITY_LABELS).map(([key, label]) => {
-    const v = c[key];
-    if (!v) return '';
-    const title = esc(v.why) + (v.finding ? ` (${esc(v.finding)})` : '');
-    const state = v.available ? esc(v.confidence) + (v.experimental ? ' · experimental' : '') : 'not available';
-    return `<div class="row"><span class="k">${label}</span><span class="v ${v.available && !v.experimental ? 'proven' : 'withheld'}" title="${title}">${state}</span></div>`;
-  });
-  const caveat = Object.values(c).find(v => v.available && v.confidence !== 'CONFIRMED');
-  $('capabilities').innerHTML =
-    rows.join('') + (caveat ? `<div class="ev" style="padding:4px 12px 8px">${esc(caveat.why)}</div>` : '');
 }
 
 main();
