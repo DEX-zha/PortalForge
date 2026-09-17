@@ -58,7 +58,7 @@ export async function installNativePatch(
       throw Error(
         'The research profile already contains Gecko codes; keep them in a separate profile before using native additions.',
       );
-    let config = previous[0]?.toString('utf8') ?? '';
+    const config = previous[0]?.toString('utf8') ?? '';
     const lines = config.split(/\r?\n/);
     let start = lines.findIndex(l => l.trim() === '[Core]');
     if (start < 0) {

@@ -50,7 +50,7 @@ export function buildIgz({
     }
     return b;
   });
-  let s1 = Buffer.concat([Buffer.alloc(leadIn), ...objBufs, Buffer.alloc(inlineTail)]);
+  const s1 = Buffer.concat([Buffer.alloc(leadIn), ...objBufs, Buffer.alloc(inlineTail)]);
   // patch object refs now that offsets are known (leadIn + cumulative)
   let cursor = leadIn;
   const objOffsets = objects.map((o, i) => {

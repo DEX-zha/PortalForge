@@ -10,7 +10,6 @@ import {
   bulkBox,
   viewAxes,
   fitDistance,
-  fitBox,
   gridOf,
   projector,
   gradeOf,

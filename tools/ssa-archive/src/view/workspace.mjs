@@ -20,7 +20,9 @@ export function bindWorkspace() {
   const write = (key, value) => {
     try {
       localStorage.setItem(key, String(value));
-    } catch {}
+    } catch {
+      // Storage can be blocked or full; the layout still works, it just is not remembered.
+    }
   };
   function height(value) {
     const max = Math.max(180, innerHeight - 300);

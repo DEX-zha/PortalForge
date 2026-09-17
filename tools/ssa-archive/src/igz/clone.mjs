@@ -62,7 +62,7 @@ export function planClone(buf, { objectOffset, findingId, edits = [], appendToLi
   const inserted = Buffer.alloc(padded);
   cloneBytes.copy(inserted);
   // Assemble: [0, insertAt) + clone + [insertAt, end)
-  let out = Buffer.concat([buf.subarray(0, insertAt), inserted, buf.subarray(insertAt)]);
+  const out = Buffer.concat([buf.subarray(0, insertAt), inserted, buf.subarray(insertAt)]);
   const updates = [];
   // Section table: grow the object section, shift later sections.
   for (const s of graph.sections) {

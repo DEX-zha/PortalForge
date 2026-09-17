@@ -24,7 +24,6 @@ for (const file of [
   }
   const nonSound = names.filter(n => !/\.wav\.enc$/i.test(n)).slice(0, 12);
   const tablesEnd = local + 12 * count;
-  const chunkArea = b.subarray(tablesEnd, u32(8) + 0x30 > tablesEnd ? Math.min(tablesEnd + 96, b.length) : tablesEnd);
   console.log(
     JSON.stringify({
       file,

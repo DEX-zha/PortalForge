@@ -126,7 +126,7 @@ export function fixupMap(fileBuf, liveBuf, graph, { base = 0x80dbc020 } = {}) {
   const pointerWords = []; // file offsets of words that are section-relative pointers (for relocation)
   const idWords = []; // file offsets of 0x01xxxxxx ids (remapped by id_shift at load)
   let adjusted = 0; // pointer words whose live value is not the plain rebase (moved cursors, heap copies)
-  let unvisited = [];
+  const unvisited = [];
   for (const o of graph.objects) {
     const rel = o.offset - sec.offset;
     const f0 = fileBuf.readUInt32BE(o.offset),

@@ -134,14 +134,10 @@ export function probeBitmap(truth, name, buf) {
     for (const start of starts) {
       if (start + need > buf.length) continue;
       const arr = [];
-      let ones = 0;
       for (let i = 0; i < truth.nWords; i++) {
         const byte = buf[start + (i >> 3)];
         const bit = msb ? (byte >> (7 - (i & 7))) & 1 : (byte >> (i & 7)) & 1;
-        if (bit) {
-          arr.push(i);
-          ones++;
-        }
+        if (bit) arr.push(i);
       }
       const s = score(truth, arr);
       if (s.recall > 0.5 || (s.precision > 0.8 && s.produced > 1000))
@@ -155,7 +151,7 @@ export function probeBitmap(truth, name, buf) {
 // instance)? If so, the relocation is computed from type field descriptors + array counts, not stored
 // as a flat table — so cloning an existing type needs no new relocation data, only correct processing.
 export function structuralModel(buf, fixups) {
-  const { graph: g, sec, wordSet } = relocationTruth(buf, fixups);
+  const { graph: g } = relocationTruth(buf, fixups);
   const offs = g.objects.map(o => o.offset);
   const ownerIdx = p => {
     let lo = 0,
@@ -229,7 +225,7 @@ export function structuralModel(buf, fixups) {
 // rebases by type, this template + array counts reproduce the truth. Reports the per-type consistency and
 // how much of the truth the templates alone explain.
 export function typeTemplates(buf, fixups) {
-  const { graph: g, sec, wordSet } = relocationTruth(buf, fixups);
+  const { graph: g } = relocationTruth(buf, fixups);
   const offs = g.objects.map(o => o.offset);
   const ownerIdx = p => {
     let lo = 0,

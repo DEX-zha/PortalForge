@@ -28,11 +28,11 @@ for (const f of tracked) {
     images++;
     if (!f.startsWith(IMAGE_DIR)) problems.push(`${f}: images belong in ${IMAGE_DIR}`);
   }
-  let size = 0;
+  let size;
   try {
     size = fs.statSync(f).size;
   } catch {
-    continue;
+    continue; // listed by git but absent from the checkout, such as a deleted file not yet staged
   }
   if (size > MAX_BYTES) {
     problems.push(`${f}: ${(size / 1048576).toFixed(1)} MB, over the ${MAX_BYTES / 1048576} MB limit`);

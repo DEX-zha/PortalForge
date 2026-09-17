@@ -81,7 +81,9 @@ try {
 } finally {
   try {
     console.log(JSON.stringify(await call('dolphin_stop')));
-  } catch {}
+  } catch {
+    // Best effort: the instance may already be gone, and the report below records what happened.
+  }
   await c.close();
   fs.mkdirSync(evidence, { recursive: true });
   fs.writeFileSync(

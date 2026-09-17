@@ -233,7 +233,7 @@ export async function runM2({
     record.failing_stage = crashed ? 'observation' : null;
     record.notes = crashed
       ? 'a run crashed or lost the bridge'
-      : `awaiting human judgement: run "ssa-archive experiment m2-judge --id ${id} --run <n> --observed \"...\" --match yes|no" for each of ${repeat} run(s)`;
+      : `awaiting human judgement: run "ssa-archive experiment m2-judge --id ${id} --run <n> --observed "..." --match yes|no" for each of ${repeat} run(s)`;
     return record;
   } catch (e) {
     record.status = 'FAIL';

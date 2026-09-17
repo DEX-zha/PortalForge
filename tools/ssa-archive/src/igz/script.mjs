@@ -7,7 +7,6 @@
 //                                   variables/other instructions).
 // The section-0 type names are class names of the script VM, not the meaning of the record (a "tfbSpriteInfo"
 // here is a "set value" instruction), so listings show the opcode text, never the type name alone.
-import { buildGraph } from './graph.mjs';
 
 export function scriptTable(buf, graph) {
   const sec = graph.sections[graph.object_section];

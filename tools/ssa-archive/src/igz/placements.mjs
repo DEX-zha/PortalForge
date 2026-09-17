@@ -63,7 +63,7 @@ export function listPlacements(buf, graph, fixups, { layer = null, near = null, 
       ...new Set(
         (rev.get(e) ?? [])
           .map(w => tableOwner(w))
-          .filter(t => t !== null && t !== e && !(w => false)())
+          .filter(t => t !== null && t !== e)
           .map(t => ({ offset: t, type: buf.readUInt32BE(t), name: stringAt(buf, graph, buf.readUInt32BE(t + 8)) }))
           .filter(l => l.type === 52 || l.type === 99 || l.type === 107)
           .map(l => l.name),

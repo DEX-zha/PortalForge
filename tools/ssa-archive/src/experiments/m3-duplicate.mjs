@@ -15,7 +15,7 @@ import {
   evidence as evidenceDir,
 } from './run-game.mjs';
 import { extractFile, samplePath } from '../disc/extract.mjs';
-import { extractToWorkspace, readManifest, schemaValidator } from '../workspace/manifest.mjs';
+import { extractToWorkspace, schemaValidator } from '../workspace/manifest.mjs';
 import { verifyBuffer } from '../iga/verify.mjs';
 import { rebuildFromWorkspace } from '../iga/writer.mjs';
 import { diffArchives } from '../iga/diff.mjs';

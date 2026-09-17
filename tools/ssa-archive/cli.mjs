@@ -70,7 +70,6 @@ const options = {
   'skip-control': { type: 'boolean', default: false },
   category: { type: 'string' },
   to: { type: 'string' },
-  probe: { type: 'string' },
   summary: { type: 'string' },
   limit: { type: 'string' },
   watch: { type: 'string', multiple: true },
@@ -118,7 +117,6 @@ const options = {
   over: { type: 'string' },
   'allow-scripted': { type: 'boolean' },
   threshold: { type: 'string' },
-  min: { type: 'string' },
   zoom: { type: 'string' },
   box: { type: 'string' },
   region: { type: 'string' },
@@ -158,7 +156,9 @@ const commands = {
     let file_count = null;
     try {
       file_count = (await listDisc(info.path)).length;
-    } catch {}
+    } catch {
+      // The identity is still worth reporting when the file table cannot be listed.
+    }
     return {
       result: { ...info, file_count },
       exitCode: info.supported ? 0 : 2,

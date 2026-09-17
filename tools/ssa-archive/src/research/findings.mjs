@@ -32,7 +32,7 @@ export function validate(record) {
   return { valid: errors.length === 0, errors };
 }
 
-const readJson = f => JSON.parse(fs.readFileSync(f, 'utf8').replace(/^﻿/, '')); // tolerate a UTF-8 BOM
+const readJson = f => JSON.parse(fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '')); // tolerate a UTF-8 BOM
 export function list({ dir = recordsDir } = {}) {
   if (!fs.existsSync(dir)) return [];
   return fs

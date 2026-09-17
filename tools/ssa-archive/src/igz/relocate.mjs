@@ -288,7 +288,6 @@ export function planReachableClone(
       );
       out = step.buffer;
       updates = updates.concat(step.updates);
-      pointerWordsNow = step.pointerWords;
       cloneOffset += shift - 4;
       updates.push({ location: blockEnd, field: 'padding after the header block', old: null, new: shift - 4 });
     }
@@ -725,7 +724,7 @@ export function planLinkClone(
   let step = insertBytes(buf, graph, words, insertAt, copy);
   let out = step.buffer;
   let updates = [...step.updates];
-  let pointerWordsNow = step.pointerWords;
+  const pointerWordsNow = step.pointerWords;
   const cloneOffset = insertAt;
   const pad = (align - (copy.length % align)) % align;
   if (pad) {
@@ -740,7 +739,6 @@ export function planLinkClone(
     );
     out = step.buffer;
     updates = updates.concat(step.updates);
-    pointerWordsNow = step.pointerWords;
   }
   const pLink = P.offset + linkField;
   const oldLink = out.readUInt32BE(pLink);

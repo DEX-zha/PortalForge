@@ -83,7 +83,7 @@ test('session: opening refuses a file with no detectable placement class', () =>
 test('session: opening refuses when a resolved record does not match the frozen contract', () => {
   const file = levelFile();
   // inject a resolver that returns a record missing a required field; the session must not present it
-  const resolve = (buf, graph) => ({
+  const resolve = () => ({
     file_has_placements: true,
     placements: 1,
     counts: { direct: 1 },

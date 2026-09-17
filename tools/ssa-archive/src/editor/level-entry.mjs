@@ -96,7 +96,9 @@ export async function entryBinding(patch, figure) {
   let cache;
   try {
     cache = JSON.parse(fs.readFileSync(cacheFile));
-  } catch {}
+  } catch {
+    // No cache yet, or an unreadable one: the hash is recomputed below.
+  }
   const identity = [path.resolve(game), stamp.size, stamp.mtimeMs, stamp.ctimeMs];
   if (JSON.stringify(cache?.identity) !== JSON.stringify(identity)) {
     cache = { identity, hash: await fileHash(game) };
@@ -155,10 +157,13 @@ export async function ensureLevelEntry({ game, patch, archive, figure, onProgres
     manifest = JSON.parse(fs.readFileSync(manifestFile));
     if (validateEntryManifest(manifest, { archive, binding, stateHash: await fileHash(file) }))
       return { ...manifest, file };
-  } catch {}
+  } catch {
+    // A missing or invalid manifest means the checkpoint has to be prepared again.
+  }
   fs.mkdirSync(folder, { recursive: true });
   const previous = fs.existsSync(slotFile) ? fs.readFileSync(slotFile) : null;
   let stop;
+  let stillRunning;
   const settingsFile = path.join(profile, 'GameSettings/SSPP52.ini');
   if (fs.existsSync(settingsFile) && /^\s*\[Gecko/m.test(fs.readFileSync(settingsFile, 'utf8')))
     throw Error('Prepare direct entry without existing Gecko codes in the research profile.');
@@ -201,11 +206,14 @@ export async function ensureLevelEntry({ game, patch, archive, figure, onProgres
     };
   } finally {
     stop = await game.stop();
-    if ((stop && !stop.stopped) || (manifest && !stop?.stopped))
-      throw Error('Entry preparation did not stop Dolphin; checkpoint is not published.');
-    if (previous) fs.writeFileSync(slotFile, previous);
-    else if (fs.existsSync(slotFile)) fs.unlinkSync(slotFile);
+    // The slot file is only restored once Dolphin is known to be gone: a live instance may still write to it.
+    stillRunning = (stop && !stop.stopped) || (manifest && !stop?.stopped);
+    if (!stillRunning) {
+      if (previous) fs.writeFileSync(slotFile, previous);
+      else if (fs.existsSync(slotFile)) fs.unlinkSync(slotFile);
+    }
   }
+  if (stillRunning) throw new Error('Entry preparation did not stop Dolphin; checkpoint is not published.');
   fs.writeFileSync(manifestFile, JSON.stringify({ ...manifest, stop }, null, 2));
   return { ...manifest, file };
 }

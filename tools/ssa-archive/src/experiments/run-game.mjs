@@ -77,11 +77,11 @@ export class GameSession {
   }
   // Normalised size token ("52733 kB"): Dolphin prints thin-space thousands separators.
   static monitorSize(line) {
-    const m = /\]:\s+([\d\s ]+)kB\s/.exec(line);
-    return m ? m[1].replace(/[\s ]+/g, '') + ' kB' : null;
+    const m = /\]:\s+([\d\s]+)kB\s/.exec(line);
+    return m ? m[1].replace(/\s+/g, '') + ' kB' : null;
   }
   static normSize(s) {
-    return String(s ?? '').replace(/[\s ]+/g, '');
+    return String(s ?? '').replace(/\s+/g, '');
   }
 
   // Boot a WBFS or a game-mod descriptor; wait for the bridge and the SSPP52 identity.
@@ -123,7 +123,9 @@ export class GameSession {
   async close() {
     try {
       await this.client?.close();
-    } catch {}
+    } catch {
+      // The transport may already be closed; there is nothing left to release.
+    }
   }
 
   // Wall-clock wait while emulation keeps running (frame_advance bounded to 15 s upstream).
@@ -142,7 +144,9 @@ export class GameSession {
         stalls = 0;
       } catch (e) {
         if (!GameSession.isTimeout(e)) throw e;
-        if (++stalls >= stallLimit) throw new Error(`emulation silent for ${stalls} consecutive waits: ${e.message}`);
+        if (++stalls >= stallLimit) {
+          throw new Error(`emulation silent for ${stalls} consecutive waits: ${e.message}`, { cause: e });
+        }
         await sleep(3000);
       }
     }

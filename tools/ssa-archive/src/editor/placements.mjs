@@ -264,7 +264,7 @@ export function replacePlacement(
     resolve = null,
     refcount,
     base,
-    copied = { source: 0, victim: 0 };
+    copied;
   if (S.wrapper && V.wrapper && S.wrapper.size === V.wrapper.size) {
     recipe = 'wrapper-proven';
     src = S.wrapper.offset;

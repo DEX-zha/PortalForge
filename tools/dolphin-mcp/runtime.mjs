@@ -193,7 +193,9 @@ export async function stop() {
       ['-NoProfile', '-File', path.join(here, 'close-window.ps1'), '-DolphinProcessId', String(p.pid)],
       { windowsHide: true, timeout: 5000 },
     );
-  } catch {}
+  } catch {
+    // The polite close is best effort; the loop below waits, then the process is killed if it is still alive.
+  }
   for (let i = 0; i < 30 && p.exitCode === null && p.signalCode === null; i++) await delay(100);
   let forced = false;
   if (p.exitCode === null && p.signalCode === null) {

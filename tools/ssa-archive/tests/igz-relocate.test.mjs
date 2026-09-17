@@ -398,7 +398,7 @@ test('planReplaceRecord copies a same-size record over a victim inside a script:
     ],
     headTable: [2],
   });
-  const [S, V, , Sh, Cs, Cv] = built.objectOffsets;
+  const [S, V, , Sh, , Cv] = built.objectOffsets;
   const fixups = {
     section_offset: built.sections.s1,
     pointer_words: [S + 0x14, S + 0x24, V + 0x14, V + 0x24],

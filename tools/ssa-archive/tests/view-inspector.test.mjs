@@ -52,7 +52,7 @@ test(
   'inspector: an absent direct model does not rule out a scripted spawner',
   { skip: !haveSamples && 'local samples absent' },
   () => {
-    const { res, at } = tutorial();
+    const { res } = tutorial();
     const marker = res.rows.find(r => r.model.status === 'absent' && /CS_PortalEntry01/.test(r.name ?? ''));
     const html = renderPlacement(marker, assessPlacement(marker, { hasRuntimeMap: true }), []);
     assert.match(html, /CS_PortalEntry01/);

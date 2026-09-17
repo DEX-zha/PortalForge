@@ -50,7 +50,6 @@ for (const e of p.entries) {
     if (r.error) notes.push('single chunk at entry start: ' + r.error);
     else {
       parts.push(r.data);
-      remaining -= r.data.length;
       notes.push(`single chunk csize=${r.csize} props=${r.props} used=${r.used} (stored ${e.stored_size})`);
     }
   } else {

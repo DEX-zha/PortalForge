@@ -4,7 +4,7 @@ const u32 = o => b.readUInt32BE(o),
   f32 = o => b.readFloatBE(o);
 const S2 = 0x4579c0,
   S2END = S2 + 0x337fc;
-const { objects, names } = JSON.parse(fs.readFileSync('../../.local/workspaces/tutorial-bld/igz-objects.json', 'utf8'));
+const { objects } = JSON.parse(fs.readFileSync('../../.local/workspaces/tutorial-bld/igz-objects.json', 'utf8'));
 const isStr = p => p > S2 && p < S2END && b[p - 1] === 0 && b[p] >= 0x21 && b[p] <= 0x7e;
 const str = p => {
   const e = b.indexOf(0, p);

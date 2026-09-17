@@ -348,7 +348,9 @@ async function call(req) {
         path.join(evidence, 'calls.jsonl'),
         JSON.stringify({ at: new Date().toISOString(), tool: name, args: a, isError: true, error: e.message }) + '\n',
       );
-    } catch {}
+    } catch {
+      // The call log is evidence, not control flow: a failed append must not hide the tool error itself.
+    }
     return { isError: true, content: [{ type: 'text', text: e.message }] };
   }
 }

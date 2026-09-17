@@ -6,9 +6,9 @@ const rows = fs
   .readFileSync('../../.local/disc/level-headers.jsonl', 'utf8')
   .trim()
   .split(/\r?\n/)
-  .map(l => JSON.parse(l.replace(/^﻿/, '')));
-let ok = 0,
-  bad = [];
+  .map(l => JSON.parse(l.replace(/^\uFEFF/, '')));
+let ok = 0;
+const bad = [];
 for (const r of rows) {
   const expect = Math.floor(0xffffffff / r.count);
   if (r.words[4] >>> 0 === expect) ok++;
@@ -32,8 +32,7 @@ for (const rel of [
     w14 = p.header.word_14;
   let maxFwd = 0,
     maxBack = 0,
-    maxAbs = 0,
-    collisions = 0;
+    maxAbs = 0;
   const est = p.hashes.map(h => Math.min(n - 1, Math.floor((h >>> 0) / w10)));
   p.hashes.forEach((h, i) => {
     const d = i - est[i];
