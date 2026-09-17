@@ -791,7 +791,13 @@ async function loadSnapshot() {
   try {
     b = await api('/api/snapshot');
   } catch (e) {
-    return note('snapshot unavailable: ' + e.message);
+    // A server started before this feature serves the page from disk but not the route: say so.
+    const stale = /not served by this editor/.test(e.message);
+    const message = stale
+      ? 'The running editor server predates the game-time view: save your work, stop it (Ctrl+C) and start it again with `node cli.mjs edit open <level>`.'
+      : 'snapshot unavailable: ' + e.message;
+    $('snapshot-info').textContent = message;
+    return note(message);
   }
   state.snapshot = b.snapshot;
   state.capturable = !!b.capturable;
