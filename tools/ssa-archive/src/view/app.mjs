@@ -7,7 +7,7 @@ import { orderHits, pickNext, shouldPick, commitTarget } from './select.mjs';
 import { isBound } from './navigate.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
-import { gradeOf } from './framing.mjs'; // one definition of what each colour means, shared with edit preview
+import { gradeOf, levelExtent } from './framing.mjs'; // one definition of what each colour means, shared with edit preview
 import { decodeMeshPayload } from './mesh-data.mjs';
 import { bindCatalog } from './catalog.mjs';
 import { bindWorkspace } from './workspace.mjs';
@@ -118,6 +118,13 @@ async function main() {
   }
 
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
+  await bindLevelPicker();
+  // Objects the level parks far away (boss cameras, template spawners) are drawn but left out of the framing.
+  const parked = levelExtent(state.placements.map(p => p.position)).parked;
+  const parkedNames = parked
+    .slice(0, 6)
+    .map(i => state.placements[i].name)
+    .join(', ');
   // A tally rather than a run-on meta line: these are four different measurements, not one sentence.
   $('tally').innerHTML =
     [
@@ -126,8 +133,12 @@ async function main() {
       [meshStats ? meshStats.with_mesh : 0, 'meshed models'],
       [session.counts.absent, 'markers'],
       [session.layer_count, 'layers'],
+      ...(parked.length ? [[parked.length, 'parked far away', parkedNames]] : []),
     ]
-      .map(([n, label]) => `<span><b>${n}</b> ${label}</span>`)
+      .map(
+        ([n, label, title]) =>
+          `<span${title ? ` title="${title.replace(/"/g, '&quot;')}"` : ''}><b>${n}</b> ${label}</span>`,
+      )
       .join('') +
     `<span title="detected from the record layout, not assumed">class ${session.detection.placement_type}</span>`;
   $('evidence-note').textContent = session.has_runtime_map
@@ -611,6 +622,8 @@ function refreshSaveState() {
   $('undo').disabled = busy || !state.undoDepth;
   $('redo').disabled = busy || !state.redoDepth;
   $('reset-scene').disabled = !!busy;
+  $('level-picker').disabled = !!busy;
+  $('level-open').disabled = !!busy;
   $('save-state').textContent = state.dirty
     ? 'unsaved changes'
     : state.running
@@ -742,6 +755,98 @@ async function pollLaunch() {
     refreshSaveState();
   };
   tick();
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Levels (feature 006). The picker lists every level of the disc this machine holds; Open replaces the session
+// on the server and reloads the page, so nothing on this side is torn down by hand. The capability rows say
+// what this level can do and on which evidence, which is why a withheld action is a reason and not a grey button.
+
+const esc = s =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
+const FAMILY_LABELS = { story: 'Story', hub: 'Hub', challenge: 'Challenge', pvp: 'PvP', other: 'Other' };
+const CAPABILITY_LABELS = {
+  transform: 'Move / rotate / scale',
+  duplicate: 'Duplicate',
+  add: 'Add',
+  test: 'Automatic test',
+  direct_entry: 'Direct entry',
+};
+
+async function bindLevelPicker() {
+  let levels;
+  try {
+    levels = await api('/api/levels');
+  } catch (e) {
+    return note('level list unavailable: ' + e.message);
+  }
+  renderCapabilities(levels.current);
+  if (!levels.switching || !levels.levels.length) return;
+  const picker = $('level-picker');
+  for (const [family, label] of Object.entries(FAMILY_LABELS)) {
+    const members = levels.levels.filter(l => l.family === family);
+    if (!members.length) continue;
+    const group = document.createElement('optgroup');
+    group.label = label;
+    for (const l of members) {
+      const option = document.createElement('option');
+      option.value = l.archive;
+      option.textContent =
+        l.name +
+        (l.placements != null ? ` · ${l.placements}` : '') +
+        (l.runtime_map ? ' · map' : '') +
+        (l.ready ? '' : ' · decode on open');
+      option.selected = !!l.current;
+      group.appendChild(option);
+    }
+    picker.appendChild(group);
+  }
+  $('level-switch').hidden = false;
+  $('level-open').addEventListener('click', () => openLevel(false));
+  $('open-cancel').addEventListener('click', () => $('open-dialog').close());
+  $('open-discard').addEventListener('click', () => {
+    $('open-dialog').close();
+    openLevel(true);
+  });
+}
+
+async function openLevel(discard) {
+  const archive = $('level-picker').value;
+  if (!archive || state.busy || state.running || state.locked) return;
+  try {
+    note('Opening ' + archive + '…');
+    const r = await fetch('/api/open', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ archive, discard }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (r.status === 409 && body.error === 'UNSAVED_CHANGES') {
+      $('open-summary').textContent = body.reason;
+      return $('open-dialog').showModal();
+    }
+    if (!r.ok) throw new Error(body.reason ?? body.error ?? r.statusText);
+    location.reload();
+  } catch (e) {
+    note('refused: ' + e.message);
+  }
+}
+
+function renderCapabilities(current) {
+  const c = current?.capabilities;
+  if (!c) return;
+  const rows = Object.entries(CAPABILITY_LABELS).map(([key, label]) => {
+    const v = c[key];
+    if (!v) return '';
+    const title = esc(v.why) + (v.finding ? ` (${esc(v.finding)})` : '');
+    return `<div class="row"><span class="k">${label}</span><span class="v ${v.available ? 'proven' : 'withheld'}" title="${title}">${v.available ? esc(v.confidence) : 'not available'}</span></div>`;
+  });
+  const caveat = Object.values(c).find(v => v.available && v.confidence !== 'CONFIRMED');
+  $('capabilities').innerHTML =
+    rows.join('') + (caveat ? `<div class="ev" style="padding:4px 12px 8px">${esc(caveat.why)}</div>` : '');
 }
 
 main();

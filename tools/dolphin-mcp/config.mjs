@@ -14,6 +14,8 @@ const SETTINGS = {
   figure: { env: 'PORTALFORGE_FIGURE', what: 'the Skylander figure dump (.sky)' },
   official_dolphin: { env: 'PORTALFORGE_OFFICIAL_DOLPHIN', what: "the user's own Dolphin.exe" },
   dolphin_tool: { env: 'PORTALFORGE_DOLPHINTOOL', what: 'DolphinTool.exe' },
+  // { "<disc path>": "<fixup map file>" }: the runtime pointer maps captured per level (as JSON in the variable).
+  runtime_maps: { env: 'PORTALFORGE_RUNTIME_MAPS', what: 'the runtime fixup maps per level' },
 };
 
 function readConfigFile() {

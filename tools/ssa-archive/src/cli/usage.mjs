@@ -38,6 +38,8 @@ Decoded level entries (IGZ)
   igz relocation-probe <file> --fixups <map> [--section <n>] [--out <json>]
 
 Placement editor
+  edit levels
+  edit open <level name | disc path> [--fixups <map>] [--game <wbfs>] [--port 7378] [--open]
   edit list <level> --fixups <map> [--layer <name>] [--near x,z,radius] [--all]
   edit show <level> <offset> --fixups <map>
   edit set <level> <offset> --fixups <map> --out <file> [--pos x,y,z] [--heading <deg>] [--scale <n>] [--plan <json>]

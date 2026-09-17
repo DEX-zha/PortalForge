@@ -411,7 +411,7 @@ try {
   assert.deepEqual(reopened.additions, session.additions);
   assert.equal(reopened.placements.length, 673 + session.additions.length);
   assert.ok(reopened.additions.every(a => (a.script ?? null) === subject.script));
-  const built = process.argv.includes('--no-patch') ? null : patch(session, { deps: editorDeps(session, {}) }).patch;
+  const built = process.argv.includes('--no-patch') ? null : patch(session, { deps: editorDeps({}) }).patch;
   const result = {
     out,
     filterMs,

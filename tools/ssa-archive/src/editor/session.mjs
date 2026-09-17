@@ -170,6 +170,7 @@ export const sessionSummary = s => ({
   file: s.file,
   archive: s.archive,
   entry: s.entry,
+  level: s.level ?? null,
   opened: s.opened,
   original_sha256: s.original_sha256,
   has_runtime_map: s.has_runtime_map,

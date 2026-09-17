@@ -1,5 +1,7 @@
-// `edit <subcommand> <level.bld.decoded>`: the placement editor.
-//   serve, preview    open an editor session; the runtime fixup map is optional
+// `edit <subcommand> ...`: the placement editor.
+//   levels            list the levels of the disc as the editor can open them
+//   open <level>      open a level by name or disc path, extracting and decoding it when needed, and serve it
+//   serve, preview    open an editor session on a decoded file; the runtime fixup map is optional
 //   list, show        read placements; the fixup map is required
 //   set, replace      write a modified copy of the file, together with its plan
 import fs from 'node:fs';
@@ -16,11 +18,12 @@ const DEFAULT_PORT = 7378;
 const hex = value => '0x' + value.toString(16);
 const planExit = plan => (plan.validation.status === 'VALID' ? EXIT.OK : EXIT.FAILED);
 
-// What the editor server needs from the outside world: a patch builder and a game runner. They are the same
-// ones the command line uses, so an editor run leaves the same evidence trail as a command-line one.
-export function editorDeps(session, o) {
+// What the editor server needs from the outside world: a patch builder, a game runner, the level catalogue and
+// a way to open another level. They are the same ones the command line uses, so an editor run leaves the same
+// evidence trail as a command-line one. Nothing here is bound to one session: the server may switch levels.
+export function editorDeps(o = {}) {
   return {
-    build: ({ experimentId, replacements }) => {
+    build: ({ experimentId, replacements, session }) => {
       const game = o.game ?? setting('game');
       if (!game) {
         throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), {
@@ -32,9 +35,14 @@ export function editorDeps(session, o) {
       if (!fs.existsSync(original)) throw new Error('Original archive sample is missing: ' + original);
       return buildEditorPatch({ experimentId, game, replacements, outDir, original, session });
     },
-    run: args => runEditorGame({ ...args, archive: session.archive, figure: args.figure ?? o.figure ?? null }),
+    run: args => runEditorGame({ ...args, archive: args.session.archive, figure: args.figure ?? o.figure ?? null }),
+    levels: () => levelCatalogModule().then(m => m.levelCatalog()),
+    open: (query, options = {}) =>
+      import('../../editor/level-open.mjs').then(m => m.openLevel(query, { game: o.game ?? undefined, ...options })),
   };
 }
+
+const levelCatalogModule = () => import('../../editor/level-catalog.mjs');
 
 async function openEditorSession(file, o) {
   const { openSession } = await import('../../editor/session.mjs');
@@ -52,26 +60,84 @@ function openInBrowser(url) {
   });
 }
 
-// Starts the editor server and returns; the process stays alive for as long as the server listens.
-async function serve({ file, o }) {
+// Starts the editor server on a session and returns; the process stays alive for as long as the server listens.
+async function serveSession(session, o) {
   const { startServer } = await import('../../editor/server.mjs');
-  const session = await openEditorSession(file, o);
   const served = await startServer({
     session,
     port: o.port ? Number(o.port) : DEFAULT_PORT,
-    deps: editorDeps(session, o),
+    deps: editorDeps(o),
   });
   if (o.open) await openInBrowser(served.url);
   const runtimeMap = session.has_runtime_map
     ? '; runtime fixup map loaded'
     : '; no runtime map, every pointer-derived value is structural';
+  const capabilities = session.level?.capabilities;
+  const withheld = capabilities
+    ? Object.entries(capabilities)
+        .filter(([, c]) => !c.available)
+        .map(([k, c]) => `  ${k}: ${c.why}`)
+    : [];
   return {
-    result: { session: session.id, url: served.url, placements: session.placements.length },
+    result: {
+      session: session.id,
+      url: served.url,
+      placements: session.placements.length,
+      level: session.level ?? null,
+    },
     text: [
       `session ${session.id}  ${session.file}`,
+      `level ${session.archive}${session.level ? ` (${session.level.family})` : ''}`,
       `placements ${session.placements.length} in ${session.layers.length} layer(s); class type ${session.detection.placement_type}; models ${session.counts.direct} direct, ${session.counts.absent} absent${runtimeMap}`,
+      ...(withheld.length ? ['not available on this level:', ...withheld] : []),
       `view ${served.url}`,
       'the editor writes nothing until you save; press Ctrl+C to stop',
+    ].join('\n'),
+  };
+}
+
+const serve = async ({ file, o }) => serveSession(await openEditorSession(file, o), o);
+
+// `edit open <level>`: the level is located, extracted and decoded as needed, then served like `serve`.
+async function open({ query, o }) {
+  const { openLevel } = await import('../../editor/level-open.mjs');
+  const session = await openLevel(query, {
+    fixups: o.fixups ? readFixups(o.fixups) : 'auto',
+    game: o.game ?? undefined,
+    log: line => process.stderr.write(line + '\n'),
+  });
+  return serveSession(session, o);
+}
+
+// `edit levels`: one line per level, with what the machine holds for it.
+async function levels() {
+  const { levelCatalog } = await levelCatalogModule();
+  const catalog = levelCatalog();
+  const state = l =>
+    l.ready
+      ? 'decoded'
+      : l.workspace.present
+        ? 'extracted, not decoded'
+        : l.original.present
+          ? 'extracted'
+          : 'on disc only';
+  const line = l =>
+    [
+      l.name.padEnd(36),
+      l.family.padEnd(9),
+      String(l.placements ?? '?').padStart(5),
+      state(l).padEnd(23),
+      l.runtime_map ? `runtime map (${l.runtime_map.source})` : '',
+      l.direct_entry === 'CONFIRMED' ? 'direct entry' : '',
+    ]
+      .join(' ')
+      .trimEnd();
+  const ready = catalog.levels.filter(l => l.ready).length;
+  return {
+    result: catalog,
+    text: [
+      ...catalog.levels.map(line),
+      `${catalog.levels.length} level(s), ${ready} decoded; originals under ${catalog.samples}, workspaces under ${catalog.workspaces}`,
     ].join('\n'),
   };
 }
@@ -177,12 +243,17 @@ async function replace({ E, level, pos, o }) {
   };
 }
 
-// serve and preview open their own session; the others work on a level opened with its fixup map.
+// levels and open work from the catalogue; serve and preview open their own session on a file; the others work
+// on a level opened with its fixup map.
+const CATALOG_SUBCOMMANDS = { levels, open };
 const SESSION_SUBCOMMANDS = { serve, preview };
 const LEVEL_SUBCOMMANDS = { list, show, set, replace };
 
 export async function edit(pos, o) {
   const sub = pos[0];
+  if (Object.hasOwn(CATALOG_SUBCOMMANDS, sub)) {
+    return CATALOG_SUBCOMMANDS[sub]({ query: sub === 'open' ? need(pos[1], 'level name or disc path') : null, o });
+  }
   const file = path.resolve(need(pos[1], 'level.bld.decoded file'));
   if (Object.hasOwn(SESSION_SUBCOMMANDS, sub)) return SESSION_SUBCOMMANDS[sub]({ file, pos, o });
 
@@ -191,7 +262,7 @@ export async function edit(pos, o) {
   const handler = pickSubcommand(
     LEVEL_SUBCOMMANDS,
     sub,
-    name => `Unknown edit subcommand ${name} (list|show|set|replace)`,
+    name => `Unknown edit subcommand ${name} (levels|open|serve|preview|list|show|set|replace)`,
   );
   return handler({ E, level, pos, o });
 }

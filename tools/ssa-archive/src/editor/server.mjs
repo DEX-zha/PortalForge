@@ -32,6 +32,8 @@ import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { directEntryConfirmed, TUTORIAL } from './level-entry.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
+import { capabilitiesOf, levelKey } from './level-catalog.mjs';
+import { isTutorial } from './levels.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
@@ -105,7 +107,10 @@ async function readJsonBody(req) {
   }
 }
 
-export function startServer({ session, port = DEFAULT_PORT, host = '127.0.0.1', deps = {} } = {}) {
+export function startServer({ session: initial, port = DEFAULT_PORT, host = '127.0.0.1', deps = {} } = {}) {
+  // The session every route acts on. `POST /api/open` replaces it (feature 006); nothing else reassigns it, and
+  // no route keeps a reference across requests, so a switch is complete the moment it happens.
+  let session = initial;
   // The addition-validation batch in progress, if any. At most one runs at a time, and it holds the session lock.
   let validation = null;
 
@@ -197,8 +202,70 @@ export function startServer({ session, port = DEFAULT_PORT, host = '127.0.0.1', 
     return json(res, 200, { report, record, screenshots });
   }
 
+  // What this level can do, from the catalogue when the session came from it, else derived from the session.
+  function currentCapabilities(levels) {
+    const key = levelKey(session.archive);
+    const listed = levels.find(l => l.key === key);
+    return (
+      session.level?.capabilities ??
+      listed?.capabilities ??
+      capabilitiesOf({
+        tutorial: isTutorial(session.archive),
+        runtimeMap: session.has_runtime_map ? { file: null, source: 'given' } : null,
+        directEntry: directEntryConfirmed(),
+      })
+    );
+  }
+
+  // The levels of the disc and where this session stands among them. Switching is possible only when the server
+  // was given a way to open a level by name; a server started on one file says so rather than pretending.
+  async function levelList(res) {
+    const catalog = deps.levels ? await deps.levels() : { levels: [] };
+    const key = levelKey(session.archive);
+    const levels = catalog.levels.map(l => ({ ...l, current: l.key === key }));
+    return json(res, 200, {
+      current: {
+        archive: session.archive,
+        key,
+        name: session.level?.name ?? null,
+        family: session.level?.family ?? null,
+        capabilities: currentCapabilities(levels),
+      },
+      switching: !!deps.open,
+      levels,
+    });
+  }
+
+  // Opens another level in place of the current one. Refuses while a run or a batch holds the session, and
+  // refuses to drop unsaved edits unless the caller says so explicitly: a switch is a reset nobody can undo.
+  async function openLevel(res, body) {
+    if (!deps.open)
+      return json(res, 409, {
+        error: 'OPEN_UNAVAILABLE',
+        reason: 'this server was started on one file; start it with `edit open <level>` to switch levels',
+      });
+    if (session.locked || session.lastLaunch?.running || validation?.running)
+      return json(res, 409, {
+        error: 'SESSION_LOCKED',
+        reason: 'stop the editor-owned Dolphin or the validation batch before opening another level',
+      });
+    if (typeof body.archive !== 'string' || !body.archive.trim())
+      return json(res, 409, { error: 'BAD_VALUE', reason: 'name the level to open' });
+    if (session.dirty && !body.discard)
+      return json(res, 409, {
+        error: 'UNSAVED_CHANGES',
+        reason: `${session.edits.length} unsaved edit(s) would be lost: save first, or open again with discard`,
+        undo_depth: session.edits.length,
+      });
+    const next = await deps.open(body.archive.trim());
+    session = next;
+    validation = null;
+    return json(res, 200, { opened: sessionSummary(session) });
+  }
+
   const GET_ROUTES = {
     '/api/session': res => json(res, 200, sessionSummary(session)),
+    '/api/levels': levelList,
     '/api/catalog': res => json(res, 200, catalog(session)),
     '/api/level-entry': res =>
       json(res, 200, {
@@ -229,6 +296,7 @@ export function startServer({ session, port = DEFAULT_PORT, host = '127.0.0.1', 
   };
 
   const POST_ROUTES = {
+    '/api/open': openLevel,
     '/api/addition-validation': startValidation,
     '/api/addition-validation/stop': res => {
       validation?.controller.abort();
