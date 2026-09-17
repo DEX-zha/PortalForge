@@ -273,11 +273,13 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
         companion = session.level?.companion ?? null;
       // Another level reaches direct entry through the archive redirect (feature 006): the same tutorial
       // checkpoint, with the level's files served under the tutorial's names. An experiment, and labelled so.
+      const capability = session.level?.capabilities?.direct_entry ?? null;
       const redirect = tutorial
         ? null
         : {
             available: confirmed && !!companion?.present,
-            experimental: true,
+            confidence: capability?.confidence ?? 'UNKNOWN',
+            experimental: !!capability?.experimental || !capability,
             finding: 'level.entry.archive-redirect',
             why: !confirmed
               ? 'the tutorial checkpoint is not confirmed on this machine'
@@ -285,7 +287,8 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
                 ? 'this session was opened on a file: open the level by name so its voice pack can be extracted'
                 : !companion.present
                   ? `the voice pack ${companion.archive} is not extracted: open the level with the game image configured`
-                  : 'this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it; not yet proven in game, the first boot is the test',
+                  : (capability?.why ??
+                    'this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it'),
           };
       return json(res, 200, {
         supported: tutorial && confirmed,

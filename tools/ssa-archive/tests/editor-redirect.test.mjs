@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildArchive } from './helpers/synthetic.mjs';
 import { syntheticLevel } from './helpers/synthetic-level.mjs';
-import { levelCatalog, findLevel, capabilitiesOf } from '../src/editor/level-catalog.mjs';
+import { levelCatalog, findLevel, capabilitiesOf, entryStatusFor } from '../src/editor/level-catalog.mjs';
 import { openLevel } from '../src/editor/level-open.mjs';
 import { entrySteps, redirectSteps } from '../src/editor/level-entry.mjs';
 import { buildEditorPatch } from '../src/editor/patch-build.mjs';
@@ -52,6 +52,45 @@ test('the voice pack is part of the catalogue and decides whether the redirect i
   // Without the tutorial checkpoint there is nothing to redirect into.
   assert.equal(capabilitiesOf({ tutorial: false, directEntry: false, companion: true }).direct_entry.available, false);
   assert.equal(companionOf('level/Level_000_Mining.bld'), 'level/Level_000_Mining.arc');
+
+  // The confidence is the level's row in the entry matrix: CONFIRMED and LIKELY drop the experimental label.
+  const confirmed = capabilitiesOf({ tutorial: false, directEntry: true, companion: true, entryStatus: 'CONFIRMED' });
+  assert.equal(confirmed.direct_entry.confidence, 'CONFIRMED');
+  assert.equal(confirmed.direct_entry.experimental, undefined);
+  assert.match(confirmed.direct_entry.why, /two identical boots/);
+  assert.equal(confirmed.transform.confidence, 'CONFIRMED', 'a level booted with an edit has confirmed transforms');
+  assert.equal(confirmed.transform.finding, 'level.transform.other-levels');
+  assert.equal(capabilitiesOf({ tutorial: false, entryStatus: 'LIKELY' }).transform.confidence, 'LIKELY');
+  const likely = capabilitiesOf({ tutorial: false, directEntry: true, companion: true, entryStatus: 'LIKELY' });
+  assert.equal(likely.direct_entry.confidence, 'LIKELY');
+  assert.match(likely.direct_entry.why, /not been booted/);
+});
+
+test('the entry matrix gives each level its status, the other families theirs, and nothing on an empty machine', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-entry-status-'));
+  assert.equal(entryStatusFor('level/Level_000_Mining.bld', { repoRoot }), 'UNKNOWN', 'no matrix, no claim');
+  fs.mkdirSync(path.join(repoRoot, 'docs'));
+  fs.writeFileSync(
+    path.join(repoRoot, 'docs', 'level-entry-status.json'),
+    JSON.stringify({
+      levels: [
+        { archive: 'level/Level_027_Tutorial.bld', status: 'CONFIRMED' },
+        { archive: 'level/Level_000_Mining.bld', status: 'CONFIRMED' },
+        { level: 'Other level families', status: 'LIKELY' },
+      ],
+    }),
+  );
+  assert.equal(entryStatusFor('level/level_000_mining.BLD', { repoRoot }), 'CONFIRMED');
+  assert.equal(entryStatusFor('level/Level_001_Castle.bld', { repoRoot }), 'LIKELY');
+  fs.writeFileSync(
+    path.join(repoRoot, 'docs', 'level-entry-status.json'),
+    JSON.stringify({ levels: [{ level: 'x', status: 'MAYBE' }] }),
+  );
+  assert.equal(
+    entryStatusFor('level/Level_001_Castle.bld', { repoRoot }),
+    'UNKNOWN',
+    'an unknown label is not a claim',
+  );
 });
 
 test('opening extracts the voice pack when a game image is there, and says so when it is not', async () => {

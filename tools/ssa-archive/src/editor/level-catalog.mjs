@@ -21,6 +21,7 @@ const RUNTIME_MAPS = ['dolphin-evidence', 'runtime-maps'];
 // and the tests cite it.
 const TUTORIAL_MAP = ['dolphin-evidence', 'ptr-scan3-fixups.json'];
 const CORPUS = ['docs', 'reports', 'placement-corpus-all-levels.json'];
+const ENTRY_STATUS = ['docs', 'level-entry-status.json'];
 
 // Disc paths are compared case-insensitively: the game's own file table is not consistent about case.
 export const levelKey = archive =>
@@ -114,6 +115,22 @@ function corpusCounts(repoRoot) {
   }
 }
 
+// What docs/level-entry-status.json says about reaching a level directly: the level's own row when it has one,
+// else the row for the other families, else UNKNOWN. This is the per-level matrix the proofs are recorded in.
+export function entryStatusFor(archive, { repoRoot = root } = {}) {
+  let matrix;
+  try {
+    matrix = JSON.parse(fs.readFileSync(path.join(repoRoot, ...ENTRY_STATUS), 'utf8'));
+  } catch {
+    return 'UNKNOWN';
+  }
+  const key = levelKey(archive);
+  const own = (matrix.levels ?? []).find(l => l.archive && levelKey(l.archive) === key);
+  const families = (matrix.levels ?? []).find(l => !l.archive && /other level families/i.test(l.level ?? ''));
+  const status = (own ?? families)?.status;
+  return ['CONFIRMED', 'LIKELY', 'UNKNOWN'].includes(status) ? status : 'UNKNOWN';
+}
+
 // The level entry of a workspace: the one `.bld` inside the archive. An uncompressed entry is its own decoded
 // form; a compressed one is decoded only once `decodeWorkspace` has run.
 export function levelEntry(dir, manifest) {
@@ -129,12 +146,27 @@ export function levelEntry(dir, manifest) {
 
 // What the editor can do on a level, each with its confidence and the finding that carries it. Availability
 // never comes from a name: it comes from the evidence the project holds for that level.
-export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntry = false, companion = false } = {}) {
+export function capabilitiesOf({
+  tutorial = false,
+  runtimeMap = null,
+  directEntry = false,
+  companion = false,
+  entryStatus = 'UNKNOWN',
+} = {}) {
   const map = !!runtimeMap;
   // Another level reaches direct entry by being served under the tutorial's file names (archive redirect). That
-  // needs the tutorial checkpoint and the level's voice pack on disk, and it is an experiment until boots say
-  // otherwise: available, so the first boot can be made, and UNKNOWN, so nobody mistakes it for a result.
+  // needs the tutorial checkpoint and the level's voice pack on disk. Its confidence is the level's row in
+  // docs/level-entry-status.json: CONFIRMED where two boots landed in the level (Mining, 2026-09-17), LIKELY for
+  // the families the same mechanism has not been booted on, UNKNOWN and experimental otherwise.
   const redirect = !tutorial && directEntry;
+  const redirectWhy = {
+    CONFIRMED:
+      'the level is served under the tutorial file names through the confirmed tutorial checkpoint; two identical boots landed in it',
+    LIKELY:
+      'the level is served under the tutorial file names through the confirmed tutorial checkpoint, the mechanism that landed in Mining on two boots; this level has not been booted through it yet',
+    UNKNOWN:
+      'experimental: this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it; not yet proven in game, the first boot is the test',
+  };
   return {
     transform: tutorial
       ? {
@@ -143,12 +175,19 @@ export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntr
           finding: 'igz.placement.type104-record',
           why: 'moving, rotating and scaling placements is confirmed in game on this level',
         }
-      : {
-          available: true,
-          confidence: 'LIKELY',
-          finding: 'level.transform.other-levels',
-          why: 'the placement record has the same layout on every level of the disc, but the in-game effect is confirmed on the tutorial only: boot twice before trusting an edit here',
-        },
+      : entryStatus === 'CONFIRMED'
+        ? {
+            available: true,
+            confidence: 'CONFIRMED',
+            finding: 'level.transform.other-levels',
+            why: 'moving a placement is confirmed in game on this level: two identical boots showed the predicted effect',
+          }
+        : {
+            available: true,
+            confidence: 'LIKELY',
+            finding: 'level.transform.other-levels',
+            why: 'the placement record has the same layout on every level of the disc and moving one is confirmed on the tutorial and on Mining; this level itself has not been booted with an edit yet',
+          },
     duplicate: map
       ? {
           available: true,
@@ -202,10 +241,10 @@ export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntr
         : redirect && companion
           ? {
               available: true,
-              experimental: true,
-              confidence: 'UNKNOWN',
+              ...(entryStatus === 'UNKNOWN' ? { experimental: true } : {}),
+              confidence: entryStatus,
               finding: 'level.entry.archive-redirect',
-              why: 'experimental: this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it; not yet proven in game, the first boot is the test',
+              why: redirectWhy[entryStatus] ?? redirectWhy.UNKNOWN,
             }
           : redirect
             ? {
@@ -252,6 +291,7 @@ function describe(archive, ctx) {
       runtimeMap: runtime_map,
       directEntry: ctx.direct,
       companion: companion.present,
+      entryStatus: entryStatusFor(archive, ctx),
     }),
   };
 }

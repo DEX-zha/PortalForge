@@ -11,7 +11,14 @@ import { extractFile } from '../disc/extract.mjs';
 import { extractToWorkspace, readManifest, writeManifest } from '../workspace/manifest.mjs';
 import { decodeWorkspace } from '../iga/decode.mjs';
 import { openSession } from './session.mjs';
-import { levelCatalog, findLevel, suggestLevels, levelEntry, capabilitiesOf } from './level-catalog.mjs';
+import {
+  levelCatalog,
+  findLevel,
+  suggestLevels,
+  levelEntry,
+  capabilitiesOf,
+  entryStatusFor,
+} from './level-catalog.mjs';
 import { directEntryConfirmed } from './level-entry.mjs';
 import { TUTORIAL_DISC } from './levels.mjs';
 import { setting } from '../../../dolphin-mcp/config.mjs';
@@ -131,6 +138,7 @@ export async function openLevel(query, { catalog = null, fixups = 'auto', game =
       runtimeMap: runtime_map,
       directEntry: (deps.directEntry ?? directEntryConfirmed)(),
       companion: !!entry.companion?.present,
+      entryStatus: level.capabilities?.direct_entry?.confidence ?? entryStatusFor(level.archive),
     }),
   };
   return session;

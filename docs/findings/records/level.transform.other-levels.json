@@ -1,18 +1,18 @@
 {
   "id": "level.transform.other-levels",
   "updated": "2026-09-17",
-  "editable": false,
+  "editable": true,
   "category": "world-entities",
-  "confidence": "LIKELY",
+  "confidence": "CONFIRMED",
   "endian": "be",
   "type": "in-place transform edit (+0x24 position, +0x34 heading, +0xB8 scale) of a placement record in a level other than the tutorial",
-  "structure": "The placement class is detected structurally per file (igz.types.per-file-indices) and carries the same fields on all 76 level archives (igz.placement.type104-record: 43 258 placements, 100% schema-valid). The editor writes the same three attributes at the same offsets on every level; a save changes exactly the authorised words and nothing else.",
+  "structure": "The placement class is detected structurally per file (igz.types.per-file-indices) and carries the same fields on all 76 level archives (igz.placement.type104-record: 43 258 placements, 100% schema-valid). The editor writes the same three attributes at the same offsets on every level; a save changes exactly the authorised words and nothing else. On Level_000_Mining the placement class is index 98 and Lantern_01 / Lantern_01(1) (Mine_Lantern.mdl, Lantern_Generic.ai) sit at (84.9, 16.1, -37) and (82.4, 16.0, -54.3), in the opening camera's view.",
   "location": {
     "file_pattern": "level/*.bld:level.bld (decoded), every level except Level_027_Tutorial",
     "offset": "placement record +0x24 (xyz), +0x34 (heading), +0xB8 (scale)",
     "length": 20
   },
-  "meaning": "What is established: the record layout generalises, the editor opens all 76 levels by disc path, and a transform on Mining saves as three changed words, with the structural and the runtime-mapped resolution producing byte-identical edits on the tutorial. What is NOT established: that the game reads the edited position on a level other than the tutorial. The tutorial proofs (m3-level_027_tutorial-e3-1789304824550, m2-level_027_tutorial-e3-o3296360-1789307182968) are the only in-game observations of a transform. CONFIRMED requires two identical cold boots of an edited non-tutorial level showing the predicted, visible effect, reached through normal play because no input macro enters those levels. Until then the editor labels transforms on other levels LIKELY and says so before an edit is trusted.",
+  "meaning": "The game reads the edited position of a placement on a level other than the tutorial: lowering Mining's two opening-scene lanterns by 5 units through the editor's own path (open by name, transform, save, patch, direct launch through the archive redirect) removes the lantern from the top-left of the opening captures and puts its glow lower on the left edge, identically on two cold boots of a byte-identical patch. Confirmed on Mining; with the tutorial that is two levels, the record layout is validated on all 76, so transforms are offered everywhere, CONFIRMED where the level itself was booted (docs/level-entry-status.json) and LIKELY elsewhere. Scripted placements keep their own caveat (level.pushblock.track-dependency): the lanterns' light script did not object, push blocks did on the tutorial. Duplication still needs a runtime map per level.",
   "evidence": [
     {
       "probe": "ssa-archive corpus over all 76 level archives (docs/reports/placement-corpus-all-levels.json)",
@@ -23,8 +23,12 @@
       "summary": "A transform on a level the editor was never built against saves as exactly three changed position words; duplication is refused without a runtime map; the structural and runtime-map paths produce byte-identical edits on the tutorial."
     },
     {
-      "probe": "tests/editor-level-open.test.mjs, tests/editor-open-route.test.mjs, tests/browser-multilevel.mjs and headless previews of Mining, Haunted Castle, Hub stage 1, Challenge 005 and Dark Forest (2026-09-17)",
-      "summary": "Every level opens by disc path with its own detected class and its objects sit on the decoded scenery in world space. Six boss levels park BossCamera, PhaseDirector and EvilPortalMaster at (30480, 30480, 30480) and several levels keep switch templates near (30, 0, -815); these parked records are drawn but left out of the framing extent. No in-game run was made for this finding."
+      "experiment_id": "editor-direct-test-1789650694320-cf7db99e",
+      "summary": "2026-09-17 13:11 to 13:13 UTC, Mining through the archive redirect (checkpoint 7f1a2207d666…, FST 8894f3330ea9…, consumption 12 662 kB on level/Level_027_Tutorial.bld), Lantern_01 y 16.089 -> 11.089 and Lantern_01(1) y 15.966 -> 10.966, rebuilt archive 31c3c07852c27532…. shot diff against the emerald run editor-direct-test-1789650170738-0c8c6b0a, capture 08: the largest cluster is 112x94 px at (0, 32), 6 135 px, exactly where the lantern hung; a 43x60 px cluster at (0, 114) is its glow, lower; every other cluster is under 600 px (dialogue text, Blobbers' animation)."
+    },
+    {
+      "experiment_id": "editor-direct-test-1789650921032-81b4cf69",
+      "summary": "13:15 to 13:17 UTC, the same byte-identical patch and checkpoint: shot diff against the emerald run gives the same 112x96 px cluster at (0, 32), 6 445 px; shot diff against the first lantern run gives no cluster above 1 457 px (the glow's flicker and the dialogue), so the two lantern boots agree. Two identical boots with the predicted, visible effect."
     }
   ]
 }
