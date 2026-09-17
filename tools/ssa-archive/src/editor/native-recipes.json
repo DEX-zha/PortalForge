@@ -1,11 +1,51 @@
 [
-  {"source":3446244,"model":"plant_sunflower_whole.mdl","script":null,"finding":"level.prop.native-addition"},
-  {"source":3983352,"model":"barrel.mdl","script":{"offset":2739632,"name":"Barrel.ai"},"finding":"level.prop.native-addition-barrel"},
-  {"source":2390540,"model":"Chompy.mdl","script":{"offset":2348068,"name":"Enemy_Chompy.ai"},"finding":"level.prop.native-addition-chompy"},
-  {"source":3034548,"model":"Treasure_Coin_A.mdl","script":{"offset":3034796,"name":"Placed_Loot_Spinning.ai"},"finding":"level.prop.native-addition-coin"},
-  {"source":2347820,"model":"Chompy.mdl","script":{"offset":2348068,"name":"Enemy_Chompy.ai"},"finding":"level.prop.native-addition-expanded"},
-  {"source":2357236,"model":"Chompy_1.mdl","script":{"offset":2348068,"name":"Enemy_Chompy.ai"},"finding":"level.prop.native-addition-expanded"},
-  {"source":3040688,"model":"Treasure_Coin_A.mdl","script":{"offset":3034796,"name":"Placed_Loot_Spinning.ai"},"finding":"level.prop.native-addition-expanded"},
-  {"source":3451516,"model":"plant_sunflower_whole.mdl","script":null,"finding":"level.prop.native-addition-expanded"},
-  {"source":3452000,"model":"plants_weed2_whole.mdl","script":null,"finding":"level.prop.native-addition-expanded"}
+  { "source": 3446244, "model": "plant_sunflower_whole.mdl", "script": null, "finding": "level.prop.native-addition" },
+  {
+    "source": 3983352,
+    "model": "barrel.mdl",
+    "script": { "offset": 2739632, "name": "Barrel.ai" },
+    "finding": "level.prop.native-addition-barrel"
+  },
+  {
+    "source": 2390540,
+    "model": "Chompy.mdl",
+    "script": { "offset": 2348068, "name": "Enemy_Chompy.ai" },
+    "finding": "level.prop.native-addition-chompy"
+  },
+  {
+    "source": 3034548,
+    "model": "Treasure_Coin_A.mdl",
+    "script": { "offset": 3034796, "name": "Placed_Loot_Spinning.ai" },
+    "finding": "level.prop.native-addition-coin"
+  },
+  {
+    "source": 2347820,
+    "model": "Chompy.mdl",
+    "script": { "offset": 2348068, "name": "Enemy_Chompy.ai" },
+    "finding": "level.prop.native-addition-expanded"
+  },
+  {
+    "source": 2357236,
+    "model": "Chompy_1.mdl",
+    "script": { "offset": 2348068, "name": "Enemy_Chompy.ai" },
+    "finding": "level.prop.native-addition-expanded"
+  },
+  {
+    "source": 3040688,
+    "model": "Treasure_Coin_A.mdl",
+    "script": { "offset": 3034796, "name": "Placed_Loot_Spinning.ai" },
+    "finding": "level.prop.native-addition-expanded"
+  },
+  {
+    "source": 3451516,
+    "model": "plant_sunflower_whole.mdl",
+    "script": null,
+    "finding": "level.prop.native-addition-expanded"
+  },
+  {
+    "source": 3452000,
+    "model": "plants_weed2_whole.mdl",
+    "script": null,
+    "finding": "level.prop.native-addition-expanded"
+  }
 ]

@@ -15,14 +15,15 @@ export const samePointer = (a, b) =>
 // Nearest first. Equal distances keep their incoming order, so the cycle is deterministic from one click to the
 // next even when two proxies are exactly coincident.
 export function orderHits(hits) {
-  return hits.map((h, i) => ({ h, i }))
+  return hits
+    .map((h, i) => ({ h, i }))
     .sort((a, b) => a.h.distance - b.h.distance || a.i - b.i)
     .map(x => x.h);
 }
 
 // The next selection for a click. `previous` is the selection this click may be continuing.
 export function pickNext({ hits, pointer, previous = null }) {
-  if (!hits.length) return null;                      // nothing under the cursor clears the selection
+  if (!hits.length) return null; // nothing under the cursor clears the selection
   const continuing = previous && samePointer(previous.pointer, pointer);
   const index = continuing ? (previous.index + 1) % hits.length : 0;
   const hit = hits[index];

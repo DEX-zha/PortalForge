@@ -10,22 +10,61 @@ import { save } from '../src/research/findings.mjs';
 
 // The graph detector recognises headers with refcount 1 only; bumped refcounts are restored for re-parsing.
 const shiftOf = r => r.plan.register_shift;
-const parseView = r => { const c = Buffer.from(r.buffer); for (const u of r.plan.refcounts) c.writeUInt32BE(u.old, u.location); return c; };
+const parseView = r => {
+  const c = Buffer.from(r.buffer);
+  for (const u of r.plan.refcounts) c.writeUInt32BE(u.old, u.location);
+  return c;
+};
 
-const finding = (id, confidence) => ({ id, category: 'world-entities', structure: 'test spawn', location: { file_pattern: 'x', offset: 0, length: 12 }, type: 'f32be x3', endian: 'be', meaning: 'test', evidence: confidence === 'UNKNOWN' ? [] : [{ probe: 'p', summary: 's' }], confidence, editable: confidence === 'CONFIRMED', updated: '2026-09-13' });
+const finding = (id, confidence) => ({
+  id,
+  category: 'world-entities',
+  structure: 'test spawn',
+  location: { file_pattern: 'x', offset: 0, length: 12 },
+  type: 'f32be x3',
+  endian: 'be',
+  meaning: 'test',
+  evidence: confidence === 'UNKNOWN' ? [] : [{ probe: 'p', summary: 's' }],
+  confidence,
+  editable: confidence === 'CONFIRMED',
+  updated: '2026-09-13',
+});
 
 // owner (type 3) -> physics (type 4, stored right after it) and -> a shared object (type 1);
 // the physics record points back at its owner. Only the owner is registered in the header table.
 function fixture() {
   const built = buildIgz({
     objects: [
-      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }, { at: 0x18, obj: 2 }] },
-      { type: 4, size: 0x40, fields: [{ at: 0x20, f32: 91.73 }, { at: 0x24, f32: 10.31 }, { at: 0x28, f32: 44.74 }, { at: 0x30, str: 2 }, { at: 0x2c, obj: 0 }] },
+      {
+        type: 3,
+        size: 0x30,
+        fields: [
+          { at: 0x14, obj: 1 },
+          { at: 0x18, obj: 2 },
+        ],
+      },
+      {
+        type: 4,
+        size: 0x40,
+        fields: [
+          { at: 0x20, f32: 91.73 },
+          { at: 0x24, f32: 10.31 },
+          { at: 0x28, f32: 44.74 },
+          { at: 0x30, str: 2 },
+          { at: 0x2c, obj: 0 },
+        ],
+      },
       { type: 1, size: 0x20, fields: [{ at: 0x10, str: 1 }] },
-    ], headTable: [0],
+    ],
+    headTable: [0],
   });
   const [owner, physics, shared] = built.objectOffsets;
-  const fixups = { section_offset: built.sections.s1, pointer_words: [owner + 0x14, owner + 0x18, physics + 0x2c], head_pointer_words: built.headPointerWords, id_words: [owner + 8, physics + 8, shared + 8] };
+  const fixups = {
+    section_offset: built.sections.s1,
+    pointer_words: [owner + 0x14, owner + 0x18, physics + 0x2c],
+    head_pointer_words: built.headPointerWords,
+    id_words: [owner + 8, physics + 8, shared + 8],
+  };
   return { ...built, owner, physics, shared, fixups };
 }
 
@@ -34,19 +73,32 @@ test('insertBytes at the table end shifts every object by the inserted length an
   const g = buildGraph(f.buf);
   const sec = g.sections[1];
   const tableEnd = sec.offset + (f.buf.readUInt32BE(sec.offset + 0x14) & 0x7fffffff);
-  const entry = Buffer.alloc(4); entry.writeUInt32BE(0x1234);
-  const r = insertBytes(f.buf, g, { pointerWords: [...f.fixups.pointer_words, ...f.fixups.head_pointer_words], idWords: f.fixups.id_words }, tableEnd, entry);
+  const entry = Buffer.alloc(4);
+  entry.writeUInt32BE(0x1234);
+  const r = insertBytes(
+    f.buf,
+    g,
+    { pointerWords: [...f.fixups.pointer_words, ...f.fixups.head_pointer_words], idWords: f.fixups.id_words },
+    tableEnd,
+    entry,
+  );
   const after = buildGraph(r.buffer);
-  assert.deepEqual(after.objects.map(o => o.offset), g.objects.map(o => o.offset + 4));
-  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x0c), f.buf.readUInt32BE(sec.offset + 0x0c) + 1);        // count
-  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x14) & 0x7fffffff, tableEnd - sec.offset + 4);          // table end
-  assert.equal(sec.offset + r.buffer.readUInt32BE(sec.offset + 0x1c), after.objects[0].offset);            // block end -> first object
-  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x20), after.objects[0].offset - sec.offset);            // table[0] -> owner
-  assert.equal(r.buffer.readUInt32BE(f.owner + 4 + 0x14), f.physics + 4 - sec.offset);                    // owner -> physics
-  assert.equal(r.buffer.readUInt32BE(f.physics + 4 + 0x2c), f.owner + 4 - sec.offset);                    // physics -> owner
-  assert.equal(r.buffer.readUInt32BE(f.physics + 4 + 0x30), f.buf.readUInt32BE(f.physics + 0x30));         // string refs untouched
+  assert.deepEqual(
+    after.objects.map(o => o.offset),
+    g.objects.map(o => o.offset + 4),
+  );
+  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x0c), f.buf.readUInt32BE(sec.offset + 0x0c) + 1); // count
+  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x14) & 0x7fffffff, tableEnd - sec.offset + 4); // table end
+  assert.equal(sec.offset + r.buffer.readUInt32BE(sec.offset + 0x1c), after.objects[0].offset); // block end -> first object
+  assert.equal(r.buffer.readUInt32BE(sec.offset + 0x20), after.objects[0].offset - sec.offset); // table[0] -> owner
+  assert.equal(r.buffer.readUInt32BE(f.owner + 4 + 0x14), f.physics + 4 - sec.offset); // owner -> physics
+  assert.equal(r.buffer.readUInt32BE(f.physics + 4 + 0x2c), f.owner + 4 - sec.offset); // physics -> owner
+  assert.equal(r.buffer.readUInt32BE(f.physics + 4 + 0x30), f.buf.readUInt32BE(f.physics + 0x30)); // string refs untouched
   assert.equal(after.sections[2].offset, g.sections[2].offset + 4);
-  assert.deepEqual(r.pointerWords.slice(0, 3), f.fixups.pointer_words.map(w => w + 4));
+  assert.deepEqual(
+    r.pointerWords.slice(0, 3),
+    f.fixups.pointer_words.map(w => w + 4),
+  );
 });
 
 test('planOverwriteClone registers the clone in place: same file length, only the target blob and refcount words change, no table growth', () => {
@@ -56,21 +108,49 @@ test('planOverwriteClone registers the clone in place: same file length, only th
   // blob (to the next table entry) is large enough to hold the block.
   const built = buildIgz({
     objects: [
-      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }, { at: 0x18, obj: 2 }] },   // owner
-      { type: 4, size: 0x40, fields: [{ at: 0x2c, obj: 0 }, { at: 0x30, str: 2 }] },    // physics
-      { type: 1, size: 0x20, fields: [{ at: 0x10, str: 1 }] },                          // shared
-      { type: 3, size: 0x90, fields: [] },                                              // victim (table entry)
-      { type: 1, size: 0x20, fields: [] },                                             // next table entry
-    ], headTable: [3, 4],
+      {
+        type: 3,
+        size: 0x30,
+        fields: [
+          { at: 0x14, obj: 1 },
+          { at: 0x18, obj: 2 },
+        ],
+      }, // owner
+      {
+        type: 4,
+        size: 0x40,
+        fields: [
+          { at: 0x2c, obj: 0 },
+          { at: 0x30, str: 2 },
+        ],
+      }, // physics
+      { type: 1, size: 0x20, fields: [{ at: 0x10, str: 1 }] }, // shared
+      { type: 3, size: 0x90, fields: [] }, // victim (table entry)
+      { type: 1, size: 0x20, fields: [] }, // next table entry
+    ],
+    headTable: [3, 4],
   });
   const [owner, physics, shared, victim] = built.objectOffsets;
-  const fixups = { section_offset: built.sections.s1, pointer_words: [owner + 0x14, owner + 0x18, physics + 0x2c], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
+  const fixups = {
+    section_offset: built.sections.s1,
+    pointer_words: [owner + 0x14, owner + 0x18, physics + 0x2c],
+    head_pointer_words: built.headPointerWords,
+    id_words: [],
+    cross_pointer_words: [],
+  };
   const before = buildGraph(built.buf);
-  const r = planOverwriteClone(built.buf, fixups, { start: owner, end: physics + 0x40, findingId: 'test.spawn', target: victim, edits: [{ offset: 0x1c, type: 'u32be', value: 0x1234 }], findingsOpts: { dir } });
+  const r = planOverwriteClone(built.buf, fixups, {
+    start: owner,
+    end: physics + 0x40,
+    findingId: 'test.spawn',
+    target: victim,
+    edits: [{ offset: 0x1c, type: 'u32be', value: 0x1234 }],
+    findingsOpts: { dir },
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
-  assert.equal(r.buffer.length, built.buf.length);                                     // no shift, same length
+  assert.equal(r.buffer.length, built.buf.length); // no shift, same length
   const sec = before.sections[1];
-  const blobEnd = victim + 0x90;                                                        // next table entry is 0x90 after
+  const blobEnd = victim + 0x90; // next table entry is 0x90 after
   // every changed word lies inside the victim blob, except refcount words (+4 of a shared target)
   const rc = new Set(r.plan.refcounts.map(u => u.location));
   for (let p = sec.offset; p + 4 <= built.buf.length; p += 4) {
@@ -79,32 +159,44 @@ test('planOverwriteClone registers the clone in place: same file length, only th
     assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), `unexpected change at 0x${p.toString(16)}`);
   }
   const after = buildGraph(r.buffer);
-  assert.equal(after.objects.length, before.objects.length);                           // count unchanged (in-place)
+  assert.equal(after.objects.length, before.objects.length); // count unchanged (in-place)
   const clone = after.objects.find(o => o.offset === victim);
-  assert.equal(clone.type, 3);                                                          // clone owner at the target
-  assert.equal(after.sections[1].offset, before.sections[1].offset);                    // table/sections not moved
+  assert.equal(clone.type, 3); // clone owner at the target
+  assert.equal(after.sections[1].offset, before.sections[1].offset); // table/sections not moved
   assert.equal(r.buffer.readUInt32BE(shared + 4), built.buf.readUInt32BE(shared + 4) + 1); // shared external +1
-  assert.equal(sec.offset + r.buffer.readUInt32BE(victim + 0x14), victim + 0x30);        // clone owner -> its physics (rebased in place)
+  assert.equal(sec.offset + r.buffer.readUInt32BE(victim + 0x14), victim + 0x30); // clone owner -> its physics (rebased in place)
 });
 
 test('planReachableClone can insert the block before an object: later objects move by the block length, pointers follow, refcounts grow', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-reloc-'));
   save(finding('test.spawn', 'CONFIRMED'), { dir });
   const f = fixture();
-  const before = buildGraph(f.buf); const sec = before.sections[1];
-  const r = planReachableClone(f.buf, f.fixups, { start: f.owner, end: f.physics + 0x40, findingId: 'test.spawn', register: false, insertBefore: f.shared, findingsOpts: { dir } });
+  const before = buildGraph(f.buf);
+  const sec = before.sections[1];
+  const r = planReachableClone(f.buf, f.fixups, {
+    start: f.owner,
+    end: f.physics + 0x40,
+    findingId: 'test.spawn',
+    register: false,
+    insertBefore: f.shared,
+    findingsOpts: { dir },
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
-  assert.equal(r.plan.insert_at, f.shared);                                  // no pre-pad inside the range
+  assert.equal(r.plan.insert_at, f.shared); // no pre-pad inside the range
   assert.equal(r.plan.inserted_bytes % 0x20, 0);
-  const after = buildGraph(parseView(r)); const secA = after.sections[1];
+  const after = buildGraph(parseView(r));
+  const secA = after.sections[1];
   const blockLen = 0x70;
   const sharedNew = f.shared + blockLen;
   assert.equal(after.objects.length, 5);
-  assert.deepEqual(after.objects.map(o => o.type), [3, 4, 3, 4, 1]);
-  assert.equal(secA.offset + r.buffer.readUInt32BE(f.owner + 0x18), sharedNew);                  // original owner -> moved shared
-  assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.insert_at + 0x18), sharedNew);         // clone -> moved shared
+  assert.deepEqual(
+    after.objects.map(o => o.type),
+    [3, 4, 3, 4, 1],
+  );
+  assert.equal(secA.offset + r.buffer.readUInt32BE(f.owner + 0x18), sharedNew); // original owner -> moved shared
+  assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.insert_at + 0x18), sharedNew); // clone -> moved shared
   assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.insert_at + 0x14), r.plan.insert_at + 0x30); // clone -> its own physics
-  assert.equal(r.buffer.readUInt32BE(sharedNew + 4), 2);                                          // refcount 1 -> 2
+  assert.equal(r.buffer.readUInt32BE(sharedNew + 4), 2); // refcount 1 -> 2
   assert.equal(r.plan.refcounts.length, 1);
   assert.equal(r.buffer.readUInt32BE(secA.offset + 0x0c), f.buf.readUInt32BE(sec.offset + 0x0c)); // table untouched
   assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset);
@@ -120,26 +212,32 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   const f = fixture();
   const before = buildGraph(f.buf);
   const sec = before.sections[1];
-  const r = planReachableClone(f.buf, f.fixups, { start: f.owner, end: f.physics + 0x40, findingId: 'test.spawn', edits: [{ offset: 0x30 + 0x20, type: 'f32be', value: 99.73 }], findingsOpts: { dir } });
+  const r = planReachableClone(f.buf, f.fixups, {
+    start: f.owner,
+    end: f.physics + 0x40,
+    findingId: 'test.spawn',
+    edits: [{ offset: 0x30 + 0x20, type: 'f32be', value: 99.73 }],
+    findingsOpts: { dir },
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
   assert.equal(r.plan.schema_valid, true, JSON.stringify(r.plan.schema_errors));
   assert.equal(r.plan.inserted_bytes % 0x20, 0);
   const after = buildGraph(parseView(r), { fields: true });
   const secA = after.sections[1];
-  assert.equal(r.buffer.readUInt32BE(f.shared + shiftOf(r) + 4), 2);                                  // shared object gained one owner
+  assert.equal(r.buffer.readUInt32BE(f.shared + shiftOf(r) + 4), 2); // shared object gained one owner
   assert.equal(after.objects.length, before.objects.length + 2);
   const clone = after.objects.find(o => o.offset === r.plan.insert_at);
   assert.equal(clone.type, 3);
   const clonePhysics = after.objects.find(o => o.offset === r.plan.insert_at + 0x30);
   assert.equal(clonePhysics.type, 4);
-  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x14), clonePhysics.offset);             // internal pointer follows the copy
+  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x14), clonePhysics.offset); // internal pointer follows the copy
   const shift = r.plan.register_shift;
-  assert.equal(shift, 0x20);                                                                               // section alignment
-  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x18), f.shared + shift);                // shared pointer -> shifted original
-  assert.equal(secA.offset + r.buffer.readUInt32BE(clonePhysics.offset + 0x2c), clone.offset);             // back pointer -> clone owner
+  assert.equal(shift, 0x20); // section alignment
+  assert.equal(secA.offset + r.buffer.readUInt32BE(clone.offset + 0x18), f.shared + shift); // shared pointer -> shifted original
+  assert.equal(secA.offset + r.buffer.readUInt32BE(clonePhysics.offset + 0x2c), clone.offset); // back pointer -> clone owner
   assert.equal(r.buffer.readFloatBE(clonePhysics.offset + 0x20).toFixed(2), '99.73');
-  assert.equal(r.buffer.readFloatBE(f.physics + shift + 0x20).toFixed(2), '91.73');                        // original untouched
-  assert.equal((clone.offset - secA.offset) % 0x20, (f.owner - sec.offset) % 0x20);                     // alignment class preserved for the copy
+  assert.equal(r.buffer.readFloatBE(f.physics + shift + 0x20).toFixed(2), '91.73'); // original untouched
+  assert.equal((clone.offset - secA.offset) % 0x20, (f.owner - sec.offset) % 0x20); // alignment class preserved for the copy
   for (const o of before.objects) assert.equal((o.offset + shift - secA.offset) % 0x20, (o.offset - sec.offset) % 0x20); // every original keeps its alignment mod 32
   assert.equal(clonePhysics.fields.find(x => x.offset === clonePhysics.offset + 0x30).target, 'RockA_01_MAT');
   // registration
@@ -147,8 +245,8 @@ test('planReachableClone copies owner+child, rebases internal pointers, register
   assert.equal(count, f.buf.readUInt32BE(sec.offset + 0x0c) + 1);
   assert.equal(r.buffer.readUInt32BE(secA.offset + 0x14) & 0x7fffffff, count * 4);
   assert.equal(secA.offset + r.buffer.readUInt32BE(r.plan.table_entry.location), clone.offset);
-  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), f.owner + shift);                  // old entry still -> original owner
-  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset);          // +0x1C -> first object, past the padding
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), f.owner + shift); // old entry still -> original owner
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x1c), after.objects[0].offset); // +0x1C -> first object, past the padding
   // header word +8 is a shared string pointer, kept as in the source
   assert.equal(clone.id, before.objects[0].id);
   assert.equal(clonePhysics.id, before.objects[1].id);
@@ -162,27 +260,43 @@ test('planLinkClone duplicates a chain node: copy inserted before the tail, pred
   // chain A -> B -> C via +0x14; a tail record T after them (the insert point); table lists T only
   const built = buildIgz({
     objects: [
-      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }] },   // A
-      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 2 }] },   // B  (source P)
-      { type: 3, size: 0x30, fields: [] },                       // C  (old next)
-      { type: 1, size: 0x20, fields: [] },                       // T  (tail, table entry)
-    ], headTable: [3],
+      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }] }, // A
+      { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 2 }] }, // B  (source P)
+      { type: 3, size: 0x30, fields: [] }, // C  (old next)
+      { type: 1, size: 0x20, fields: [] }, // T  (tail, table entry)
+    ],
+    headTable: [3],
   });
   const [A, B, C, T] = built.objectOffsets;
-  const fixups = { section_offset: built.sections.s1, pointer_words: [A + 0x14, B + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
-  const before = buildGraph(built.buf); const sec = before.sections[1];
-  const r = planLinkClone(built.buf, fixups, { source: B, linkField: 0x14, findingId: 'test.spawn', insertBefore: T, findingsOpts: { dir } });
+  const fixups = {
+    section_offset: built.sections.s1,
+    pointer_words: [A + 0x14, B + 0x14],
+    head_pointer_words: built.headPointerWords,
+    id_words: [],
+    cross_pointer_words: [],
+  };
+  const before = buildGraph(built.buf);
+  const sec = before.sections[1];
+  const r = planLinkClone(built.buf, fixups, {
+    source: B,
+    linkField: 0x14,
+    findingId: 'test.spawn',
+    insertBefore: T,
+    findingsOpts: { dir },
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
   assert.equal(r.plan.insert_at, T);
-  const after = buildGraph(r.buffer); const secA = after.sections[1];
+  const after = buildGraph(r.buffer);
+  const secA = after.sections[1];
   assert.equal(after.objects.length, before.objects.length + 1);
-  assert.equal(secA.offset + r.buffer.readUInt32BE(B + 0x14), T);                 // P.next -> clone
-  assert.equal(secA.offset + r.buffer.readUInt32BE(T + 0x14), C);                 // clone.next -> old next
-  assert.equal(r.buffer.readUInt32BE(T + 4), 1);                                  // clone refcount 1
-  assert.equal(secA.offset + r.buffer.readUInt32BE(A + 0x14), B);                 // A.next untouched
-  const movedT = after.objects.find(o => o.offset === T + 0x30); assert.equal(movedT.type, 1);           // tail moved by the copy length
-  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), T + 0x30);                     // table entry follows the moved tail
-  assert.equal(r.buffer.readUInt32BE(secA.offset + 0x0c), built.buf.readUInt32BE(sec.offset + 0x0c));   // table count unchanged
+  assert.equal(secA.offset + r.buffer.readUInt32BE(B + 0x14), T); // P.next -> clone
+  assert.equal(secA.offset + r.buffer.readUInt32BE(T + 0x14), C); // clone.next -> old next
+  assert.equal(r.buffer.readUInt32BE(T + 4), 1); // clone refcount 1
+  assert.equal(secA.offset + r.buffer.readUInt32BE(A + 0x14), B); // A.next untouched
+  const movedT = after.objects.find(o => o.offset === T + 0x30);
+  assert.equal(movedT.type, 1); // tail moved by the copy length
+  assert.equal(secA.offset + r.buffer.readUInt32BE(secA.offset + 0x20), T + 0x30); // table entry follows the moved tail
+  assert.equal(r.buffer.readUInt32BE(secA.offset + 0x0c), built.buf.readUInt32BE(sec.offset + 0x0c)); // table count unchanged
   assert.equal(after.sections.at(-1).offset + after.sections.at(-1).size, r.buffer.length);
   assert.equal(r.plan.moved_records, 1);
 });
@@ -191,25 +305,63 @@ test('planReplaceNode duplicates a chain node in place: only the victim block ch
   const { planReplaceNode } = await import('../src/igz/relocate.mjs');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-repl-'));
   save(finding('test.spawn', 'CONFIRMED'), { dir });
-  const built = buildIgz({ objects: [
-    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 1 }, { at: 0x20, u32: 0x11111111 }] },   // A (pred)
-    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 2 }, { at: 0x20, u32: 0x22222222 }] },   // P
-    { type: 3, size: 0x30, fields: [{ at: 0x14, obj: 3 }, { at: 0x20, u32: 0x33333333 }] },   // V (victim = P.next)
-    { type: 3, size: 0x30, fields: [{ at: 0x20, u32: 0x44444444 }] },                         // W (V.next)
-  ], headTable: [3] });
+  const built = buildIgz({
+    objects: [
+      {
+        type: 3,
+        size: 0x30,
+        fields: [
+          { at: 0x14, obj: 1 },
+          { at: 0x20, u32: 0x11111111 },
+        ],
+      }, // A (pred)
+      {
+        type: 3,
+        size: 0x30,
+        fields: [
+          { at: 0x14, obj: 2 },
+          { at: 0x20, u32: 0x22222222 },
+        ],
+      }, // P
+      {
+        type: 3,
+        size: 0x30,
+        fields: [
+          { at: 0x14, obj: 3 },
+          { at: 0x20, u32: 0x33333333 },
+        ],
+      }, // V (victim = P.next)
+      { type: 3, size: 0x30, fields: [{ at: 0x20, u32: 0x44444444 }] }, // W (V.next)
+    ],
+    headTable: [3],
+  });
   const [A, P, V, Wo] = built.objectOffsets;
-  const fixups = { section_offset: built.sections.s1, pointer_words: [A + 0x14, P + 0x14, V + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
-  const r = planReplaceNode(built.buf, fixups, { source: P, linkField: 0x14, findingId: 'test.spawn', findingsOpts: { dir } });
+  const fixups = {
+    section_offset: built.sections.s1,
+    pointer_words: [A + 0x14, P + 0x14, V + 0x14],
+    head_pointer_words: built.headPointerWords,
+    id_words: [],
+    cross_pointer_words: [],
+  };
+  const r = planReplaceNode(built.buf, fixups, {
+    source: P,
+    linkField: 0x14,
+    findingId: 'test.spawn',
+    findingsOpts: { dir },
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
   assert.equal(r.plan.victim, V);
   assert.equal(r.buffer.length, built.buf.length);
   const sec = buildGraph(built.buf).sections[1];
-  for (let p = 0; p + 4 <= built.buf.length; p += 4) { if (p >= V && p < V + 0x30) continue; assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16)); }
-  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0x22222222);                        // copy carries P's content
-  assert.equal(r.buffer.readUInt32BE(V + 4), 1);                                     // refcount 1
-  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Wo);                    // copy.next = victim's old next
-  assert.equal(sec.offset + r.buffer.readUInt32BE(P + 0x14), V);                     // P.next still -> slot
-  assert.equal(sec.offset + r.buffer.readUInt32BE(A + 0x14), P);                     // pred untouched
+  for (let p = 0; p + 4 <= built.buf.length; p += 4) {
+    if (p >= V && p < V + 0x30) continue;
+    assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16));
+  }
+  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0x22222222); // copy carries P's content
+  assert.equal(r.buffer.readUInt32BE(V + 4), 1); // refcount 1
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Wo); // copy.next = victim's old next
+  assert.equal(sec.offset + r.buffer.readUInt32BE(P + 0x14), V); // P.next still -> slot
+  assert.equal(sec.offset + r.buffer.readUInt32BE(A + 0x14), P); // pred untouched
   assert.equal(buildGraph(r.buffer).objects.length, 4);
 });
 
@@ -217,58 +369,137 @@ test('planReplaceRecord copies a same-size record over a victim inside a script:
   const { planReplaceRecord } = await import('../src/igz/relocate.mjs');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-replrec-'));
   save(finding('test.spawn', 'CONFIRMED'), { dir });
-  const built = buildIgz({ objects: [
-    { type: 3, size: 0x40, fields: [{ at: 0x14, obj: 3 }, { at: 0x18, u32: 0x3ff00000 }, { at: 0x20, u32: 0xaaaa0001 }, { at: 0x24, obj: 4 }] },   // S: shared ref, float-ish payload, name, companion
-    { type: 3, size: 0x40, fields: [{ at: 0x14, obj: 3 }, { at: 0x18, u32: 0x40000000 }, { at: 0x20, u32: 0xbbbb0002 }, { at: 0x24, obj: 5 }] },   // V (victim)
-    { type: 1, size: 0x20 },                                                                                                                       // filler
-    { type: 2, size: 0x20 },   // shared record (refcount bumped)
-    { type: 4, size: 0x20 },   // S companion
-    { type: 4, size: 0x20 },   // V companion (kept)
-  ], headTable: [2] });
+  const built = buildIgz({
+    objects: [
+      {
+        type: 3,
+        size: 0x40,
+        fields: [
+          { at: 0x14, obj: 3 },
+          { at: 0x18, u32: 0x3ff00000 },
+          { at: 0x20, u32: 0xaaaa0001 },
+          { at: 0x24, obj: 4 },
+        ],
+      }, // S: shared ref, float-ish payload, name, companion
+      {
+        type: 3,
+        size: 0x40,
+        fields: [
+          { at: 0x14, obj: 3 },
+          { at: 0x18, u32: 0x40000000 },
+          { at: 0x20, u32: 0xbbbb0002 },
+          { at: 0x24, obj: 5 },
+        ],
+      }, // V (victim)
+      { type: 1, size: 0x20 }, // filler
+      { type: 2, size: 0x20 }, // shared record (refcount bumped)
+      { type: 4, size: 0x20 }, // S companion
+      { type: 4, size: 0x20 }, // V companion (kept)
+    ],
+    headTable: [2],
+  });
   const [S, V, , Sh, Cs, Cv] = built.objectOffsets;
-  const fixups = { section_offset: built.sections.s1, pointer_words: [S + 0x14, S + 0x24, V + 0x14, V + 0x24], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
-  const r = planReplaceRecord(built.buf, fixups, { source: S, victim: V, keep: [0x20, 0x24], findingId: 'test.spawn', findingsOpts: { dir }, edits: [{ offset: 0x18, type: 'f32be', value: 5 }] });
+  const fixups = {
+    section_offset: built.sections.s1,
+    pointer_words: [S + 0x14, S + 0x24, V + 0x14, V + 0x24],
+    head_pointer_words: built.headPointerWords,
+    id_words: [],
+    cross_pointer_words: [],
+  };
+  const r = planReplaceRecord(built.buf, fixups, {
+    source: S,
+    victim: V,
+    keep: [0x20, 0x24],
+    findingId: 'test.spawn',
+    findingsOpts: { dir },
+    edits: [{ offset: 0x18, type: 'f32be', value: 5 }],
+  });
   assert.equal(r.plan.validation.status, 'VALID', JSON.stringify(r.plan.validation.failures));
   assert.equal(r.buffer.length, built.buf.length);
   const sec = buildGraph(built.buf).sections[1];
-  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0xbbbb0002);                    // kept: victim name
-  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x24), Cv);                // kept: victim companion
-  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Sh);                // external pointer copied
+  assert.equal(r.buffer.readUInt32BE(V + 0x20), 0xbbbb0002); // kept: victim name
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x24), Cv); // kept: victim companion
+  assert.equal(sec.offset + r.buffer.readUInt32BE(V + 0x14), Sh); // external pointer copied
   assert.equal(r.buffer.readUInt32BE(Sh + 4), built.buf.readUInt32BE(Sh + 4) + 1); // shared refcount bumped
-  assert.equal(r.buffer.readFloatBE(V + 0x18), 5);                               // edit applied on the copy
+  assert.equal(r.buffer.readFloatBE(V + 0x18), 5); // edit applied on the copy
   assert.equal(r.buffer.readUInt32BE(V + 4), 1);
-  for (let p = 0; p + 4 <= built.buf.length; p += 4) { if ((p >= V && p < V + 0x40) || p === Sh + 4) continue; assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16)); }
+  for (let p = 0; p + 4 <= built.buf.length; p += 4) {
+    if ((p >= V && p < V + 0x40) || p === Sh + 4) continue;
+    assert.equal(r.buffer.readUInt32BE(p), built.buf.readUInt32BE(p), 'unexpected change at 0x' + p.toString(16));
+  }
   assert.deepEqual(r.plan.pointers, { internal: 0, external: 1, kept: 2 });
-  const bad = planReplaceRecord(built.buf, fixups, { source: S, victim: Sh, findingId: 'test.spawn', findingsOpts: { dir } });
-  assert.equal(bad.plan.validation.status, 'INVALID');                           // type/size mismatch refused
+  const bad = planReplaceRecord(built.buf, fixups, {
+    source: S,
+    victim: Sh,
+    findingId: 'test.spawn',
+    findingsOpts: { dir },
+  });
+  assert.equal(bad.plan.validation.status, 'INVALID'); // type/size mismatch refused
 });
 
 test('planReplaceRecord reports shared records inside the victim blob and refuses a header-table record the source does not match', async () => {
   const { planReplaceRecord } = await import('../src/igz/relocate.mjs');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-shared-')); save(finding('test.spawn', 'CONFIRMED'), { dir });
-  const build = xType => buildIgz({ objects: [
-    { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xaaaa0001 }] },        // S (source head)
-    { type: xType, size: 0x60, fields: [{ at: 0x20, u32: 0x11110000 }] },    // X: record inside the source blob
-    { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xbbbb0002 }] },        // V (victim head)
-    { type: 4, size: 0x60, fields: [{ at: 0x20, u32: 0x22220000 }] },        // Y: shared record inside the victim blob
-    { type: 5, size: 0x40, fields: [{ at: 0x14, obj: 3 }] },                 // OUT: outside record pointing at Y
-  ], headTable: [1, 3, 4] });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-shared-'));
+  save(finding('test.spawn', 'CONFIRMED'), { dir });
+  const build = xType =>
+    buildIgz({
+      objects: [
+        { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xaaaa0001 }] }, // S (source head)
+        { type: xType, size: 0x60, fields: [{ at: 0x20, u32: 0x11110000 }] }, // X: record inside the source blob
+        { type: 3, size: 0x60, fields: [{ at: 0x20, u32: 0xbbbb0002 }] }, // V (victim head)
+        { type: 4, size: 0x60, fields: [{ at: 0x20, u32: 0x22220000 }] }, // Y: shared record inside the victim blob
+        { type: 5, size: 0x40, fields: [{ at: 0x14, obj: 3 }] }, // OUT: outside record pointing at Y
+      ],
+      headTable: [1, 3, 4],
+    });
   const run = xType => {
-    const built = build(xType); const [S, X, V, Y, OUT] = built.objectOffsets;
-    const fixups = { section_offset: built.sections.s1, pointer_words: [OUT + 0x14], head_pointer_words: built.headPointerWords, id_words: [], cross_pointer_words: [] };
-    const resolve = (b, off) => ({ offset: off, type: b.readUInt32BE(off), size: 0xc0, type_name: null, id: b.readUInt32BE(off + 8) });   // blob = head + the record after it
-    return { built, S, X, V, Y, OUT, r: planReplaceRecord(built.buf, fixups, { source: S, victim: V, findingId: 'test.spawn', findingsOpts: { dir }, resolve, refcount: 'victim' }) };
+    const built = build(xType);
+    const [S, X, V, Y, OUT] = built.objectOffsets;
+    const fixups = {
+      section_offset: built.sections.s1,
+      pointer_words: [OUT + 0x14],
+      head_pointer_words: built.headPointerWords,
+      id_words: [],
+      cross_pointer_words: [],
+    };
+    const resolve = (b, off) => ({
+      offset: off,
+      type: b.readUInt32BE(off),
+      size: 0xc0,
+      type_name: null,
+      id: b.readUInt32BE(off + 8),
+    }); // blob = head + the record after it
+    return {
+      built,
+      S,
+      X,
+      V,
+      Y,
+      OUT,
+      r: planReplaceRecord(built.buf, fixups, {
+        source: S,
+        victim: V,
+        findingId: 'test.spawn',
+        findingsOpts: { dir },
+        resolve,
+        refcount: 'victim',
+      }),
+    };
   };
-  const ok = run(4);                                    // X and Y are both type 4 -> the table entry keeps its meaning
+  const ok = run(4); // X and Y are both type 4 -> the table entry keeps its meaning
   assert.equal(ok.r.plan.validation.status, 'VALID', JSON.stringify(ok.r.plan.validation.failures));
   assert.equal(ok.r.plan.inbound_midblob.length, 1);
   assert.equal(ok.r.plan.inbound_midblob[0].delta, 0x60);
   assert.equal(ok.r.plan.inbound_midblob[0].victim_table_entry, true);
   const shared = ok.r.plan.shared_records.find(x => x.delta === 0x60);
-  assert.equal(shared.external_users, 1); assert.equal(shared.bytes_changed, true);
+  assert.equal(shared.external_users, 1);
+  assert.equal(shared.bytes_changed, true);
   assert.ok(ok.r.plan.validation.warnings.some(w => /referenced by 1 record\(s\) outside the victim/.test(w)));
-  assert.equal(ok.r.buffer.readUInt32BE(ok.V + 0x60 + 0x20), 0x11110000);    // the shared record now carries the source's bytes
-  const bad = run(6);                                   // the source has type 6 where the victim's table entry is type 4
+  assert.equal(ok.r.buffer.readUInt32BE(ok.V + 0x60 + 0x20), 0x11110000); // the shared record now carries the source's bytes
+  const bad = run(6); // the source has type 6 where the victim's table entry is type 4
   assert.equal(bad.r.plan.validation.status, 'INVALID');
-  assert.ok(bad.r.plan.validation.failures.some(f => /is type 4 but the source has type 6 there/.test(f.reason)), JSON.stringify(bad.r.plan.validation.failures));
+  assert.ok(
+    bad.r.plan.validation.failures.some(f => /is type 4 but the source has type 6 there/.test(f.reason)),
+    JSON.stringify(bad.r.plan.validation.failures),
+  );
 });

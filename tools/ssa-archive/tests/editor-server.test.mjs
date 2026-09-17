@@ -14,7 +14,11 @@ function serve() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-server-'));
   const file = path.join(dir, 'level.bld.decoded');
   fs.writeFileSync(file, syntheticLevel().buf);
-  const session = openSession(file, { archive: 'level/Test.bld', entry: 3, deps: { gates: () => ({ status: 'PASS' }) } });
+  const session = openSession(file, {
+    archive: 'level/Test.bld',
+    entry: 3,
+    deps: { gates: () => ({ status: 'PASS' }) },
+  });
   return startServer({ session, port: 0, host: '127.0.0.1' });
 }
 
@@ -34,18 +38,29 @@ test('server: binds the loopback interface only and serves the view from two dir
     const three = await fetch(`${s.url}/vendor/three/build/three.module.js`);
     assert.equal(three.status, 200, 'three is served from node_modules, never from a network');
     assert.match(mod.headers.get('content-type') ?? '', /javascript/);
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('server: refuses every path outside the view and the vendored library', async () => {
   const s = await serve();
   try {
-    for (const p of ['/package.json', '/src/editor/session.mjs', '/view/../../package.json',
-      '/view/..%2f..%2fpackage.json', '/vendor/three/../../../package.json', '/etc/passwd', '/view/']) {
+    for (const p of [
+      '/package.json',
+      '/src/editor/session.mjs',
+      '/view/../../package.json',
+      '/view/..%2f..%2fpackage.json',
+      '/vendor/three/../../../package.json',
+      '/etc/passwd',
+      '/view/',
+    ]) {
       const r = await fetch(`${s.url}${p}`);
       assert.equal(r.status, 404, `${p} must not be served`);
     }
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('server: an unknown API route is a 404 with a JSON body, not an HTML page', async () => {
@@ -56,5 +71,7 @@ test('server: an unknown API route is a 404 with a JSON body, not an HTML page',
     assert.match(r.headers.get('content-type') ?? '', /application\/json/);
     const body = await r.json();
     assert.equal(typeof body.error, 'string');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });

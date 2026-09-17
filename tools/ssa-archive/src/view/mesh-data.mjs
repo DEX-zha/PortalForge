@@ -2,7 +2,8 @@
 export function decodeMeshPayload(payload) {
   const bytes = b64 => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
   const decode = m => {
-    const p = bytes(m.positions), ix = bytes(m.indices);
+    const p = bytes(m.positions),
+      ix = bytes(m.indices);
     return { ...m, positions: new Float32Array(p.buffer), indices: new Uint32Array(ix.buffer) };
   };
   return {

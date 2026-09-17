@@ -12,7 +12,9 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const REQUIRED_IGNORES = ['.local/', '*.wbfs', '*.bld', '*.arc', '*.igz', '*.sky'];
 
 const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
-  .split('\0').filter(Boolean).filter(f => !f.includes('node_modules/'));
+  .split('\0')
+  .filter(Boolean)
+  .filter(f => !f.includes('node_modules/'));
 
 const problems = [];
 let images = 0;
@@ -27,7 +29,11 @@ for (const f of tracked) {
     if (!f.startsWith(IMAGE_DIR)) problems.push(`${f}: images belong in ${IMAGE_DIR}`);
   }
   let size = 0;
-  try { size = fs.statSync(f).size; } catch { continue; }
+  try {
+    size = fs.statSync(f).size;
+  } catch {
+    continue;
+  }
   if (size > MAX_BYTES) {
     problems.push(`${f}: ${(size / 1048576).toFixed(1)} MB, over the ${MAX_BYTES / 1048576} MB limit`);
   }

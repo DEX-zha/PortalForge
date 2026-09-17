@@ -3,15 +3,29 @@
 // active placements. It is NOT an editable visibility property or a script simulator.
 export function sceneRoles(session) {
   if (session._sceneRoles) return session._sceneRoles;
-  const tutorial = session.placements.some(p => /\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(p.behavior?.path ?? ''));
+  const tutorial = session.placements.some(p =>
+    /\/Level_027\/Scripts\/Bridge_Spawner\.ai$/i.test(p.behavior?.path ?? ''),
+  );
   if (!tutorial) return [];
-  const inactive = p => !p.native_addition && p.offset >= 0 && session.buffer.readUInt32BE(p.offset) === 104
-    && (session.buffer.readUInt32BE(p.offset + 0x54) & 1) !== 0;
+  const inactive = p =>
+    !p.native_addition &&
+    p.offset >= 0 &&
+    session.buffer.readUInt32BE(p.offset) === 104 &&
+    (session.buffer.readUInt32BE(p.offset + 0x54) & 1) !== 0;
   const roles = session.placements.filter(inactive).map(p => ({
-    offset: p.offset, role: 'template_or_inactive', confidence: 'LIKELY', editable: false,
-    counterparts: session.placements.filter(q => !inactive(q) && q.offset !== p.offset
-      && q.name?.replace(/\(\d+\)$/, '') === p.name?.replace(/\(\d+\)$/, '')
-      && q.model?.offset === p.model?.offset && q.behavior?.offset === p.behavior?.offset)
+    offset: p.offset,
+    role: 'template_or_inactive',
+    confidence: 'LIKELY',
+    editable: false,
+    counterparts: session.placements
+      .filter(
+        q =>
+          !inactive(q) &&
+          q.offset !== p.offset &&
+          q.name?.replace(/\(\d+\)$/, '') === p.name?.replace(/\(\d+\)$/, '') &&
+          q.model?.offset === p.model?.offset &&
+          q.behavior?.offset === p.behavior?.offset,
+      )
       .map(q => ({ offset: q.offset, name: q.name })),
   }));
   session._sceneRoles = roles;

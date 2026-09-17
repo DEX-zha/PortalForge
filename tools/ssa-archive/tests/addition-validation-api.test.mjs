@@ -3,21 +3,48 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {syntheticLevel} from './helpers/synthetic-level.mjs';
-import {openSession} from '../src/editor/session.mjs';
-import {startServer} from '../src/editor/server.mjs';
-test('validation has its own progress and cancellation, locks edits and preserves the scene',async t=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ssa-validation-')),file=path.join(dir,'test.decoded');fs.writeFileSync(file,syntheticLevel().buf);
- const s=openSession(file,{deps:{gates:()=>({status:'PASS'})}}),before=Buffer.from(s.buffer);
- const server=await startServer({session:s,port:0,deps:{probe:async(session,sources,{signal,onProgress})=>{assert.equal(session,s);assert.deepEqual(sources,[s.placements[0].offset]);onProgress({phase:'macro',step:3});await new Promise(r=>signal.addEventListener('abort',r,{once:true}));return{id:'test',status:'cancelled',candidates:[]};}}});
- t.after(async()=>{await server.close();fs.rmSync(dir,{recursive:true,force:true});});
- const post=(route,body={})=>fetch(server.url+route,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
- assert.equal((await post('/api/addition-validation',{sources:[]})).status,409);
- assert.equal((await post('/api/addition-validation',{sources:[s.placements[0].offset]})).status,200);
- assert.equal(s.locked,true);assert.equal((await post('/api/reset')).status,409);
- assert.equal((await post('/api/addition-validation',{sources:[s.placements[0].offset]})).status,409);
- const state=await(await fetch(server.url+'/api/addition-validation')).json();assert.equal(state.progress.step,3);
- await post('/api/addition-validation/stop');
- for(let i=0;i<20&&s.locked;i++)await new Promise(r=>setTimeout(r,5));
- assert.equal(s.locked,false);assert.deepEqual(s.buffer,before);assert.equal(s.edits.length,0);
+import { syntheticLevel } from './helpers/synthetic-level.mjs';
+import { openSession } from '../src/editor/session.mjs';
+import { startServer } from '../src/editor/server.mjs';
+test('validation has its own progress and cancellation, locks edits and preserves the scene', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-validation-')),
+    file = path.join(dir, 'test.decoded');
+  fs.writeFileSync(file, syntheticLevel().buf);
+  const s = openSession(file, { deps: { gates: () => ({ status: 'PASS' }) } }),
+    before = Buffer.from(s.buffer);
+  const server = await startServer({
+    session: s,
+    port: 0,
+    deps: {
+      probe: async (session, sources, { signal, onProgress }) => {
+        assert.equal(session, s);
+        assert.deepEqual(sources, [s.placements[0].offset]);
+        onProgress({ phase: 'macro', step: 3 });
+        await new Promise(r => signal.addEventListener('abort', r, { once: true }));
+        return { id: 'test', status: 'cancelled', candidates: [] };
+      },
+    },
+  });
+  t.after(async () => {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  const post = (route, body = {}) =>
+    fetch(server.url + route, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  assert.equal((await post('/api/addition-validation', { sources: [] })).status, 409);
+  assert.equal((await post('/api/addition-validation', { sources: [s.placements[0].offset] })).status, 200);
+  assert.equal(s.locked, true);
+  assert.equal((await post('/api/reset')).status, 409);
+  assert.equal((await post('/api/addition-validation', { sources: [s.placements[0].offset] })).status, 409);
+  const state = await (await fetch(server.url + '/api/addition-validation')).json();
+  assert.equal(state.progress.step, 3);
+  await post('/api/addition-validation/stop');
+  for (let i = 0; i < 20 && s.locked; i++) await new Promise(r => setTimeout(r, 5));
+  assert.equal(s.locked, false);
+  assert.deepEqual(s.buffer, before);
+  assert.equal(s.edits.length, 0);
 });

@@ -13,19 +13,31 @@ export function findObjectSection(buf, header, typeCount) {
 }
 
 export function isHeader(buf, p, typeCount) {
-  return buf.readUInt32BE(p) < typeCount && buf.readUInt32BE(p + 4) === 1 && (buf[p + 8] === 1);
+  return buf.readUInt32BE(p) < typeCount && buf.readUInt32BE(p + 4) === 1 && buf[p + 8] === 1;
 }
 
 export function enumerateObjects(buf, header, types) {
   const typeCount = types.names.length;
   const pick = findObjectSection(buf, header, typeCount);
   if (!pick) return { section: null, objects: [], unparsed: [] };
-  const s = pick.section, end = s.offset + s.size;
+  const s = pick.section,
+    end = s.offset + s.size;
   const heads = [];
   for (let p = s.offset; p + 12 <= end; p += 4) if (isHeader(buf, p, typeCount)) heads.push(p);
-  const objects = heads.map((p, i) => ({ offset: p, size: (i + 1 < heads.length ? heads[i + 1] : end) - p, type: buf.readUInt32BE(p), type_name: types.names[buf.readUInt32BE(p)] ?? '', id: buf.readUInt32BE(p + 8) }));
+  const objects = heads.map((p, i) => ({
+    offset: p,
+    size: (i + 1 < heads.length ? heads[i + 1] : end) - p,
+    type: buf.readUInt32BE(p),
+    type_name: types.names[buf.readUInt32BE(p)] ?? '',
+    id: buf.readUInt32BE(p + 8),
+  }));
   const unparsed = [];
-  if (heads.length && heads[0] > s.offset) unparsed.push({ offset: s.offset, size: heads[0] - s.offset, note: 'section header and lists before the first object' });
+  if (heads.length && heads[0] > s.offset)
+    unparsed.push({
+      offset: s.offset,
+      size: heads[0] - s.offset,
+      note: 'section header and lists before the first object',
+    });
   if (!heads.length) unparsed.push({ offset: s.offset, size: s.size, note: 'no object header found' });
   return { section: s, objects, unparsed };
 }

@@ -10,6 +10,7 @@ export const CATEGORIES = Object.freeze({
 });
 export const CONFIDENCE = Object.freeze(['CONFIRMED', 'LIKELY', 'UNKNOWN']);
 export function assertCategory(c) {
-  if (!Object.hasOwn(CATEGORIES, c)) throw new Error(`Unknown finding category "${c}"; expected one of ${Object.keys(CATEGORIES).join(', ')}`);
+  if (!Object.hasOwn(CATEGORIES, c))
+    throw new Error(`Unknown finding category "${c}"; expected one of ${Object.keys(CATEGORIES).join(', ')}`);
   return c;
 }

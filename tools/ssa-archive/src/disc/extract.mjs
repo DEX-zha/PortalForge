@@ -6,7 +6,10 @@ import { runDolphinTool } from './identify.mjs';
 
 export async function listDisc(game, filter = null) {
   const out = await runDolphinTool(['extract', '-i', path.resolve(game), '-g', '-l']);
-  const files = out.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('///') && !l.endsWith('/'));
+  const files = out
+    .split(/\r?\n/)
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('///') && !l.endsWith('/'));
   const re = filter ? new RegExp(filter) : null;
   return re ? files.filter(f => re.test(f)) : files;
 }

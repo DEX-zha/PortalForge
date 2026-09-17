@@ -1,8 +1,20 @@
 // Lenient IGA v4 parser: never throws on malformed input, collects failures instead so that
 // verify can report every problem with offset, actual and expected values (FR-006).
 import { createHash } from 'node:crypto';
-import { HEADER_SIZE, ENTRY_SIZE, ALIGN, decodeHeader, decodeHashes, entryTableOffset, entryTableEnd,
-  compressionOf, failure, hex, lookupScale, maxProbeDistance } from './header.mjs';
+import {
+  HEADER_SIZE,
+  ENTRY_SIZE,
+  ALIGN,
+  decodeHeader,
+  decodeHashes,
+  entryTableOffset,
+  entryTableEnd,
+  compressionOf,
+  failure,
+  hex,
+  lookupScale,
+  maxProbeDistance,
+} from './header.mjs';
 import { readChunkArea } from './chunks.mjs';
 
 const sha256 = b => createHash('sha256').update(b).digest('hex');
@@ -10,20 +22,39 @@ const sha256 = b => createHash('sha256').update(b).digest('hex');
 export function parseArchive(buf) {
   const issues = [];
   const header = decodeHeader(buf, issues);
-  const result = { header, hashes: [], entries: [], chunk_area: null, name_table: null, regions: [], issues, size: buf.length };
+  const result = {
+    header,
+    hashes: [],
+    entries: [],
+    chunk_area: null,
+    name_table: null,
+    regions: [],
+    issues,
+    size: buf.length,
+  };
   if (!header) return result;
   const count = header.count;
   if (count === 0 || entryTableEnd(count) > buf.length) {
-    issues.push(failure(0x0C, 'count', count, `1 .. ${Math.floor((buf.length - HEADER_SIZE) / 16)}`, 'COUNT_MISMATCH'));
+    issues.push(failure(0x0c, 'count', count, `1 .. ${Math.floor((buf.length - HEADER_SIZE) / 16)}`, 'COUNT_MISMATCH'));
     return result;
   }
   result.hashes = decodeHashes(buf, count, issues);
   // Interpolation lookup words must match the hash table.
   const scale = lookupScale(count);
-  if (header.flags_packed !== scale) issues.push(failure(0x10, 'lookup_scale', hex(header.flags_packed), hex(scale) + ' (0xFFFFFFFF / count)', 'LOOKUP_WORDS_MISMATCH'));
+  if (header.flags_packed !== scale)
+    issues.push(
+      failure(
+        0x10,
+        'lookup_scale',
+        hex(header.flags_packed),
+        hex(scale) + ' (0xFFFFFFFF / count)',
+        'LOOKUP_WORDS_MISMATCH',
+      ),
+    );
   else if (!issues.some(i => i.reason === 'HASHES_NOT_SORTED')) {
     const probe = maxProbeDistance(result.hashes, scale);
-    if (header.word_14 !== probe) issues.push(failure(0x14, 'max_probe_distance', header.word_14, probe, 'LOOKUP_WORDS_MISMATCH'));
+    if (header.word_14 !== probe)
+      issues.push(failure(0x14, 'max_probe_distance', header.word_14, probe, 'LOOKUP_WORDS_MISMATCH'));
   }
 
   // Name table bounds: location + size must equal the archive size (CONFIRMED on all samples).
@@ -32,7 +63,15 @@ export function parseArchive(buf) {
   const tablesEnd = entryTableEnd(count);
   const ntValid = nt.offset >= tablesEnd && nt.offset + nt.size === buf.length;
   if (!ntValid) {
-    issues.push(failure(0x18, 'name_table', `${nt.offset}+${nt.size}`, `offset >= ${tablesEnd} and offset+size == ${buf.length}`, 'NAME_TABLE_BOUNDS'));
+    issues.push(
+      failure(
+        0x18,
+        'name_table',
+        `${nt.offset}+${nt.size}`,
+        `offset >= ${tablesEnd} and offset+size == ${buf.length}`,
+        'NAME_TABLE_BOUNDS',
+      ),
+    );
   }
 
   // Entry table.
@@ -40,15 +79,40 @@ export function parseArchive(buf) {
   const tableStart = entryTableOffset(count);
   for (let i = 0; i < count; i++) {
     const o = tableStart + ENTRY_SIZE * i;
-    const start = buf.readUInt32LE(o), size = buf.readUInt32LE(o + 4), mode = buf.readUInt32LE(o + 8);
+    const start = buf.readUInt32LE(o),
+      size = buf.readUInt32LE(o + 4),
+      mode = buf.readUInt32LE(o + 8);
     const compression = compressionOf(mode);
-    const e = { index: i, name: null, name_offset: null, hash: result.hashes[i] ?? null, start, size, mode, compression,
-      chunk_table_index: compression === 'LZMA_CHUNKED' ? (mode & 0xFFFFFF) : null, stored_size: 0, data_sha256: null };
-    if (compression === null) issues.push(failure(o + 8, `entries[${i}].mode`, hex(mode), 'high byte 0xFF (none) or 0x10 (LZMA chunked)', 'UNSUPPORTED_MODE'));
-    if (start % ALIGN !== 0) issues.push(failure(o, `entries[${i}].start`, start, `multiple of ${ALIGN}`, 'MISALIGNED_ENTRY'));
+    const e = {
+      index: i,
+      name: null,
+      name_offset: null,
+      hash: result.hashes[i] ?? null,
+      start,
+      size,
+      mode,
+      compression,
+      chunk_table_index: compression === 'LZMA_CHUNKED' ? mode & 0xffffff : null,
+      stored_size: 0,
+      data_sha256: null,
+    };
+    if (compression === null)
+      issues.push(
+        failure(
+          o + 8,
+          `entries[${i}].mode`,
+          hex(mode),
+          'high byte 0xFF (none) or 0x10 (LZMA chunked)',
+          'UNSUPPORTED_MODE',
+        ),
+      );
+    if (start % ALIGN !== 0)
+      issues.push(failure(o, `entries[${i}].start`, start, `multiple of ${ALIGN}`, 'MISALIGNED_ENTRY'));
     const dataLimit = ntValid ? nt.offset : buf.length;
     if (start >= dataLimit || (compression === 'NONE' && start + size > dataLimit)) {
-      issues.push(failure(o, `entries[${i}].start`, `${start}+${size}`, `start + size <= ${dataLimit}`, 'ENTRY_OUT_OF_BOUNDS'));
+      issues.push(
+        failure(o, `entries[${i}].start`, `${start}+${size}`, `start + size <= ${dataLimit}`, 'ENTRY_OUT_OF_BOUNDS'),
+      );
     }
     entries.push(e);
   }
@@ -64,7 +128,15 @@ export function parseArchive(buf) {
     if (e.chunk_table_index !== null) {
       const limit = result.chunk_area ? result.chunk_area.values.length : 0;
       if (e.chunk_table_index >= limit) {
-        issues.push(failure(tableStart + ENTRY_SIZE * e.index + 8, `entries[${e.index}].chunk_table_index`, e.chunk_table_index, `< ${limit}`, 'CHUNK_TABLE_OUT_OF_RANGE'));
+        issues.push(
+          failure(
+            tableStart + ENTRY_SIZE * e.index + 8,
+            `entries[${e.index}].chunk_table_index`,
+            e.chunk_table_index,
+            `< ${limit}`,
+            'CHUNK_TABLE_OUT_OF_RANGE',
+          ),
+        );
       }
     }
   }
@@ -74,12 +146,28 @@ export function parseArchive(buf) {
   const sorted = [...inBounds].sort((a, b) => a.start - b.start);
   for (let i = 0; i < sorted.length; i++) {
     const e = sorted[i];
-    const next = i + 1 < sorted.length ? sorted[i + 1].start : (ntValid ? nt.offset : buf.length);
+    const next = i + 1 < sorted.length ? sorted[i + 1].start : ntValid ? nt.offset : buf.length;
     e.stored_size = Math.max(0, next - e.start);
     if (i + 1 < sorted.length && sorted[i + 1].start === e.start) {
-      issues.push(failure(tableStart + ENTRY_SIZE * sorted[i + 1].index, `entries[${sorted[i + 1].index}].start`, e.start, `distinct from entries[${e.index}].start`, 'ENTRY_OVERLAP'));
+      issues.push(
+        failure(
+          tableStart + ENTRY_SIZE * sorted[i + 1].index,
+          `entries[${sorted[i + 1].index}].start`,
+          e.start,
+          `distinct from entries[${e.index}].start`,
+          'ENTRY_OVERLAP',
+        ),
+      );
     } else if (e.compression === 'NONE' && e.start + e.size > next && i + 1 < sorted.length) {
-      issues.push(failure(tableStart + ENTRY_SIZE * e.index + 4, `entries[${e.index}].size`, e.size, `<= ${next - e.start} (next entry at ${next})`, 'ENTRY_OVERLAP'));
+      issues.push(
+        failure(
+          tableStart + ENTRY_SIZE * e.index + 4,
+          `entries[${e.index}].size`,
+          e.size,
+          `<= ${next - e.start} (next entry at ${next})`,
+          'ENTRY_OVERLAP',
+        ),
+      );
     }
     const endStored = Math.min(e.start + e.stored_size, buf.length);
     e.data_sha256 = sha256(buf.subarray(e.start, endStored));
@@ -97,12 +185,30 @@ export function parseArchive(buf) {
         const abs = nt.offset + rel;
         const nul = abs < buf.length ? buf.indexOf(0, abs) : -1;
         if (rel >= nt.size || nul === -1 || nul >= nt.offset + nt.size) {
-          issues.push(failure(nt.offset + 4 * i, `name_table.offsets[${i}]`, rel, `< ${nt.size} with a NUL terminator inside the table`, 'NAME_OFFSET_OUT_OF_RANGE'));
+          issues.push(
+            failure(
+              nt.offset + 4 * i,
+              `name_table.offsets[${i}]`,
+              rel,
+              `< ${nt.size} with a NUL terminator inside the table`,
+              'NAME_OFFSET_OUT_OF_RANGE',
+            ),
+          );
           continue;
         }
         const name = buf.toString('latin1', abs, nul);
-        entries[i].name = name; entries[i].name_offset = rel;
-        if (seen.has(name)) issues.push(failure(nt.offset + 4 * i, `entries[${i}].name`, name, `unique (also entries[${seen.get(name)}])`, 'NAME_OFFSET_OUT_OF_RANGE'));
+        entries[i].name = name;
+        entries[i].name_offset = rel;
+        if (seen.has(name))
+          issues.push(
+            failure(
+              nt.offset + 4 * i,
+              `entries[${i}].name`,
+              name,
+              `unique (also entries[${seen.get(name)}])`,
+              'NAME_OFFSET_OUT_OF_RANGE',
+            ),
+          );
         seen.set(name, i);
       }
     }
@@ -122,12 +228,24 @@ export function layoutRegions(parsed, total) {
     { offset: HEADER_SIZE, length: 4 * count, class: 'TABLE', label: 'hashes' },
     { offset: entryTableOffset(count), length: ENTRY_SIZE * count, class: 'TABLE', label: 'entries' },
   ];
-  if (chunk_area) regions.push({ offset: chunk_area.offset, length: 2 * chunk_area.values.length, class: 'TABLE', label: 'chunk_tables' });
+  if (chunk_area)
+    regions.push({
+      offset: chunk_area.offset,
+      length: 2 * chunk_area.values.length,
+      class: 'TABLE',
+      label: 'chunk_tables',
+    });
   const sorted = [...entries].filter(e => e.stored_size > 0).sort((a, b) => a.start - b.start);
   for (const e of sorted) {
     const content = e.compression === 'NONE' ? Math.min(e.size, e.stored_size) : e.stored_size;
     regions.push({ offset: e.start, length: content, class: 'CONTENT', label: `entry ${e.index}` });
-    if (e.stored_size > content) regions.push({ offset: e.start + content, length: e.stored_size - content, class: 'PADDING', label: `entry ${e.index} padding` });
+    if (e.stored_size > content)
+      regions.push({
+        offset: e.start + content,
+        length: e.stored_size - content,
+        class: 'PADDING',
+        label: `entry ${e.index} padding`,
+      });
   }
   if (name_table && name_table.offset + name_table.size === total) {
     regions.push({ offset: name_table.offset, length: name_table.size, class: 'TABLE', label: 'name_table' });
@@ -158,9 +276,13 @@ export function summarize(parsed) {
   const compression = { NONE: 0, LZMA_CHUNKED: 0, UNSUPPORTED: 0 };
   for (const e of parsed.entries) compression[e.compression ?? 'UNSUPPORTED']++;
   return {
-    size: parsed.size, version: parsed.header?.version ?? null, count: parsed.header?.count ?? 0,
+    size: parsed.size,
+    version: parsed.header?.version ?? null,
+    count: parsed.header?.count ?? 0,
     name_table: parsed.name_table ? { offset: parsed.name_table.offset, size: parsed.name_table.size } : null,
-    header_words: parsed.header?.header_words ?? [], compression, alignment: ALIGN,
+    header_words: parsed.header?.header_words ?? [],
+    compression,
+    alignment: ALIGN,
     hashes_sorted: !parsed.issues.some(i => i.reason === 'HASHES_NOT_SORTED'),
     chunk_table_values: parsed.chunk_area ? parsed.chunk_area.values.length : 0,
     issues: parsed.issues.length,

@@ -12,13 +12,13 @@
 // framed, on every level, instead of the three pixels a fixed 1.6 units gave on a 489-unit island.
 export const PROXY_FRACTION = 1 / 110;
 export const MIN_PROXY = 1.0;
-export const MARKER_RATIO = 0.55;          // a placement with no model is drawn smaller, and hollow
-export const MIN_INSTANCE_SCALE = 0.25;    // the record's own scale, floored so a tiny prop never vanishes
+export const MARKER_RATIO = 0.55; // a placement with no model is drawn smaller, and hollow
+export const MIN_INSTANCE_SCALE = 0.25; // the record's own scale, floored so a tiny prop never vanishes
 
-export const FOV = 55;                     // degrees, vertical
-export const VIEW_DIR = [1, 0.8, 1];       // the camera sits along this direction from what it is looking at
+export const FOV = 55; // degrees, vertical
+export const VIEW_DIR = [1, 0.8, 1]; // the camera sits along this direction from what it is looking at
 export const MARGIN = 1.06;
-export const TRIM = 0.04;                  // frame the middle 92% on each axis
+export const TRIM = 0.04; // frame the middle 92% on each axis
 export const FIT_PERCENTILE = 0.98;
 
 // A survey drawing of a dig, not an editor theme: deep ink ground, bone objects, and colour spent only where it
@@ -27,19 +27,22 @@ export const GROUND = 0x0f1319;
 export const GRID_MAJOR = 0x27323e;
 export const GRID_MINOR = 0x1a222b;
 export const GRADE_COLOUR = {
-  blocking: 0xd2553f,   // observed to break the game
+  blocking: 0xd2553f, // observed to break the game
   critical: 0xd2553f,
-  high: 0xd98f3d,       // the model resolves more than one way
-  medium: 0xd9a441,     // carries a behaviour script
-  info: 0xe8e2d4,       // bone: a plain placed object
+  high: 0xd98f3d, // the model resolves more than one way
+  medium: 0xd9a441, // carries a behaviour script
+  info: 0xe8e2d4, // bone: a plain placed object
 };
-export const MARKER_COLOUR = 0x5d6b7a;     // camera, cutscene, sound: present, not placed
+export const MARKER_COLOUR = 0x5d6b7a; // camera, cutscene, sound: present, not placed
 export const SELECTED_COLOUR = 0x7fd4ff;
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = a => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const norm = a => {
+  const l = Math.hypot(...a) || 1;
+  return [a[0] / l, a[1] / l, a[2] / l];
+};
 
 // The full span of the points, and the longest axis of it, which is what every size in the view is derived from.
 export function extentOf(points) {
@@ -73,16 +76,19 @@ export function viewAxes(dir = VIEW_DIR) {
 // How far back the camera has to sit for a point to be on screen: with depth = distance - z, the point is inside
 // the frustum when |y| <= tan*depth and |x| <= tan*aspect*depth.
 function need(d, ax, tan, aspect) {
-  return Math.max(dot(d, ax.z) + Math.abs(dot(d, ax.y)) / tan,
-                  dot(d, ax.z) + Math.abs(dot(d, ax.x)) / (tan * aspect));
+  return Math.max(dot(d, ax.z) + Math.abs(dot(d, ax.y)) / tan, dot(d, ax.z) + Math.abs(dot(d, ax.x)) / (tan * aspect));
 }
 
 // Fit the OBJECTS, not the box that contains them. A level is a diagonal ridge inside a wide axis-aligned box
 // whose corners hold nothing, so fitting the corners pushes the camera back to make room for empty space. The
 // percentile keeps one stray marker from doing the same.
-export function fitDistance(points, centre, { fov = FOV, aspect = 1.6, dir = VIEW_DIR, margin = MARGIN,
-                                              percentile = FIT_PERCENTILE, floor = 5 } = {}) {
-  const ax = viewAxes(dir), tan = Math.tan(fov * Math.PI / 360);
+export function fitDistance(
+  points,
+  centre,
+  { fov = FOV, aspect = 1.6, dir = VIEW_DIR, margin = MARGIN, percentile = FIT_PERCENTILE, floor = 5 } = {},
+) {
+  const ax = viewAxes(dir),
+    tan = Math.tan((fov * Math.PI) / 360);
   const a = aspect > 0 && Number.isFinite(aspect) ? aspect : 1.6;
   if (!points.length) return floor;
   const needed = points.map(p => need(sub(p, centre), ax, tan, a)).sort((x, y) => x - y);
@@ -93,7 +99,8 @@ export function fitDistance(points, centre, { fov = FOV, aspect = 1.6, dir = VIE
 // The same fit for a box with no objects to fit, which is what framing a single selection is.
 export function fitBox(lo, hi, centre, opts = {}) {
   const corners = [];
-  for (const x of [lo[0], hi[0]]) for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]]) corners.push([x, y, z]);
+  for (const x of [lo[0], hi[0]])
+    for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]]) corners.push([x, y, z]);
   return fitDistance(corners, centre, { ...opts, percentile: 1 });
 }
 
@@ -111,13 +118,16 @@ export function gridOf(reach) {
 
 // Where a world point lands on a w by h image, and how many pixels one world unit covers there.
 export function projector({ eye, w, h, fov = FOV, dir = VIEW_DIR }) {
-  const ax = viewAxes(dir), tan = Math.tan(fov * Math.PI / 360), aspect = w / h;
+  const ax = viewAxes(dir),
+    tan = Math.tan((fov * Math.PI) / 360),
+    aspect = w / h;
   return p => {
-    const d = sub(p, eye), depth = -dot(d, ax.z);   // z points back at the camera, so what is in front has +depth
+    const d = sub(p, eye),
+      depth = -dot(d, ax.z); // z points back at the camera, so what is in front has +depth
     if (depth <= 0.01) return null;
     return {
-      x: (dot(d, ax.x) / (tan * aspect * depth) + 1) / 2 * w,
-      y: (1 - dot(d, ax.y) / (tan * depth)) / 2 * h,
+      x: ((dot(d, ax.x) / (tan * aspect * depth) + 1) / 2) * w,
+      y: ((1 - dot(d, ax.y) / (tan * depth)) / 2) * h,
       depth,
       perUnit: h / 2 / (tan * depth),
     };

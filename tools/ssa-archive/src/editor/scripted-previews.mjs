@@ -9,10 +9,20 @@ export function scriptedPreviews(session) {
     const resource = scriptDiagnostics(session, owner).clones.find(c => c.name === templateName);
     const template = session.placements.find(t => t.offset === resource?.offset);
     if (template?.model?.offset == null) return;
-    previews.push({ owner: owner.offset, name: owner.name, model: template.model.offset, template: template.offset,
-      position: owner.position, heading: fixedHeading ?? owner.rotation.heading + headingOffset,
-      heading_offset: headingOffset, fixed_heading: fixedHeading,
-      scale: template.scale, scale_mode: 'template', confidence: 'LIKELY', editable: false });
+    previews.push({
+      owner: owner.offset,
+      name: owner.name,
+      model: template.model.offset,
+      template: template.offset,
+      position: owner.position,
+      heading: fixedHeading ?? owner.rotation.heading + headingOffset,
+      heading_offset: headingOffset,
+      fixed_heading: fixedHeading,
+      scale: template.scale,
+      scale_mode: 'template',
+      confidence: 'LIKELY',
+      editable: false,
+    });
   };
   for (const p of session.placements) {
     for (const part of startupParts(session, p) ?? []) add(p, part.name, part.heading_offset, part.fixed_heading);
