@@ -36,7 +36,11 @@ test('navigate: a key that is not bound is ignored, so typing never flies the ca
   assert.equal(isBound('ArrowUp'), true);
   assert.equal(isBound('w'), false, 'w is the move gizmo');
   assert.equal(isBound('constructor'), false, 'an inherited property name is not a binding');
-  assert.deepEqual(Object.keys(BINDINGS).filter(k => /^[a-z]$/i.test(k)), [], 'no single letter is bound');
+  assert.deepEqual(
+    Object.keys(BINDINGS).filter(k => /^[a-z]$/i.test(k)),
+    [],
+    'no single letter is bound',
+  );
 });
 
 test('navigate: distance is speed times the frame, and one long frame cannot teleport the camera', () => {
@@ -52,12 +56,20 @@ test('navigate: speed follows the level size, so a big level is not slower to cr
   assert.equal(speedFor(489, { fast: true }), 489 * BASE_SPEED * FAST);
   assert.equal(speedFor(489, { slow: true }), 489 * BASE_SPEED * SLOW);
   assert.ok(speedFor(0) > 0, 'an empty level still moves');
-  for (const extent of [40, 489, 4000]) assert.ok(Math.abs(extent / speedFor(extent) - 5) < 1e-9, 'five seconds to cross');
+  for (const extent of [40, 489, 4000])
+    assert.ok(Math.abs(extent / speedFor(extent) - 5) < 1e-9, 'five seconds to cross');
 });
 
 test('navigate: the basis is used as given, so a tilted camera flies where it looks', () => {
   const diagonal = 1 / Math.SQRT2;
-  const d = step({ held: held('ArrowUp'), dt: 0.1, speed: 10, forward: [diagonal, 0, -diagonal], right: [diagonal, 0, diagonal], up: [0, 1, 0] });
+  const d = step({
+    held: held('ArrowUp'),
+    dt: 0.1,
+    speed: 10,
+    forward: [diagonal, 0, -diagonal],
+    right: [diagonal, 0, diagonal],
+    up: [0, 1, 0],
+  });
   assert.ok(Math.abs(d[0] - diagonal) < 1e-9 && Math.abs(d[2] + diagonal) < 1e-9);
   assert.ok(Math.abs(Math.hypot(...d) - 1) < 1e-9);
 });

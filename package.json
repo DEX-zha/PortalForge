@@ -1,0 +1,24 @@
+{
+  "name": "portalforge",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Repository-level tooling for PortalForge: formatting and linting shared by tools/ssa-archive and tools/dolphin-mcp.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "format": "prettier --write \"tools/**/*.{mjs,json,css}\" \".github/**/*.{mjs,yml}\" \"*.{json,mjs}\"",
+    "format:check": "prettier --check \"tools/**/*.{mjs,json,css}\" \".github/**/*.{mjs,yml}\" \"*.{json,mjs}\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "npm test --prefix tools/ssa-archive && npm test --prefix tools/dolphin-mcp"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.10.0",
+    "globals": "17.12.0",
+    "prettier": "3.9.7"
+  }
+}

@@ -1,3 +1,6 @@
 {
-  "game": "C:/path/to/your/SSA.wbfs"
+  "game": "C:/path/to/your/SSA.wbfs",
+  "figure": "C:/path/to/your/figure.sky",
+  "dolphin_tool": "C:/path/to/Dolphin-x64/DolphinTool.exe",
+  "official_dolphin": "C:/path/to/Dolphin-x64/Dolphin.exe"
 }

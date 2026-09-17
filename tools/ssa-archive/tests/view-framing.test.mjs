@@ -1,8 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  PROXY_FRACTION, MIN_PROXY, FOV, VIEW_DIR, extentOf, proxySize, bulkBox, viewAxes,
-  fitDistance, fitBox, gridOf, projector, gradeOf,
+  PROXY_FRACTION,
+  MIN_PROXY,
+  FOV,
+  VIEW_DIR,
+  extentOf,
+  proxySize,
+  bulkBox,
+  viewAxes,
+  fitDistance,
+  gridOf,
+  projector,
+  gradeOf,
 } from '../src/view/framing.mjs';
 
 // Feature 003. These guard the defect the user actually hit: the viewport looked empty. Nothing was missing from
@@ -45,8 +55,10 @@ test('a few strays do not decide the zoom, but almost everything stays in frame'
   const centre = [0, 1, 2].map(i => (bulk.lo[i] + bulk.hi[i]) / 2);
   const fitted = fitDistance(WITH_STRAYS, centre, { aspect: 1.41 });
   const toTheExtremes = fitDistance(WITH_STRAYS, centre, { aspect: 1.41, percentile: 1 });
-  assert.ok(fitted < toTheExtremes * 0.75,
-    `fitting the extremes costs ${Math.round(toTheExtremes)} units against ${Math.round(fitted)}`);
+  assert.ok(
+    fitted < toTheExtremes * 0.75,
+    `fitting the extremes costs ${Math.round(toTheExtremes)} units against ${Math.round(fitted)}`,
+  );
 
   // The saving is only worth having if the level is still in the picture, so check that too rather than trusting it.
   const kept = inFrustum(RIDGE, centre, 1.41).filter(Boolean).length;
@@ -81,7 +93,10 @@ test('what is in front of the camera projects, what is behind it does not', () =
   const eye = [0, 0, 100];
   const project = projector({ eye, w: 800, h: 600, dir: [0, 0, 1] });
   const front = project([0, 0, 0]);
-  assert.ok(front && Math.abs(front.x - 400) < 0.001 && Math.abs(front.y - 300) < 0.001, 'the centre lands in the middle');
+  assert.ok(
+    front && Math.abs(front.x - 400) < 0.001 && Math.abs(front.y - 300) < 0.001,
+    'the centre lands in the middle',
+  );
   assert.equal(project([0, 0, 200]), null, 'a point behind the camera is dropped, never wrapped around');
   assert.ok(project([0, 0, -400]).perUnit < front.perUnit, 'further away is smaller');
 });
@@ -90,7 +105,10 @@ test('the grid step is a round number of game units', () => {
   for (const reach of [37, 120, 489, 1000, 4200]) {
     const { step, span } = gridOf(reach);
     const mantissa = step / Math.pow(10, Math.floor(Math.log10(step)));
-    assert.ok([1, 2, 5].some(m => Math.abs(mantissa - m) < 1e-9), `${step} is not 1, 2 or 5 times a power of ten`);
+    assert.ok(
+      [1, 2, 5].some(m => Math.abs(mantissa - m) < 1e-9),
+      `${step} is not 1, 2 or 5 times a power of ten`,
+    );
     assert.ok(span >= reach, 'the grid reaches past the level it sits under');
     assert.ok(Math.abs(span / step - Math.round(span / step)) < 1e-9, 'the grid needs a whole number of divisions');
     assert.ok(span / step >= 8 && span / step <= 20, `${span / step} squares is not a readable count`);

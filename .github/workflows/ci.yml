@@ -67,6 +67,28 @@ jobs:
           node .github/scripts/check-test-output.mjs tools/ssa-archive/test-output.log ssa-archive 200
           node .github/scripts/check-test-output.mjs tools/dolphin-mcp/test-output.log dolphin-mcp 6
 
+  quality:
+    name: lint and format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install the repository tooling
+        run: npm ci --ignore-scripts
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
   research:
     name: findings and gates
     runs-on: ubuntu-latest
@@ -136,7 +158,7 @@ jobs:
     name: ci
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [tests, research, hygiene]
+    needs: [tests, quality, research, hygiene]
     if: always()
     steps:
       - name: Fail if any job failed

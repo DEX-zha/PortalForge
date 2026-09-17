@@ -21,12 +21,25 @@ export function layerIndex(placements) {
 // never mutated and the caller can keep one to compare against.
 export const showAll = index => new Set(index.map(l => l.name));
 export const hideAll = () => new Set();
-export const toggle = (state, name) => { const next = new Set(state); if (next.has(name)) next.delete(name); else next.add(name); return next; };
-export const show = (state, name) => { const next = new Set(state); next.add(name); return next; };
-export const hide = (state, name) => { const next = new Set(state); next.delete(name); return next; };
+export const toggle = (state, name) => {
+  const next = new Set(state);
+  if (next.has(name)) next.delete(name);
+  else next.add(name);
+  return next;
+};
+export const show = (state, name) => {
+  const next = new Set(state);
+  next.add(name);
+  return next;
+};
+export const hide = (state, name) => {
+  const next = new Set(state);
+  next.delete(name);
+  return next;
+};
 export const only = (index, name) => new Set(index.some(l => l.name === name) ? [name] : []);
 
-export const isVisible = (placement, state) => layersOf(placement).some(name => state.has(name));
+const isVisible = (placement, state) => layersOf(placement).some(name => state.has(name));
 
 // The offsets to draw. Returned as a Set because the scene looks placements up by offset, not by position.
 export function visibleSet(placements, state) {

@@ -8,7 +8,7 @@
   <a href="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
   <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-283%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-299%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
   <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
   <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
   <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
@@ -213,9 +213,15 @@ a documented batch is never reported as a delivered one.
 duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are UNKNOWN, and no tool is allowed
 to pretend otherwise. A property is only made editable once its finding is CONFIRMED.
 
-**Tests and reproduction.** 283 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus a scripted WebGL
+**Tests and reproduction.** 299 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus a scripted WebGL
 browser run and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
 successes — the research files are full of them, because they are what makes the successes trustworthy.
+
+**One standard for the code.** Prettier and ESLint run over both tools from the repository root
+(`npm run format`, `npm run lint`) and in CI, so style is never a review topic and an unused import or a
+duplicated option key fails the build. Every module opens with what it is for, machine-specific paths live in
+`.local/dolphin-config.json` rather than in the source, and a refactor of boot-proven code is checked against
+recorded outputs of the real level before it lands.
 
 **AI in the loop, including local models.** PortalForge is built with coding agents (Codex CLI and Claude Code)
 and with **local inference running on two NVIDIA DGX Spark units**. Keeping a local tier matters here for a

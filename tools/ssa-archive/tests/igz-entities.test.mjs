@@ -5,11 +5,41 @@ import { buildGraph } from '../src/igz/graph.mjs';
 import { positionCandidates, near, isDimensionTriple, isBoxPair, fieldStatistics } from '../src/igz/entities.mjs';
 import { matchAddress, matchPattern, owner } from '../src/igz/match.mjs';
 
-const sample = () => buildIgz({ objects: [
-  { type: 4, size: 0x40, fields: [{ at: 0x20, f32: 91.73 }, { at: 0x24, f32: 10.31 }, { at: 0x28, f32: 44.74 }] },
-  { type: 3, size: 0x40, fields: [{ at: 0x10, f32: 91.44 }, { at: 0x14, f32: 0 }, { at: 0x18, f32: 45.72 }] },          // 300 ft, 150 ft: dimensions
-  { type: 3, size: 0x50, fields: [{ at: 0x10, f32: 91.27 }, { at: 0x14, f32: 3.22 }, { at: 0x18, f32: 43.18 }, { at: 0x1c, f32: 95.43 }, { at: 0x20, f32: 8.17 }, { at: 0x24, f32: 46.57 }] }, // box
-] });
+const sample = () =>
+  buildIgz({
+    objects: [
+      {
+        type: 4,
+        size: 0x40,
+        fields: [
+          { at: 0x20, f32: 91.73 },
+          { at: 0x24, f32: 10.31 },
+          { at: 0x28, f32: 44.74 },
+        ],
+      },
+      {
+        type: 3,
+        size: 0x40,
+        fields: [
+          { at: 0x10, f32: 91.44 },
+          { at: 0x14, f32: 0 },
+          { at: 0x18, f32: 45.72 },
+        ],
+      }, // 300 ft, 150 ft: dimensions
+      {
+        type: 3,
+        size: 0x50,
+        fields: [
+          { at: 0x10, f32: 91.27 },
+          { at: 0x14, f32: 3.22 },
+          { at: 0x18, f32: 43.18 },
+          { at: 0x1c, f32: 95.43 },
+          { at: 0x20, f32: 8.17 },
+          { at: 0x24, f32: 46.57 },
+        ],
+      }, // box
+    ],
+  });
 
 test('dimension triples (multiples of 1.524) and box pairs are recognised', () => {
   assert.equal(isDimensionTriple([91.44, 0, 45.72]), true);
@@ -35,9 +65,10 @@ test('near ranks the real position first and excludes dimensions by default', ()
 test('RAM address and byte pattern map to the owning object and field', () => {
   const { buf, objectOffsets } = sample();
   const g = buildGraph(buf);
-  const base = 0x80DBC020;
+  const base = 0x80dbc020;
   const m = matchAddress(g, base + objectOffsets[0] + 0x20, { base });
-  assert.equal(m.object.type_name, 'tfbPhysicsModel'); assert.equal(m.field, 0x20);
+  assert.equal(m.object.type_name, 'tfbPhysicsModel');
+  assert.equal(m.field, 0x20);
   assert.equal(matchAddress(g, base + 4, { base }).object, null);
   const pat = buf.subarray(objectOffsets[0] + 0x20, objectOffsets[0] + 0x2c).toString('hex');
   const p = matchPattern(buf, g, pat);

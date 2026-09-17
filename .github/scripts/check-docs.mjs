@@ -6,18 +6,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
-  .split('\0').filter(Boolean).filter(f => !f.includes('node_modules/'));
+  .split('\0')
+  .filter(Boolean)
+  .filter(f => !f.includes('node_modules/'));
 const trackedSet = new Set(tracked);
 
-// Paths resolved in code: tools/ssa-archive/src/experiments/run-game.mjs (gateStatus), src/cli-commands.mjs
+// Paths resolved in code: tools/ssa-archive/src/experiments/run-game.mjs (gateStatus), src/cli/commands/findings.mjs
 // (gates), tools/dolphin-mcp/server.mjs (M0 status), src/research/findings.mjs (findings directory).
 const CODE_PATHS = [
-  'docs/m0-status.json', 'docs/m1-status.json', 'docs/m2-status.json', 'docs/m3-status.json',
-  'docs/findings', 'docs/findings/records',
+  'docs/m0-status.json',
+  'docs/m1-status.json',
+  'docs/m2-status.json',
+  'docs/m3-status.json',
+  'docs/findings',
+  'docs/findings/records',
 ];
 
 const problems = [];
-let links = 0, json = 0;
+let links = 0,
+  json = 0;
 
 for (const f of tracked.filter(f => f.endsWith('.md'))) {
   const text = fs.readFileSync(f, 'utf8');
@@ -34,21 +41,25 @@ for (const f of tracked.filter(f => f.endsWith('.md'))) {
       problems.push(`${f}: links to ${target}, which is never published; write it as a code span`);
       continue;
     }
-    if (!fs.existsSync(resolved)) { problems.push(`${f}: broken link to ${target}`); continue; }
+    if (!fs.existsSync(resolved)) {
+      problems.push(`${f}: broken link to ${target}`);
+      continue;
+    }
     // Windows resolves paths case-insensitively and Linux does not, so compare against what git tracks,
     // which is case-exact everywhere. Without this a wrong case only breaks on the runner.
     const isDir = fs.statSync(resolved).isDirectory();
-    const known = isDir
-      ? tracked.some(t => t.startsWith(fromRoot.replace(/\/$/, '') + '/'))
-      : trackedSet.has(fromRoot);
+    const known = isDir ? tracked.some(t => t.startsWith(fromRoot.replace(/\/$/, '') + '/')) : trackedSet.has(fromRoot);
     if (!known) problems.push(`${f}: ${target} does not match a tracked path exactly (check its case)`);
   }
 }
 
 for (const f of tracked.filter(f => f.endsWith('.json'))) {
   json++;
-  try { JSON.parse(fs.readFileSync(f, 'utf8')); }
-  catch (e) { problems.push(`${f}: invalid JSON (${e.message})`); }
+  try {
+    JSON.parse(fs.readFileSync(f, 'utf8'));
+  } catch (e) {
+    problems.push(`${f}: invalid JSON (${e.message})`);
+  }
 }
 
 for (const p of CODE_PATHS) {

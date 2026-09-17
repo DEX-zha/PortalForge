@@ -30,7 +30,7 @@ Commands and JSON shapes: `specs/001-ssa-level-research/contracts/ssa-archive-cl
 
 ## Layout
 
-- `cli.mjs` dispatcher, `src/cli-commands.mjs` user-story commands.
+- `cli.mjs` parses the command line and dispatches. `src/cli/` holds the option table, the usage text, the shared argument parsers and, under `commands/`, one module per command family (archive, scan, igz, edit, experiment, findings, evidence), loaded on demand.
 - `src/iga/` header, reader, chunks, decode (LZMA), writer, verify, diff.
 - `src/disc/` DolphinTool wrappers (identify, list, extract). `src/workspace/` manifest. `src/patch/` Riivolution workspace.
 - `src/research/` float/string scanners, bindiff, findings records and rendering, categories.

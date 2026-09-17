@@ -1,7 +1,8 @@
 // Navigation categories only: never write these inferred labels into game data.
 export function assetFolder(entry) {
   const name = `${entry.model ?? ''} ${entry.name ?? ''}`.toLowerCase();
-  if (entry.category === 'marker') return ['Markers', /camera|^cs_|cutscene/.test(name) ? 'Cameras and cutscenes' : 'Logic and positions'];
+  if (entry.category === 'marker')
+    return ['Markers', /camera|^cs_|cutscene/.test(name) ? 'Cameras and cutscenes' : 'Logic and positions'];
   if (/sunflower|flower|petal/.test(name)) return ['Vegetation', 'Flowers'];
   if (/tree|palm|trunk|stump/.test(name)) return ['Vegetation', 'Trees'];
   if (/weed|plant|grass|bush|vine|fern/.test(name)) return ['Vegetation', 'Plants'];
@@ -13,7 +14,10 @@ export function assetFolder(entry) {
   if (/cannon|canon|switch|lever|gear|wheel|push.?block/.test(name)) return ['Objects', 'Mechanisms'];
   if (/chompy|enemy|mabu|hugo|sheep|troll|npc|character/.test(name)) return ['Characters', 'Creatures and characters'];
   if (/vfx|particle|smoke|fire|water|cloud|light|effect/.test(name)) return ['Atmosphere', 'Effects and environment'];
-  return ['Other', entry.category === 'scripted' ? 'Scripted objects' : entry.category === 'resource' ? 'Resources' : 'Props'];
+  return [
+    'Other',
+    entry.category === 'scripted' ? 'Scripted objects' : entry.category === 'resource' ? 'Resources' : 'Props',
+  ];
 }
 
 export function folderTree(entries) {
@@ -21,9 +25,16 @@ export function folderTree(entries) {
   for (const entry of entries) {
     const [parent, child] = assetFolder(entry);
     if (!roots.has(parent)) roots.set(parent, { name: parent, count: 0, children: new Map() });
-    const root = roots.get(parent); root.count++;
+    const root = roots.get(parent);
+    root.count++;
     root.children.set(child, (root.children.get(child) ?? 0) + 1);
   }
-  return [...roots.values()].sort((a,b) => a.name.localeCompare(b.name, 'en')).map(r => ({ ...r, children: [...r.children].sort(([a],[b]) => a.localeCompare(b,'en')).map(([name,count]) => ({name,count})) }));
+  return [...roots.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, 'en'))
+    .map(r => ({
+      ...r,
+      children: [...r.children].sort(([a], [b]) => a.localeCompare(b, 'en')).map(([name, count]) => ({ name, count })),
+    }));
 }
-export const inFolder = (entry, selected) => !selected.length || selected.every((name, i) => assetFolder(entry)[i] === name);
+export const inFolder = (entry, selected) =>
+  !selected.length || selected.every((name, i) => assetFolder(entry)[i] === name);

@@ -21,7 +21,7 @@ This step is part of building PortalForge. Detailed planning and development of 
 | Game tested | SSA Europe Rev 1 WBFS supplied on the Desktop; memory identifier `SSPP52`, revision 1 |
 | Figure tested | `Sonic Boom.sky` (1024 bytes); the original is never exposed to the game, only a copy is loaded |
 
-The WBFS path is recorded in `.local/dolphin-config.json`. `dolphin_launch` uses that file when no game is given. To move it, adapt that file from `tools/dolphin-mcp/config.example.json`.
+Machine-specific paths live in `.local/dolphin-config.json`, never in the code: `game` (the WBFS, used by `dolphin_launch` when no game is given), `figure` (the Skylander dump), `dolphin_tool` (DolphinTool.exe, used to identify and extract the disc) and `official_dolphin` (only for the `official` runtime). Start from `tools/dolphin-mcp/config.example.json`; each key can also be set through an environment variable (`PORTALFORGE_GAME`, `PORTALFORGE_FIGURE`, `PORTALFORGE_DOLPHINTOOL`, `PORTALFORGE_OFFICIAL_DOLPHIN`). A missing setting fails with a message that names the key to add.
 
 The archive downloaded from the Felk releases is `dolphin-scripting-preview4-x64.7z`. Recorded SHA-256: `FC6B298852B54AAED71C7E925919ACED0B56CECA7289BFCC07C06B4F47970DA0`. It is the digest of the artefact that was tested, not a publisher signature.
 

@@ -7,7 +7,7 @@ import { orderHits, pickNext, shouldPick, commitTarget } from './select.mjs';
 import { isBound } from './navigate.mjs';
 import { renderPlacement, renderGrades, renderDuplicatePlan } from './inspector.mjs';
 import { HANDEDNESS } from './coords.mjs';
-import { gradeOf } from './framing.mjs';   // one definition of what each colour means, shared with edit preview
+import { gradeOf } from './framing.mjs'; // one definition of what each colour means, shared with edit preview
 import { decodeMeshPayload } from './mesh-data.mjs';
 import { bindCatalog } from './catalog.mjs';
 import { bindWorkspace } from './workspace.mjs';
@@ -15,8 +15,14 @@ import { bindWorkspace } from './workspace.mjs';
 const $ = id => document.getElementById(id);
 const SKIP_INTRO_KEY = 'portalforge.skipOpeningCinematic';
 const api = async (path, body) => {
-  const r = body === undefined ? await fetch(path)
-    : await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const r =
+    body === undefined
+      ? await fetch(path)
+      : await fetch(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
   const payload = await r.json().catch(() => ({ error: 'BAD_RESPONSE', reason: r.statusText }));
   if (!r.ok) throw new Error(payload.reason ?? payload.error ?? r.statusText);
   return payload;
@@ -29,7 +35,19 @@ const fail = message => {
   shown = true;
 };
 
-const state = { placements: [], layers: [], visible: new Set(), selection: null, scene: null, mode: null, dirty: false, undoDepth: 0, redoDepth: 0, saved: null, patched: null };
+const state = {
+  placements: [],
+  layers: [],
+  visible: new Set(),
+  selection: null,
+  scene: null,
+  mode: null,
+  dirty: false,
+  undoDepth: 0,
+  redoDepth: 0,
+  saved: null,
+  patched: null,
+};
 
 async function main() {
   bindWorkspace();
@@ -37,7 +55,9 @@ async function main() {
   try {
     session = await api('/api/session');
     data = await api('/api/placements');
-  } catch (e) { return fail(`The editor could not open this level. ${e.message}`); }
+  } catch (e) {
+    return fail(`The editor could not open this level. ${e.message}`);
+  }
 
   state.hasRuntimeMap = session.has_runtime_map;
   state.dirty = session.dirty;
@@ -48,15 +68,31 @@ async function main() {
   state.running = session.launch_running;
   state.locked = session.locked;
   state.tutorial = session.archive?.toLowerCase() === 'level/level_027_tutorial.bld';
-  try { $('skip-intro').checked = localStorage.getItem(SKIP_INTRO_KEY) === 'true'; } catch { /* Preference storage may be disabled. */ }
-  $('skip-intro').addEventListener('change',()=>{try { localStorage.setItem(SKIP_INTRO_KEY,String($('skip-intro').checked)); } catch { /* Keep the current choice for this page. */ }});
-  $('launch-mode').addEventListener('change',refreshSaveState);
-  $('launch-mode').value='test';
-  try{
-    const entry=await api('/api/level-entry');
-    for(const option of $('launch-mode').querySelectorAll('[value^="direct-"]'))option.disabled=!entry.supported;
-    if(entry.supported){$('launch-mode').value='direct-test';$('entry-note').textContent='Direct entry skips the menus after one preparation run. A changed disc layout requires preparation again. Your current patch is loaded each time.';}
-  }catch{/* Existing launch modes remain available. */}
+  try {
+    $('skip-intro').checked = localStorage.getItem(SKIP_INTRO_KEY) === 'true';
+  } catch {
+    /* Preference storage may be disabled. */
+  }
+  $('skip-intro').addEventListener('change', () => {
+    try {
+      localStorage.setItem(SKIP_INTRO_KEY, String($('skip-intro').checked));
+    } catch {
+      /* Keep the current choice for this page. */
+    }
+  });
+  $('launch-mode').addEventListener('change', refreshSaveState);
+  $('launch-mode').value = 'test';
+  try {
+    const entry = await api('/api/level-entry');
+    for (const option of $('launch-mode').querySelectorAll('[value^="direct-"]')) option.disabled = !entry.supported;
+    if (entry.supported) {
+      $('launch-mode').value = 'direct-test';
+      $('entry-note').textContent =
+        'Direct entry skips the menus after one preparation run. A changed disc layout requires preparation again. Your current patch is loaded each time.';
+    }
+  } catch {
+    /* Existing launch modes remain available. */
+  }
   if (session.archive?.toLowerCase() !== 'level/level_027_tutorial.bld') {
     $('launch-mode').value = 'play';
     $('launch-mode').querySelector('[value="test"]').disabled = true;
@@ -65,24 +101,35 @@ async function main() {
   state.layers = data.layers;
 
   // Real geometry (feature 004). A level without it still opens: every placement falls back to its proxy.
-  let meshes = new Map(), scenery = null, meshStats = null, scripted = [];
+  let meshes = new Map(),
+    scenery = null,
+    meshStats = null,
+    scripted = [];
   try {
-    const m = await api('/api/meshes'), decoded = decodeMeshPayload(m);
-    meshes = decoded.models; scenery = decoded.scenery; meshStats = m.stats;
+    const m = await api('/api/meshes'),
+      decoded = decodeMeshPayload(m);
+    meshes = decoded.models;
+    scenery = decoded.scenery;
+    meshStats = m.stats;
     scripted = m.scripted_previews ?? [];
     state.resources = new Set((m.scene_roles ?? []).map(r => r.offset));
-  } catch (e) { note('meshes unavailable: ' + e.message); }
+  } catch (e) {
+    note('meshes unavailable: ' + e.message);
+  }
 
   $('file').textContent = session.file.replace(/^.*[\\/]/, '');
   // A tally rather than a run-on meta line: these are four different measurements, not one sentence.
-  $('tally').innerHTML = [
-    [session.placement_count, 'placed'],
-    [session.counts.direct, 'with a model'],
-    [meshStats ? meshStats.with_mesh : 0, 'meshed models'],
-    [session.counts.absent, 'markers'],
-    [session.layer_count, 'layers'],
-  ].map(([n, label]) => `<span><b>${n}</b> ${label}</span>`).join('')
-    + `<span title="detected from the record layout, not assumed">class ${session.detection.placement_type}</span>`;
+  $('tally').innerHTML =
+    [
+      [session.placement_count, 'placed'],
+      [session.counts.direct, 'with a model'],
+      [meshStats ? meshStats.with_mesh : 0, 'meshed models'],
+      [session.counts.absent, 'markers'],
+      [session.layer_count, 'layers'],
+    ]
+      .map(([n, label]) => `<span><b>${n}</b> ${label}</span>`)
+      .join('') +
+    `<span title="detected from the record layout, not assumed">class ${session.detection.placement_type}</span>`;
   $('evidence-note').textContent = session.has_runtime_map
     ? 'runtime map loaded'
     : 'no runtime map: every pointer-derived value is structural';
@@ -108,10 +155,12 @@ async function main() {
   $('scenery-count').textContent = scenery?.units ?? 0;
   $('scenery-visible').checked = true;
   $('scenery-visible').addEventListener('change', () => state.scene.setSceneryVisible($('scenery-visible').checked));
-  $('large-surfaces-solid').addEventListener('change', () => state.scene.setLargeSurfacesSolid($('large-surfaces-solid').checked));
+  $('large-surfaces-solid').addEventListener('change', () =>
+    state.scene.setLargeSurfacesSolid($('large-surfaces-solid').checked),
+  );
   $('mesh-coverage').textContent = meshStats
-    ? `${meshStats.draw_units}/${meshStats.descriptors} geometry blocks decoded · ${meshStats.assigned_unique ?? '?'} in models · ${meshStats.scenery ?? 0} scenery · ${meshStats.unresolved ?? meshStats.world ?? 0} unresolved`
-      + (meshStats.stop ? ` · Incomplete: ${meshStats.stop.why}` : '')
+    ? `${meshStats.draw_units}/${meshStats.descriptors} geometry blocks decoded · ${meshStats.assigned_unique ?? '?'} in models · ${meshStats.scenery ?? 0} scenery · ${meshStats.unresolved ?? meshStats.world ?? 0} unresolved` +
+      (meshStats.stop ? ` · Incomplete: ${meshStats.stop.why}` : '')
     : 'Geometry unavailable; showing placement markers.';
 
   const index = layerIndex(state.placements);
@@ -125,11 +174,28 @@ async function main() {
   $('frame-all').addEventListener('click', () => state.scene.frameAll());
   $('frame-sel').addEventListener('click', () => state.scene.frameSelection());
   $('wireframe').addEventListener('click', () => toggleWireframe());
-  $('all-on').addEventListener('click', () => { state.visible = showAll(state.layerIndex); renderLayers(state.layerIndex); apply(); $('scenery-visible').checked = true; state.scene.setSceneryVisible(true); });
-  $('all-off').addEventListener('click', () => { state.visible = hideAll(); renderLayers(state.layerIndex); apply(); $('scenery-visible').checked = false; state.scene.setSceneryVisible(false); });
+  $('all-on').addEventListener('click', () => {
+    state.visible = showAll(state.layerIndex);
+    renderLayers(state.layerIndex);
+    apply();
+    $('scenery-visible').checked = true;
+    state.scene.setSceneryVisible(true);
+  });
+  $('all-off').addEventListener('click', () => {
+    state.visible = hideAll();
+    renderLayers(state.layerIndex);
+    apply();
+    $('scenery-visible').checked = false;
+    state.scene.setSceneryVisible(false);
+  });
 
   // Gizmos and typed entry produce the SAME intent, so the two ways of editing cannot drift apart (T034 to T036).
-  for (const [id, mode] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
+  for (const [id, mode] of [
+    ['gizmo-move', 'translate'],
+    ['gizmo-rotate', 'rotate'],
+    ['gizmo-scale', 'scale'],
+    ['gizmo-off', null],
+  ]) {
     $(id).addEventListener('click', () => setMode(mode));
   }
   state.scene.onGizmo({
@@ -148,18 +214,24 @@ async function main() {
   $('redo').addEventListener('click', () => sendPost('/api/redo'));
   $('reset-scene').addEventListener('click', () => {
     if (state.busy || state.running || state.locked) return;
-    state.catalog?.cancel(); $('reset-dialog').showModal();
+    state.catalog?.cancel();
+    $('reset-dialog').showModal();
   });
   $('reset-cancel').addEventListener('click', () => $('reset-dialog').close());
   $('reset-confirm').addEventListener('click', async () => {
-    $('reset-dialog').close(); await sendPost('/api/reset');
+    $('reset-dialog').close();
+    await sendPost('/api/reset');
   });
   $('save').addEventListener('click', doSave);
   $('do-patch').addEventListener('click', doPatch);
   $('do-launch').addEventListener('click', doLaunch);
   $('stop-launch').addEventListener('click', async () => {
-    try { await api('/api/launch/stop', {}); note('Closing the research Dolphin instance…'); }
-    catch (e) { note(e.message); }
+    try {
+      await api('/api/launch/stop', {});
+      note('Closing the research Dolphin instance…');
+    } catch (e) {
+      note(e.message);
+    }
   });
   $('prediction').addEventListener('input', refreshSaveState);
   $('inspector').addEventListener('change', onTyped);
@@ -168,43 +240,71 @@ async function main() {
     const button = e.target.closest('[data-counterpart]');
     if (!button) return;
     const offset = Number(button.dataset.counterpart);
-    const p = state.placements.find(p => p.offset === offset); if (!p) return;
+    const p = state.placements.find(p => p.offset === offset);
+    if (!p) return;
     for (const layer of p.layers.length ? p.layers : ['(unlayered)']) state.visible.add(layer);
     if (state.resources?.has(offset)) $('resources-visible').checked = true;
-    renderLayers(index); apply();
+    renderLayers(index);
+    apply();
     state.selection = { offset, index: 0, total: 1 };
-    state.scene.select(offset); state.scene.frameSelection();
+    state.scene.select(offset);
+    state.scene.frameSelection();
     await reselect();
   });
   refreshSaveState();
-  state.catalog = bindCatalog({ api, scene: state.scene, select: selectOffset, changed: afterChange,
-    busy: () => state.busy || state.running || state.locked, note,
-    validationState: running => { state.locked = running || state.running; refreshSaveState(); } });
-  try { await state.catalog.reload(); } catch (e) { note('Project browser unavailable: ' + e.message); }
+  state.catalog = bindCatalog({
+    api,
+    scene: state.scene,
+    select: selectOffset,
+    changed: afterChange,
+    busy: () => state.busy || state.running || state.locked,
+    note,
+    validationState: running => {
+      state.locked = running || state.running;
+      refreshSaveState();
+    },
+  });
+  try {
+    await state.catalog.reload();
+  } catch (e) {
+    note('Project browser unavailable: ' + e.message);
+  }
   if (state.running) pollLaunch();
 
   window.addEventListener('keydown', e => {
     if ($('drop-dialog').open || $('reset-dialog').open) return;
-    if (typingIn(e.target)) return;                    // a position field must never fly the camera
-    flying.fast = e.shiftKey; flying.slow = e.altKey;
-    if (isBound(e.key)) { e.preventDefault(); flying.held.add(e.key); state.scene.setFly(flying); return; }
+    if (typingIn(e.target)) return; // a position field must never fly the camera
+    flying.fast = e.shiftKey;
+    flying.slow = e.altKey;
+    if (isBound(e.key)) {
+      e.preventDefault();
+      flying.held.add(e.key);
+      state.scene.setFly(flying);
+      return;
+    }
     if (e.key === 'f') state.scene.frameSelection();
     if (e.key === 'F') state.scene.frameAll();
-    if (e.key === 't') state.scene.topDown();          // quickstart scenario 2
+    if (e.key === 't') state.scene.topDown(); // quickstart scenario 2
     if (e.key === 'v' || e.key === 'V') toggleWireframe();
     if (e.key === 'w') setMode('translate');
     if (e.key === 'e') setMode('rotate');
     if (e.key === 'r') setMode('scale');
-    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendPost(e.shiftKey ? '/api/redo' : '/api/undo'); }
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      sendPost(e.shiftKey ? '/api/redo' : '/api/undo');
+    }
   });
   window.addEventListener('keyup', e => {
-    flying.fast = e.shiftKey; flying.slow = e.altKey;
+    flying.fast = e.shiftKey;
+    flying.slow = e.altKey;
     if (flying.held.delete(e.key)) state.scene.setFly(flying);
   });
   // A key released while the window was not focused is never seen, and the camera would drift for ever.
-  window.addEventListener('blur', () => { flying.held.clear(); state.scene.setFly(flying); });
+  window.addEventListener('blur', () => {
+    flying.held.clear();
+    state.scene.setFly(flying);
+  });
 }
-
 
 // On screen rather than in a console: if the view is empty, this says whether the proxies exist, whether the
 // canvas has a size, and where the camera is pointing.
@@ -212,26 +312,48 @@ function showDiagnostics() {
   const tick = () => {
     const d = state.scene.diagnostics();
     const small = d.canvas.w < 40 || d.canvas.h < 40;
-    $('diag').textContent = d.proxies + ' drawn (' + d.meshed + ' as meshes), canvas ' + d.canvas.w + '\u00d7' + d.canvas.h
-      + ', ' + d.scenery + ' scenery blocks, camera ' + d.distanceText;
+    $('diag').textContent =
+      d.proxies +
+      ' drawn (' +
+      d.meshed +
+      ' as meshes), canvas ' +
+      d.canvas.w +
+      '\u00d7' +
+      d.canvas.h +
+      ', ' +
+      d.scenery +
+      ' scenery blocks, camera ' +
+      d.distanceText;
     $('diag').classList.toggle('bad', small || !d.proxies);
 
     // A collapsed viewport used to look exactly like an empty level. Say which one it is, in words, on top of
     // everything, rather than leaving a black rectangle to be interpreted.
     // Three consecutive bad readings, not one: layout has not always settled on the first tick, and an
     // overlay that flashes on every load would teach a person to ignore it.
-    bad = (small || !d.proxies) ? bad + 1 : 0;
+    bad = small || !d.proxies ? bad + 1 : 0;
     if (bad >= 3) {
-      fail(small
-        ? 'The viewport has no room to draw in: it measures ' + d.canvas.w + ' by ' + d.canvas.h + ' pixels. '
-          + 'This is a page layout fault, not a level fault; ' + d.proxies + ' proxies are ready to draw.'
-        : 'The level opened but produced no proxies to draw.');
-    } else if (shown) { $('error').hidden = true; shown = false; }
+      fail(
+        small
+          ? 'The viewport has no room to draw in: it measures ' +
+              d.canvas.w +
+              ' by ' +
+              d.canvas.h +
+              ' pixels. ' +
+              'This is a page layout fault, not a level fault; ' +
+              d.proxies +
+              ' proxies are ready to draw.'
+          : 'The level opened but produced no proxies to draw.',
+      );
+    } else if (shown) {
+      $('error').hidden = true;
+      shown = false;
+    }
     setTimeout(tick, 1000);
   };
   tick();
 }
-let shown = false, bad = 0;
+let shown = false,
+  bad = 0;
 
 function apply() {
   const offsets = visibleSet(state.placements, state.visible);
@@ -253,16 +375,22 @@ function toggleWireframe(on) {
 
 function renderLayers(index) {
   const byName = new Map(state.layers.map(l => [l.name, l]));
-  $('layers').innerHTML = index.map(l => {
-    const meta = byName.get(l.name);
-    return `<label class="layer"><input type="checkbox" data-layer="${l.name.replace(/"/g, '&quot;')}"
+  $('layers').innerHTML = index
+    .map(l => {
+      const meta = byName.get(l.name);
+      return (
+        `<label class="layer"><input type="checkbox" data-layer="${l.name.replace(/"/g, '&quot;')}"
         ${state.visible.has(l.name) ? 'checked' : ''}>
         <span class="n" title="${l.name.replace(/"/g, '&quot;')}">${l.name.replace(/</g, '&lt;')}</span>
-        <span class="c">${l.count}</span></label>`
-      + (meta ? renderGrades(meta.grades) : '');
-  }).join('');
+        <span class="c">${l.count}</span></label>` + (meta ? renderGrades(meta.grades) : '')
+      );
+    })
+    .join('');
   for (const box of $('layers').querySelectorAll('input[data-layer]')) {
-    box.addEventListener('change', () => { state.visible = toggle(state.visible, box.dataset.layer); apply(); });
+    box.addEventListener('change', () => {
+      state.visible = toggle(state.visible, box.dataset.layer);
+      apply();
+    });
   }
 }
 
@@ -276,14 +404,24 @@ async function onPick(ev) {
   state.scene.select(next ? next.offset : null);
   state.catalog?.highlight(next?.offset ?? null);
   if (state.mode) state.scene.setGizmoMode(state.mode);
-  if (!next) { $('inspector').innerHTML = renderPlacement(null); return; }
+  if (!next) {
+    $('inspector').innerHTML = renderPlacement(null);
+    return;
+  }
   try {
     const b = await api(`/api/placement/${next.offset}`);
-    $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script })
-      + (next.total > 1 ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>` : '');
-  } catch (e) { $('inspector').innerHTML = `<div class="empty">${e.message}</div>`; }
+    $('inspector').innerHTML =
+      renderPlacement(b.placement, b.safety, b.replace_targets, {
+        hasRuntimeMap: state.hasRuntimeMap,
+        script: b.script,
+      }) +
+      (next.total > 1
+        ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>`
+        : '');
+  } catch (e) {
+    $('inspector').innerHTML = `<div class="empty">${e.message}</div>`;
+  }
 }
-
 
 // ---------------------------------------------------------------------------------------------------------
 // Editing (T036 to T038). Every change goes to the editor process as an intent; the view holds no bytes and
@@ -291,14 +429,22 @@ async function onPick(ev) {
 
 function setMode(mode) {
   state.mode = mode;
-  for (const [id, m] of [['gizmo-move', 'translate'], ['gizmo-rotate', 'rotate'], ['gizmo-scale', 'scale'], ['gizmo-off', null]]) {
+  for (const [id, m] of [
+    ['gizmo-move', 'translate'],
+    ['gizmo-rotate', 'rotate'],
+    ['gizmo-scale', 'scale'],
+    ['gizmo-off', null],
+  ]) {
     $(id).classList.toggle('on', state.mode === m);
   }
   state.scene.setGizmoMode(mode);
 }
 
 function updateFields(v) {
-  const set = (sel, value) => { const el = document.querySelector(sel); if (el && document.activeElement !== el) el.value = value; };
+  const set = (sel, value) => {
+    const el = document.querySelector(sel);
+    if (el && document.activeElement !== el) el.value = value;
+  };
   if (v.position) [0, 1, 2].forEach(i => set('[data-edit="position"][data-axis="' + i + '"]', v.position[i]));
   set('[data-edit="heading"]', v.heading);
   set('[data-edit="scale"]', v.scale);
@@ -310,7 +456,9 @@ async function onTyped(ev) {
   const attribute = el.dataset.edit;
   const intent = { kind: 'transform', target: state.selection.offset };
   if (attribute === 'position') {
-    intent.position = [0, 1, 2].map(i => Number(document.querySelector('[data-edit="position"][data-axis="' + i + '"]').value));
+    intent.position = [0, 1, 2].map(i =>
+      Number(document.querySelector('[data-edit="position"][data-axis="' + i + '"]').value),
+    );
     if (intent.position.some(n => !Number.isFinite(n))) return note('a position needs three numbers');
   } else {
     const n = Number(el.value);
@@ -322,22 +470,37 @@ async function onTyped(ev) {
 
 async function sendIntent(intent) {
   if (!intent.target || state.busy || state.running || state.locked) return;
-  state.busy = true; refreshSaveState();
-  try { await afterChange(await api('/api/edit', intent)); }
-  catch (e) { note(e.message); await reselect(); }
-  finally { state.busy = false; refreshSaveState(); }
+  state.busy = true;
+  refreshSaveState();
+  try {
+    await afterChange(await api('/api/edit', intent));
+  } catch (e) {
+    note(e.message);
+    await reselect();
+  } finally {
+    state.busy = false;
+    refreshSaveState();
+  }
 }
 
 async function sendPost(path) {
   if (state.busy || state.running || state.locked) return;
-  state.busy = true; refreshSaveState();
-  try { await afterChange(await api(path, {})); } catch (e) { note(e.message); }
-  finally { state.busy = false; refreshSaveState(); }
+  state.busy = true;
+  refreshSaveState();
+  try {
+    await afterChange(await api(path, {}));
+  } catch (e) {
+    note(e.message);
+  } finally {
+    state.busy = false;
+    refreshSaveState();
+  }
 }
 
 // The session is the truth: redraw the edited proxy from what came back, never from what was dragged.
 async function afterChange(b) {
-  state.busy = true; refreshSaveState();
+  state.busy = true;
+  refreshSaveState();
   try {
     if (b.reset_scene) {
       state.selection = null;
@@ -346,23 +509,34 @@ async function afterChange(b) {
       $('scenery-visible').checked = true;
       $('scripted-visible').checked = true;
       $('large-surfaces-solid').checked = false;
-      state.scene.setSceneryVisible(true); state.scene.setLargeSurfacesSolid(false);
+      state.scene.setSceneryVisible(true);
+      state.scene.setLargeSurfacesSolid(false);
       toggleWireframe(false);
     }
     if (b.rebuild_scene) {
       const [data, payload] = await Promise.all([api('/api/placements'), api('/api/meshes')]);
       const decoded = decodeMeshPayload(payload);
-      state.placements = data.placements; state.layers = data.layers;
+      state.placements = data.placements;
+      state.layers = data.layers;
       if (state.selection && !state.placements.some(p => p.offset === state.selection.offset)) {
-        state.selection = null; $('inspector').innerHTML = renderPlacement(null); state.catalog?.highlight(null);
+        state.selection = null;
+        $('inspector').innerHTML = renderPlacement(null);
+        state.catalog?.highlight(null);
       }
       state.layerIndex = layerIndex(state.placements);
       if (b.reset_scene) state.visible = showAll(state.layerIndex);
       state.resources = new Set((payload.scene_roles ?? []).map(r => r.offset));
-      state.scene.build(state.placements, new Map(state.placements.map(p => [p.offset, gradeOf(p)])), decoded.models, decoded.scenery, { preserveCamera: true });
+      state.scene.build(
+        state.placements,
+        new Map(state.placements.map(p => [p.offset, gradeOf(p)])),
+        decoded.models,
+        decoded.scenery,
+        { preserveCamera: true },
+      );
       state.scene.setScriptedPreviews(payload.scripted_previews ?? [], decoded.models);
       state.scene.setScriptedVisible($('scripted-visible').checked);
-      renderLayers(state.layerIndex); apply();
+      renderLayers(state.layerIndex);
+      apply();
     }
     const p = b.placement;
     if (p) {
@@ -382,19 +556,27 @@ async function afterChange(b) {
     await reselect();
     if (b.rebuild_scene) await state.catalog?.reload();
     if (b.reset_scene) {
-      state.scene.select(null); state.catalog?.highlight(null); state.scene.frameAll();
+      state.scene.select(null);
+      state.catalog?.highlight(null);
+      state.scene.frameAll();
       note(`Scene reset: ${b.reset_count} edits undone. Redo can recover them.`);
     }
-  } finally { state.busy = false; refreshSaveState(); }
+  } finally {
+    state.busy = false;
+    refreshSaveState();
+  }
 }
 
 async function selectOffset(offset) {
-  const p = state.placements.find(p => p.offset === offset); if (!p) return;
+  const p = state.placements.find(p => p.offset === offset);
+  if (!p) return;
   for (const layer of p.layers.length ? p.layers : ['(unlayered)']) state.visible.add(layer);
   if (state.resources?.has(offset)) $('resources-visible').checked = true;
-  renderLayers(state.layerIndex); apply();
+  renderLayers(state.layerIndex);
+  apply();
   state.selection = { offset, index: 0, total: 1 };
-  state.scene.select(offset); state.scene.frameSelection();
+  state.scene.select(offset);
+  state.scene.frameSelection();
   if (state.mode) state.scene.setGizmoMode(state.mode);
   await reselect();
 }
@@ -403,10 +585,17 @@ async function reselect() {
   if (!state.selection) return;
   state.catalog?.highlight(state.selection.offset);
   const b = await api('/api/placement/' + state.selection.offset);
-  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, { hasRuntimeMap: state.hasRuntimeMap, script: b.script, addition: b.addition });
+  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, {
+    hasRuntimeMap: state.hasRuntimeMap,
+    script: b.script,
+    addition: b.addition,
+  });
 }
 
-const note = msg => { $('save-note').textContent = msg; $('status-tip').textContent = msg; };
+const note = msg => {
+  $('save-note').textContent = msg;
+  $('status-tip').textContent = msg;
+};
 
 function refreshSaveState() {
   const busy = state.busy || state.running || state.locked;
@@ -422,48 +611,84 @@ function refreshSaveState() {
   $('undo').disabled = busy || !state.undoDepth;
   $('redo').disabled = busy || !state.redoDepth;
   $('reset-scene').disabled = !!busy;
-  $('save-state').textContent = state.dirty ? 'unsaved changes'
-    : state.running ? 'Dolphin running' : state.patched ? 'patched, ready to launch' : state.saved ? 'saved, not patched' : 'no edit yet';
+  $('save-state').textContent = state.dirty
+    ? 'unsaved changes'
+    : state.running
+      ? 'Dolphin running'
+      : state.patched
+        ? 'patched, ready to launch'
+        : state.saved
+          ? 'saved, not patched'
+          : 'no edit yet';
 }
 
 async function doSave() {
   if (state.busy || state.running || state.locked) return;
-  state.busy = true; refreshSaveState();
+  state.busy = true;
+  refreshSaveState();
   try {
     const b = await api('/api/save', {});
     if (!b.written) throw new Error(b.plan.failures.map(f => f.reason).join('; '));
-    state.saved = b.written; state.patched = null; state.dirty = b.dirty;
+    state.saved = b.written;
+    state.patched = null;
+    state.dirty = b.dirty;
     const additions = b.plan.native_additions?.length ?? 0;
-    note('Saved to ' + b.written + '. ' + b.plan.changes.length + ' field changes' + (additions ? ` and ${additions} added object${additions === 1 ? '' : 's'}` : '') + '.');
-  } catch (e) { state.saved = null; note('refused: ' + e.message); }
-  state.busy = false; refreshSaveState();
+    note(
+      'Saved to ' +
+        b.written +
+        '. ' +
+        b.plan.changes.length +
+        ' field changes' +
+        (additions ? ` and ${additions} added object${additions === 1 ? '' : 's'}` : '') +
+        '.',
+    );
+  } catch (e) {
+    state.saved = null;
+    note('refused: ' + e.message);
+  }
+  state.busy = false;
+  refreshSaveState();
 }
 
 async function doPatch() {
-  state.busy = true; refreshSaveState();
+  state.busy = true;
+  refreshSaveState();
   try {
     if (state.dirty || !state.saved) {
       const saved = await api('/api/save', {});
       if (!saved.written) throw new Error(saved.plan.failures.map(f => f.reason).join('; '));
-      state.saved = saved.written; state.dirty = saved.dirty; state.patched = null;
+      state.saved = saved.written;
+      state.dirty = saved.dirty;
+      state.patched = null;
     }
     note('Rebuilding and verifying the archive…');
-    const b = await api('/api/patch', {}); state.patched = b.patch;
+    const b = await api('/api/patch', {});
+    state.patched = b.patch;
     note('Patch verified, ready for Dolphin.');
     if ($('launch-after-patch').checked) await doLaunch();
-  } catch (e) { note('Failed: ' + e.message); }
-  finally { state.busy = false; refreshSaveState(); }
+  } catch (e) {
+    note('Failed: ' + e.message);
+  } finally {
+    state.busy = false;
+    refreshSaveState();
+  }
 }
 
 async function doLaunch() {
   const prediction = $('prediction').value.trim();
   try {
-    await api('/api/launch', { prediction, mode: $('launch-mode').value,
-      skip_intro: !!state.tutorial && $('launch-mode').value !== 'play' && $('skip-intro').checked });
-    state.running = true; state.locked = true;
+    await api('/api/launch', {
+      prediction,
+      mode: $('launch-mode').value,
+      skip_intro: !!state.tutorial && $('launch-mode').value !== 'play' && $('skip-intro').checked,
+    });
+    state.running = true;
+    state.locked = true;
     note('Starting Dolphin with the current patch…');
     pollLaunch();
-  } catch (e) { note('refused: ' + e.message); }
+  } catch (e) {
+    note('refused: ' + e.message);
+  }
   refreshSaveState();
 }
 
@@ -472,22 +697,48 @@ async function pollLaunch() {
   const started = Date.now();
   const tick = async () => {
     let b;
-    try { b = await api('/api/launch'); } catch { return setTimeout(tick, 5000); }
-    state.running = !!b.launch?.running; state.locked = b.locked;
+    try {
+      b = await api('/api/launch');
+    } catch {
+      return setTimeout(tick, 5000);
+    }
+    state.running = !!b.launch?.running;
+    state.locked = b.locked;
     refreshSaveState();
     if (b.launch?.running) {
       const p = b.launch.progress ?? {};
-      const phase = { booting: 'Starting Dolphin', macro: `Tutorial macro: step ${p.step ?? 0}/${p.steps ?? '?'}`,
-        'preparing-entry':`Preparing direct entry: step ${p.step??0}/${p.steps??23}`, 'restoring-entry':'Loading the level entry checkpoint',
-        playing: 'Normal play: you have control', stopping: 'Closing Dolphin', finished: 'Test finished, closing Dolphin' }[p.phase] ?? 'Preparing Dolphin';
-      note(phase + ' · ' + Math.round((Date.now() - started) / 1000) + ' s'
-        + (p.consumption?.verified ? ' · Modified archive loaded.' : ''));
+      const phase =
+        {
+          booting: 'Starting Dolphin',
+          macro: `Tutorial macro: step ${p.step ?? 0}/${p.steps ?? '?'}`,
+          'preparing-entry': `Preparing direct entry: step ${p.step ?? 0}/${p.steps ?? 23}`,
+          'restoring-entry': 'Loading the level entry checkpoint',
+          playing: 'Normal play: you have control',
+          stopping: 'Closing Dolphin',
+          finished: 'Test finished, closing Dolphin',
+        }[p.phase] ?? 'Preparing Dolphin';
+      note(
+        phase +
+          ' · ' +
+          Math.round((Date.now() - started) / 1000) +
+          ' s' +
+          (p.consumption?.verified ? ' · Modified archive loaded.' : ''),
+      );
       return setTimeout(tick, 5000);
     }
-    note(b.launch?.error ? 'Launch failed: ' + b.launch.error
-      : (b.launch?.status === 'STOPPED' ? 'Dolphin stopped.' : ['test','direct-test'].includes(b.launch?.mode) ? 'Macro completed, Dolphin closed.' : 'Game closed.')
-        + (b.launch?.consumption?.verified ? ' Patch consumption confirmed.' : '')
-        + (b.launch?.screenshots?.length ? ` ${b.launch.screenshots.length} screenshots saved in .local/dolphin-evidence/.` : ''));
+    note(
+      b.launch?.error
+        ? 'Launch failed: ' + b.launch.error
+        : (b.launch?.status === 'STOPPED'
+            ? 'Dolphin stopped.'
+            : ['test', 'direct-test'].includes(b.launch?.mode)
+              ? 'Macro completed, Dolphin closed.'
+              : 'Game closed.') +
+            (b.launch?.consumption?.verified ? ' Patch consumption confirmed.' : '') +
+            (b.launch?.screenshots?.length
+              ? ` ${b.launch.screenshots.length} screenshots saved in .local/dolphin-evidence/.`
+              : ''),
+    );
     refreshSaveState();
   };
   tick();
@@ -506,7 +757,9 @@ async function onDuplicateClick(ev) {
   const id = ev.target?.id;
   if (id === 'dup-prepare') return prepareDuplicate();
   if (id === 'dup-confirm') return confirmDuplicate();
-  if (id === 'dup-ack') { $('dup-confirm').disabled = !ev.target.checked; }
+  if (id === 'dup-ack') {
+    $('dup-confirm').disabled = !ev.target.checked;
+  }
 }
 
 // Prepare asks the editor for the plan WITHOUT acknowledging anything, so the refusal comes back carrying the
@@ -537,5 +790,7 @@ async function confirmDuplicate() {
     await afterChange(b);
     await reselect();
     note('duplicated into 0x' + target.toString(16) + '; save to write it');
-  } catch (e) { note('refused: ' + e.message); }
+  } catch (e) {
+    note('refused: ' + e.message);
+  }
 }

@@ -8,8 +8,12 @@
 
 // Arrows move, because that is what a hand reaches for first. w, e and r are the gizmo modes and stay so.
 export const BINDINGS = {
-  ArrowUp: 'forward', ArrowDown: 'back', ArrowLeft: 'left', ArrowRight: 'right',
-  PageUp: 'up', PageDown: 'down',
+  ArrowUp: 'forward',
+  ArrowDown: 'back',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+  PageUp: 'up',
+  PageDown: 'down',
 };
 export const isBound = key => Object.prototype.hasOwnProperty.call(BINDINGS, key);
 
@@ -25,23 +29,47 @@ export const speedFor = (extent, { fast = false, slow = false } = {}) =>
 // would teleport the camera across the level.
 export const MAX_DT = 0.1;
 
-export function step({ held = new Set(), dt = 0, speed = 0, forward = [0, 0, -1], right = [1, 0, 0], up = [0, 1, 0] } = {}) {
+export function step({
+  held = new Set(),
+  dt = 0,
+  speed = 0,
+  forward = [0, 0, -1],
+  right = [1, 0, 0],
+  up = [0, 1, 0],
+} = {}) {
   const move = [0, 0, 0];
-  const add = (v, s) => { move[0] += v[0] * s; move[1] += v[1] * s; move[2] += v[2] * s; };
+  const add = (v, s) => {
+    move[0] += v[0] * s;
+    move[1] += v[1] * s;
+    move[2] += v[2] * s;
+  };
   for (const key of held) {
     switch (BINDINGS[key]) {
-      case 'forward': add(forward, 1); break;
-      case 'back': add(forward, -1); break;
-      case 'right': add(right, 1); break;
-      case 'left': add(right, -1); break;
-      case 'up': add(up, 1); break;
-      case 'down': add(up, -1); break;
-      default: break;
+      case 'forward':
+        add(forward, 1);
+        break;
+      case 'back':
+        add(forward, -1);
+        break;
+      case 'right':
+        add(right, 1);
+        break;
+      case 'left':
+        add(right, -1);
+        break;
+      case 'up':
+        add(up, 1);
+        break;
+      case 'down':
+        add(up, -1);
+        break;
+      default:
+        break;
     }
   }
   const length = Math.hypot(...move);
   if (!length || !(dt > 0) || !(speed > 0)) return [0, 0, 0];
   // Normalised, so holding two arrows at once is not faster than holding one.
-  const k = speed * Math.min(dt, MAX_DT) / length;
+  const k = (speed * Math.min(dt, MAX_DT)) / length;
   return [move[0] * k, move[1] * k, move[2] * k];
 }

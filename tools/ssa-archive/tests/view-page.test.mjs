@@ -13,21 +13,30 @@ const html = fs.readFileSync(path.join(view, 'index.html'), 'utf8');
 const app = fs.readFileSync(path.join(view, 'app.mjs'), 'utf8');
 
 test('the page declares a doctype, so the browser does not fall back to quirks mode', () => {
-  assert.match(html.slice(0, 200), /^<!DOCTYPE html>/i,
-    'without this the height chain does not resolve and the viewport column collapses to nothing');
+  assert.match(
+    html.slice(0, 200),
+    /^<!DOCTYPE html>/i,
+    'without this the height chain does not resolve and the viewport column collapses to nothing',
+  );
 });
 
 test('the hidden attribute actually hides, which a display declaration would otherwise beat', () => {
   // [hidden] is a user-agent rule of the lowest specificity. #error carries display:grid, so without an explicit
   // override the overlay is laid out at full size with an opaque background and covers whatever is behind it.
-  assert.match(html, /\[hidden\]\s*{\s*display:\s*none\s*!important/,
-    'every element written as hidden in the markup is only hidden if this rule is present');
+  assert.match(
+    html,
+    /\[hidden\]\s*{\s*display:\s*none\s*!important/,
+    'every element written as hidden in the markup is only hidden if this rule is present',
+  );
 
   for (const [, id] of html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*\bhidden\b/g)) {
     const rule = new RegExp(`#${id}\\s*{[^}]*display:`, 's');
     if (rule.test(html)) {
-      assert.match(html, /\[hidden\]\s*{\s*display:\s*none\s*!important/,
-        `#${id} is written hidden but is also given a display, so it needs the override above`);
+      assert.match(
+        html,
+        /\[hidden\]\s*{\s*display:\s*none\s*!important/,
+        `#${id} is written hidden but is also given a display, so it needs the override above`,
+      );
     }
   }
 });
@@ -58,8 +67,10 @@ test('every bare module specifier the view imports is covered by the import map'
     const src = fs.readFileSync(path.join(view, file), 'utf8');
     for (const [, spec] of src.matchAll(/\bfrom\s+'([^']+)'/g)) {
       if (spec.startsWith('.') || spec.startsWith('/')) continue;
-      assert.ok(prefixes.some(p => (p.endsWith('/') ? spec.startsWith(p) : spec === p)),
-        `${file} imports ${spec}, which no import map entry resolves`);
+      assert.ok(
+        prefixes.some(p => (p.endsWith('/') ? spec.startsWith(p) : spec === p)),
+        `${file} imports ${spec}, which no import map entry resolves`,
+      );
     }
   }
 });

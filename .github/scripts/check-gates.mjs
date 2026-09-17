@@ -10,10 +10,17 @@ const problems = [];
 const rows = [];
 
 for (const file of GATES) {
-  if (!fs.existsSync(file)) { problems.push(`${file} is missing`); continue; }
+  if (!fs.existsSync(file)) {
+    problems.push(`${file} is missing`);
+    continue;
+  }
   let gate;
-  try { gate = JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch (e) { problems.push(`${file}: invalid JSON (${e.message})`); continue; }
+  try {
+    gate = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {
+    problems.push(`${file}: invalid JSON (${e.message})`);
+    continue;
+  }
 
   const status = gate.status ?? 'UNKNOWN';
   if (!ALLOWED.has(status)) problems.push(`${file}: unknown status ${status}`);
@@ -24,7 +31,10 @@ for (const file of GATES) {
     if (!gate.validated_on) problems.push(`${file}: PASS without a validation date`);
   }
 
-  for (const target of String(gate.details ?? '').split(',').map(s => s.trim()).filter(Boolean)) {
+  for (const target of String(gate.details ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)) {
     if (target.startsWith('docs/') && !fs.existsSync(target)) {
       problems.push(`${file}: details points at ${target}, which does not exist`);
     }
@@ -52,6 +62,10 @@ if (problems.length) {
 
 console.log(`${GATES.length} gate files valid, evidence present for every PASS`);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-    ['', '### Gates', '', '| Gate | Status | Validated | Evidence items |', '|---|---|---|---|', ...rows, ''].join('\n'));
+  fs.appendFileSync(
+    process.env.GITHUB_STEP_SUMMARY,
+    ['', '### Gates', '', '| Gate | Status | Validated | Evidence items |', '|---|---|---|---|', ...rows, ''].join(
+      '\n',
+    ),
+  );
 }

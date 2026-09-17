@@ -18,7 +18,10 @@ const count = key => {
   return m ? Number(m[1]) : null;
 };
 
-const tests = count('tests'), pass = count('pass'), fail = count('fail'), skipped = count('skipped');
+const tests = count('tests'),
+  pass = count('pass'),
+  fail = count('fail'),
+  skipped = count('skipped');
 if (pass === null || fail === null) {
   console.error(`::error::${label}: no test summary in ${file}; the run did not reach the reporter`);
   process.exit(1);
@@ -33,7 +36,9 @@ if (fail > 0) {
   process.exit(1);
 }
 if (pass < Number(min)) {
-  console.error(`::error::${label}: ${pass} tests ran, expected at least ${min}. Tests that need an extracted` +
-    ' level skip themselves on a runner, but a drop this large means a fixture path broke.');
+  console.error(
+    `::error::${label}: ${pass} tests ran, expected at least ${min}. Tests that need an extracted` +
+      ' level skip themselves on a runner, but a drop this large means a fixture path broke.',
+  );
   process.exit(1);
 }
