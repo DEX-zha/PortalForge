@@ -29,6 +29,10 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
   on the other families; see [research](../../specs/006-multi-level-editing/research.md).
 - A **Level** tab next to Project: one card per level with its state, its chips and Open; the current level with
   its files and its capabilities on the left.
+- Stored templates and inactive objects (bit 0 of +0x54) are recognised on every level, not only the tutorial:
+  Mining's mine-train and track-switch templates and rock halves leave the default view for the hidden
+  "Templates and disabled objects" layer, as a memory read in the running game confirms they have no actor
+  (`igz.placement.inactive-flag`, LIKELY).
 - 336 SSA tests and 6 MCP tests pass.
 - Evidence and limits: [validation](../../specs/006-multi-level-editing/validation.md) ·
   [usage](../../specs/006-multi-level-editing/quickstart.md) · [research](../../specs/006-multi-level-editing/research.md).

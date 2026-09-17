@@ -116,6 +116,36 @@ of the first two runs sits at (2.7, 4.6, 0), out of view. The lanterns run `Lant
 with no track dependency, and one of them hangs in the top-left of every capture: both were lowered by 5 units
 for the transform runs, and the effect is judged by `shot diff` between the emerald and the lantern captures.
 
+## Objects that looked misplaced: stored templates and inactive records
+
+After the redirect proofs the user reported objects "misplaced in general" on Mining: `Rock_Breakable_Half`,
+`Switch_90_Art_Template`, `Mine_Train_Template` and others. They are not misplaced; they are stored. The word at
++0x54 of every placement record is exactly 4 or 5 on both levels measured, and bit 0 is the whole difference:
+
+| Level | Class | Placed (4) | Template or inactive (5) | In a `.lvl` layer | Both |
+|---|---:|---:|---:|---:|---:|
+| Tutorial | 104 | 377 | 296 | 283 | 205 |
+| Mining | 98 | 381 | 236 | 240 | 209 |
+
+Every object the user named has the bit set, together with `Rock_Breakable_Quarter` and `_Full`, `Rock_Bit_1`,
+`OilCan_Icon`, `Elemental_Gate_Template` and the rest of the `GameElement_*.lvl` libraries; `MineTrain`,
+`Lantern_01`, the mining walls and the Automaton parts have it clear. The `.lvl` layer is a related but distinct
+signal: 27 flagged records sit outside any library (cutscene actors, triggers, a rescued miner, all inactive until
+a script activates them) and 31 library members are placed with the bit clear (the Automaton's parts near the
+opening scene). The bit is what the tutorial's "Templates and disabled objects" layer already used, but
+`scene-roles.mjs` tested the tutorial's class index 104 and the presence of `Bridge_Spawner.ai`, so it returned
+nothing on any other level. It now uses the class detected for the file and no script gate: Mining gets its 236,
+the tutorial keeps its 296, and the bridge and cannon previews stay tutorial-only. On the editor those records
+move to the hidden layer and to Project → Resources, with the counterpart link when a placed twin exists.
+
+Read in the running game (`research-probes/instance-probe.mjs`, run `editor-direct-play-1789652048727-d8dbe468`):
+Mining reached through the redirect, the resident section found at `0x80dc6f48` by searching MEM1 for a stored
+position triple and checking a second one. Every record is constructed with the class pointer `0x80481674`.
+The three placed controls (`MineTrain`, `Lantern_01`, `MiningWall_1(3)`) read state 1 with an actor pointer;
+the nine stored records, the user's three included, read state 5 with no actor, still at their storage
+coordinates; `Automaton_Head` and `Spring`, stored 4, read state 2 with no actor: placed, not yet activated.
+Finding `igz.placement.inactive-flag`, LIKELY on the tutorial's earlier comparison plus this read.
+
 ## What is not established
 
 The game has never been booted with an edited non-tutorial level. The finding `level.transform.other-levels` is

@@ -67,6 +67,17 @@ stops. Finding `level.transform.other-levels` **CONFIRMED**: transforms read CON
 tutorial, LIKELY on the levels not booted with an edit yet (SC-004 done). The diff crops are under
 `.local/level-check/lantern-diff-08-*.png`.
 
+## Objects reported misplaced on Mining — 2026-09-17
+
+- `Rock_Breakable_Half`, `Switch_90_Art_Template`, `Mine_Train_Template` and the like are stored templates: bit 0
+  of the +0x54 word, exactly 4 or 5 on every record of both levels measured (research). `scene-roles.mjs` now
+  reads it with the class detected for the file: Mining gets 236 resources, the tutorial keeps 296, the previews
+  stay tutorial-only. `tests/editor-scene-poses.test.mjs` checks the five named objects and four placed controls.
+- One probe boot (`editor-direct-play-1789652048727-d8dbe468`, 13:34 → 13:36): in MEM1 the placed controls read
+  state 1 with actors, the stored records state 5 with no actor at their storage coordinates. Finding
+  `igz.placement.inactive-flag`, LIKELY. The editor server on port 7400 was restarted on the new code: the
+  catalogue reports 236 resources, 357 scripted, 23 markers and 1 static object for Mining.
+
 ## Limits
 
 - The game has not been booted on any edited non-tutorial level. The only in-game transform proofs are the
