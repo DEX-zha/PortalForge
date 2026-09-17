@@ -7,11 +7,11 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 
 | # | Step | State | Cost | Evidence rule |
 |---|---|---|---|---|
-| 1 | Open any level and move its objects | **Delivered offline** ([spec 006](../../specs/006-multi-level-editing/spec.md)); in-game proof pending | done; two boots on one level remain | two identical cold boots of an edited non-tutorial level, reached through normal play, promote `level.transform.other-levels` to CONFIRMED |
+| 1 | Open any level and move its objects | **Delivered and CONFIRMED on Mining** ([spec 006](../../specs/006-multi-level-editing/spec.md)): two identical boots showed a lowered lantern where the original hung | done | `level.transform.other-levels` CONFIRMED; a level reads CONFIRMED once it was booted with an edit (its row in `docs/level-entry-status.json`), LIKELY otherwise |
 | 2 | Runtime maps per level, on demand | Tooling exists (`experiment ptr-scan`, `igz fixups`); folder and config lookup wired by step 1 | one boot per level plus navigation to it | a map is a runtime read, not a guess: the resident section diffed against the file |
 | 3 | Family campaign on the tutorial: from 9 Add sources towards 234 families | Tooling exists (**Test next 2 types**); waits for a decision on the promotion rule | about 9 minutes of Dolphin per family; over 30 hours at the current per-source rule | two identical boots per exact source today; promoting a script-less family from one member is a constitution change the user has to make |
 | 4 | More than eight additions per patch | Not started | rewrite the Gecko recipe as a loop over a data table instead of one code block per addition, then two boots | the reserved code area is 3 256 bytes; eight additions use 2 344 |
-| 5 | Patch lands in the chosen level | **Implemented as an experiment** (archive redirect: the level's `.bld` and `.arc` served under the tutorial's names through the confirmed tutorial checkpoint); no boot yet | one screening boot, then two identical boots per level family | `level.entry.archive-redirect` UNKNOWN → LIKELY on two boots landing in the level → CONFIRMED with the edit visible there |
+| 5 | Patch lands in the chosen level | **CONFIRMED on Mining** (archive redirect: the level's `.bld` and `.arc` served under the tutorial's names through the confirmed tutorial checkpoint; two identical boots on 2026-09-17), LIKELY for the other families | two identical boots per level family | `level.entry.archive-redirect`; a family moves to CONFIRMED in `docs/level-entry-status.json` when two boots land in one of its levels |
 | 6 | Native additions outside the tutorial, and gameplay of added objects (M5) | Research | unknown | the addition recipe is anchored on the tutorial's readiness and activation observers; survival, collection and combat have no proof anywhere |
 
 ## Step 1 — what was delivered on 2026-09-17
@@ -23,10 +23,13 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 - Objects and terrain: parked objects (boss cameras at 30480, 30480, 30480; switch templates near z = -815) no
   longer size the view; Haunted Castle goes from a 31 299-unit extent to 1 175. Five non-tutorial levels were
   rendered headless and one real-browser scenario switches Mining → Challenge 005 → tutorial with no exception.
-- Patch → Launch on another level: the launch mode defaults to **Direct level play via the tutorial slot
-  (experimental)** once the level's voice pack is extracted; the game is expected to load the chosen level from
-  the tutorial checkpoint. UNKNOWN until the first boot; see [research](../../specs/006-multi-level-editing/research.md).
-- 326 SSA tests and 6 MCP tests pass. No Dolphin boot was made.
+- Patch → Launch on another level: the launch mode defaults to **Direct level play via the tutorial slot** once
+  the level's voice pack is extracted; the game loads the chosen level from the tutorial checkpoint. Confirmed on
+  Mining by two identical boots (the mine and Blobbers' dialogue where the tutorial's opening would be), LIKELY
+  on the other families; see [research](../../specs/006-multi-level-editing/research.md).
+- A **Level** tab next to Project: one card per level with its state, its chips and Open; the current level with
+  its files and its capabilities on the left.
+- 336 SSA tests and 6 MCP tests pass.
 - Evidence and limits: [validation](../../specs/006-multi-level-editing/validation.md) ·
   [usage](../../specs/006-multi-level-editing/quickstart.md) · [research](../../specs/006-multi-level-editing/research.md).
 

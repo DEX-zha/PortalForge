@@ -104,6 +104,18 @@ in place. The checkpoint binding hashes `[disc path, size]` of every replacement
 own checkpoint folder; whether the rebuilt `.bld` size is stable across edits of one level decides whether that
 preparation happens once per level or once per patch (see validation).
 
+## Choosing a prop the opening camera sees
+
+The redirect macro captures the level's opening as the game plays it, so a transform proof needs a prop inside
+that camera's view. On Mining the opening cutscene plays around (86, 12, -45): the cutscene cameras `CS_Opening01`
+(90.2, 16.7, -44.3), `CS_Opening02` (89.4, 12.8, -53.2) and `CS_Opening03` (64.2, 16.1, -46.4), the Molekin actors
+of the closing cutscene at (86 to 91, 11 to 12, -40 to -48), `Lantern_01` at (84.9, 16.1, -37) and
+`Lantern_01(1)` at (82.4, 16.0, -54.3), the amethyst on the cart at (84.9, 13.3, -60.2). Every modelled placement
+within 25 units carries a behaviour script except `MineTrain` at (99, 12.6, -45.9), behind the camera. The emerald
+of the first two runs sits at (2.7, 4.6, 0), out of view. The lanterns run `Lantern_Generic.ai`, a light script
+with no track dependency, and one of them hangs in the top-left of every capture: both were lowered by 5 units
+for the transform runs, and the effect is judged by `shot diff` between the emerald and the lantern captures.
+
 ## What is not established
 
 The game has never been booted with an edited non-tutorial level. The finding `level.transform.other-levels` is

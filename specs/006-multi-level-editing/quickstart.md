@@ -15,8 +15,10 @@ specific decoded file; that server has no picker.
 
 In the editor:
 
-1. The header shows the current level and a picker grouped by Story, Hub, Challenge, PvP and Other, each entry
-   with its placement count, `· map` when a runtime map exists, `· decode on open` when the workspace is missing.
+1. The **Level** tab next to **Project** is the full view: on the left the current level with its archive, entry,
+   runtime map, voice pack and the capabilities with their reasons; on the right one card per level of the disc,
+   with a search, a family filter, chips that say how far the evidence goes (green CONFIRMED, amber LIKELY, purple
+   experimental, grey not available) and **Open**. The header keeps a quick picker with the same levels.
    **Open** switches; with unsaved edits a dialog asks before discarding them.
 2. **Inspector → Level information** lists the capabilities of the level: Move / rotate / scale, Duplicate, Add,
    Automatic test, Direct entry, each CONFIRMED, LIKELY or not available, with the finding and the reason on hover.
@@ -26,19 +28,26 @@ In the editor:
 4. Move, rotate, scale, Save and Patch work as on the tutorial. Launch offers **Normal play** only: navigate to the
    level yourself, look, then record what you saw.
 
-## Landing in the chosen level (experimental)
+## Landing in the chosen level
 
 Open the level by name with the game image configured: its voice pack `level/<name>.arc` is extracted once. After
-**Save → Patch**, the launch mode defaults to **Direct level play via the tutorial slot (experimental)**. The
-patch carries a second descriptor in which the level's `.bld` and `.arc` are served under the tutorial's file
-names, so the confirmed tutorial checkpoint (slot screen, press A) makes the game load them. The first launch on a
-level prepares a checkpoint for that layout (about 2.5 minutes); later launches restore it. The macro presses A,
-waits for `level/Level_027_Tutorial.bld` to be read at the level's size, and takes four captures. **Direct level
-test** closes Dolphin afterwards; **Direct level play** leaves you at the controls.
+**Save → Patch**, the launch mode defaults to **Direct level play via the tutorial slot**. The patch carries a
+second descriptor in which the level's `.bld` and `.arc` are served under the tutorial's file names, so the
+confirmed tutorial checkpoint (slot screen, press A) makes the game load them. The first launch on a level
+prepares a checkpoint for that layout (about 2 minutes); later launches restore it and reach the level in about
+two minutes. The macro presses A, waits for `level/Level_027_Tutorial.bld` to be read at the level's size, taps A
+through the "Skylander visiting from another adventure" prompt and takes four captures. **Direct level test**
+closes Dolphin afterwards; **Direct level play** leaves you at the controls.
 
-This is an experiment, `level.entry.archive-redirect`, UNKNOWN until boots say otherwise: the game may load the
-level, load the tutorial anyway, or hang. Nothing about the tutorial's own direct entry changes. A level opened
-with `edit serve` on a file has no voice pack and no redirect; Normal play stays available everywhere.
+Confirmed on Mining by two identical boots on 2026-09-17 (`level.entry.archive-redirect`): the mine and Blobbers'
+opening dialogue appear where the tutorial's opening would. The other families are LIKELY, labelled so in the
+launch mode and the chips, until two boots land in one of their levels; edit `docs/level-entry-status.json` with
+the run ids to promote a level. Nothing about the tutorial's own direct entry changes. A level opened with
+`edit serve` on a file has no voice pack and no redirect; Normal play stays available everywhere.
+
+`node research-probes/redirect-boot.mjs --level <name> [--prop <name>[,<name>]] [--raise <units>]` runs one boot
+through the editor's own path (open, edit, save, patch, launch) and prints the run record; run it twice for the
+two-boot rule.
 
 ## Proving an edit on another level
 

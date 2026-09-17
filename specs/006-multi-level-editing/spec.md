@@ -23,9 +23,9 @@ decoded file located by hand, with the entry index typed in, and the interface a
 places.
 
 **Independent Test**: `edit levels` lists 76 levels; `edit open Level_000_Mining --open` serves Mining with 617
-placements; the picker in the header lists the same 76 levels grouped by family with Mining selected; the Level
-information panel says transforms are LIKELY, duplication needs a runtime map, additions, the automatic test and
-direct entry are tutorial-only.
+placements; the **Level** tab next to Project shows one card per level with Mining marked current, its chips
+reading Move · likely, Duplicate · no map, Add · tutorial only, Test · manual, Direct entry · experimental; the
+header picker lists the same 76 levels grouped by family.
 
 **Acceptance Scenarios**:
 
@@ -179,11 +179,11 @@ Launch prepares a checkpoint for that layout, restores it, presses A, and the fi
 - **SC-003**: The real-browser scenario (`tests/browser-multilevel.mjs`) passes with zero JavaScript exceptions:
   picker with 76 levels, discard dialog, switch to a Challenge level, return to the tutorial with its CONFIRMED
   capabilities.
-- **SC-004**: Two identical cold boots of an edited non-tutorial level show the predicted effect (pending; this
-  promotes `level.transform.other-levels` to CONFIRMED).
+- **SC-004**: Two identical cold boots of an edited non-tutorial level show the predicted effect. Done on
+  2026-09-17: Mining's opening-scene lanterns lowered by 5 units, `level.transform.other-levels` CONFIRMED.
 - **SC-005**: The full test suites pass (326 SSA, 6 MCP) and lint and formatting are clean.
-- **SC-006**: Two identical cold boots through the redirect show the chosen level playable (pending; promotes
-  `level.entry.archive-redirect` to LIKELY), and the edited placement visible in it (CONFIRMED).
+- **SC-006**: Two identical cold boots through the redirect show the chosen level where the tutorial would be.
+  Done on 2026-09-17 on Mining: `level.entry.archive-redirect` CONFIRMED there, LIKELY for the other families.
 
 ## Out of scope
 

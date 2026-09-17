@@ -42,9 +42,8 @@ it runs only on the user's go-ahead.
 
 ## Phase 6 — Proof and delivery
 
-- [ ] T012 Two identical cold boots of an edited non-tutorial level (SC-004). Promotes the finding to CONFIRMED.
-      Waits for the user's go-ahead; not started. With T014 the boots go through the redirect instead of
-      normal play.
+- [x] T012 Two identical cold boots of an edited non-tutorial level (SC-004), done through the redirect as T018:
+      `level.transform.other-levels` CONFIRMED on Mining.
 - [x] T013 Roadmap rewritten (`docs/editor/roadmap.md`), AGENTS.md and README updated, validation.md written;
       suites, lint and formatting clean; pull request opened.
 
@@ -57,8 +56,15 @@ it runs only on the user's go-ahead.
       `dolphin-run.mjs`, `server.mjs` (`/api/level-entry`), the view's launch modes.
 - [x] T015 Finding `level.entry.archive-redirect` (UNKNOWN), `docs/level-entry-status.json`, spec and roadmap
       updated.
-- [ ] T016 First screening boot: direct-test on Mining through the redirect (one boot, about 6 minutes with the
-      checkpoint preparation). Then two identical boots for SC-006. Waits for the user's go-ahead.
+- [x] T016 Two identical boots on Mining through the redirect (`editor-direct-test-1789649812643-1296e432`,
+      `editor-direct-test-1789650170738-0c8c6b0a`): Mining loads where the tutorial would, consumption proven,
+      finding CONFIRMED on Mining, other families LIKELY in the entry matrix.
+- [x] T017 The **Level** tab next to Project (`src/view/levels.mjs`, `tests/view-levels.test.mjs`, the browser
+      scenario): cards for the 76 levels with state, chips and Open; the current level with its files and
+      capabilities.
+- [x] T018 Two boots on Mining with the two opening-scene lanterns lowered by 5 units
+      (`editor-direct-test-1789650694320-cf7db99e`, `editor-direct-test-1789650921032-81b4cf69`): the lantern
+      leaves the top-left of the opening captures identically, judged by `shot diff`.
 
 ## Dependencies
 
