@@ -78,8 +78,14 @@ promoted by evidence, results kept as findings. Nobody boots one object at a tim
 - **FR-002**: The addition capacity is measured by compiling against the Gecko budget, not assumed; the editor's
   limit stays the number two boots confirmed (eight) and rises only with a capacity finding; a refusal states
   the number.
-- **FR-003**: Any resident placement record of the level, placed or template, is an admissible source; its
-  status is its family's status (Add, Needs test, Test failed) and the campaign, not a hand-made list, sets it.
+- **FR-003**: Any resident placement record of the level is an admissible source: placed or template, with or
+  without a model, scripted or not. Its card states the evidence (verified in game n times, not verified yet,
+  failed with the reason); the evidence never blocks the addition (user decision of 2026-09-17, see the
+  [study](study-add-anything.md); needs the constitution amendment written there).
+- **FR-003a**: Every launch verifies from memory the additions it carries and files the result per family, so
+  that evidence accumulates from ordinary use.
+- **FR-003b**: The table of additions can be written into the running game, so that one boot verifies a whole
+  level and a scene is not bounded by the Gecko budget while the editor drives the run.
 - **FR-004**: A campaign boots batches of sources (target: 20 to 40 per boot), verifies each instance in memory
   (class, state, actor, requested transform) and by capture, and records one finding per family with the run ids.
 - **FR-005**: The activation flag (+0x54 bit 0) is an editable property once confirmed: placed to stored removes

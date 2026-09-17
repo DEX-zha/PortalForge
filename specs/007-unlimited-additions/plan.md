@@ -14,6 +14,15 @@ of them. Everything is read from the game before it is written to the file, and 
 | C | Library import between levels | any enemy or object of the game in any level | 2 to 4 weeks of research, tens of boots | high: appending to the IGZ has never loaded; gate M4A |
 | V | Campaign validation | proof for hundreds of sources without hand work | 2 to 3 days, then unattended boots | none |
 
+## Revised order (study of 2026-09-17, evening)
+
+The user's answer to phase A was that a gate before adding is the wrong shape: everything must be addable now,
+blocked objects included, and proof has to be fast. The [study](study-add-anything.md) found how, without a boot:
+verify at launch instead of before adding (S1), write the table into the running game so one boot verifies a level
+and the count is unbounded while the editor drives (S2), reserve MEM2 through the OS arena for thousands of
+additions in plain play (S3). S1 to S3 come before phases B and C; A1 and A2 stay the first boots, because S2
+builds on the compact table.
+
 ## Technical Context
 
 - The native recipe (`src/editor/native-patch.mjs`) is PowerPC emitted as Gecko lines: a fixed prologue, guards

@@ -22,6 +22,26 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 - [ ] A05 Experiment A2, two boots: 32 additions across eight families on Mining, all verified in memory.
 - [ ] A06 Findings `level.prop.native-addition.<level>` per level booted; the tutorial keeps its own.
 
+## Phase S — Add anything, verify fast, hold more ([study](study-add-anything.md))
+
+- [ ] S01 Constitution amendment, `AGENTS.md` and this plan's check: experimental additions (allowed, labelled,
+      verified by every launch, CONFIRMED only after two passing launches); storage reserved through the OS arena.
+- [ ] S02 Any resident record addable: the recipe lookup stops gating; model-less sources (model word zero) and
+      sources at another scale; an addition of an addition resolves to its source. Cards show evidence, not a
+      verdict: verified n times, not verified yet, failed with the reason.
+- [ ] S03 Every launch inspects its additions row by row and files the family reports; a failed source is a
+      result on its card, not a failed run.
+- [ ] S04 Generic routine: count, anchor and table address read from the header; an empty table is inert.
+      The tutorial's compiled recipe stays available unchanged.
+- [ ] S05 Live table: the launcher locates the level at arrival, picks the anchor from what is active, writes the
+      rows, refills when they are created; checkpoint identity covers the routine.
+- [ ] S06 Experiment L1, one boot on Mining: live write, refill, savestate loop.
+- [ ] S07 Level campaign in one boot: every family of the level in batches with the arrival savestate between
+      them; families that hang the level filed as unsafe.
+- [ ] S08 Experiment M1, two boots: MEM2 arena end lowered by a Riivolution memory patch, marker block intact.
+- [ ] S09 Table in the reserved block, delivered by `<memory valuefile>` and rewritten after a checkpoint
+      restore; experiment M2, two boots, 200 additions.
+
 ## Phase B — The activation flag as a switch
 
 - [ ] B01 `applyEdit` kind `activation`, save-plan authorisation of the single word, safety rule for scripted
@@ -69,5 +89,5 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 
 ## Dependencies
 
-A01 → A02 → A03 → A04 → A05 → A06. B01 → B02 → B03/B04 → B05, independent of A. C01 and C02 first; C03 decides
+A01 → A02 → A03 → A04 → A05 → A06. S01 → S02 → S03; S04 → S05 → S06 → S07, after A05; S08 → S09. B01 → B02 → B03/B04 → B05, independent of A. C01 and C02 first; C03 decides
 C04; C05 after C03 loads; C06 before C07; C08 closes. V01 → V02 → V03 → V04, and V03 needs A03.
