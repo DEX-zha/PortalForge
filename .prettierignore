@@ -1,0 +1,9 @@
+node_modules/
+.local/
+graphify-out/
+package-lock.json
+**/package-lock.json
+docs/
+specs/
+# Served as written: the static page checks in tests/view-page.test.mjs read this file byte for byte.
+tools/ssa-archive/src/view/index.html

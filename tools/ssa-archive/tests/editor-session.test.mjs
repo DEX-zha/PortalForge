@@ -46,31 +46,56 @@ test('session: layers are derived, counted and graded, and an unlayered placemen
   const unlayered = s.layers.find(l => l.name === '(unlayered)');
   assert.ok(unlayered, 'the marker claimed by nothing still belongs to a group');
   assert.equal(unlayered.count, 1);
-  assert.equal(s.layers.reduce((n, l) => n + l.count, 0), s.placements.length);
+  assert.equal(
+    s.layers.reduce((n, l) => n + l.count, 0),
+    s.placements.length,
+  );
 });
 
 test('session: opening refuses when the gates do not report M1 and M2 as PASS', () => {
   const file = levelFile();
   const gates = g => ({ status: g === 'm2' ? 'FAIL' : 'PASS' });
-  assert.throws(() => openSession(file, opts({ deps: { gates } })), e =>
-    /M2/.test(e.message) && e.message.includes(path.resolve(file)) && e.exitCode === 2);
+  assert.throws(
+    () => openSession(file, opts({ deps: { gates } })),
+    e => /M2/.test(e.message) && e.message.includes(path.resolve(file)) && e.exitCode === 2,
+  );
 });
 
 test('session: opening refuses a file with no detectable placement class', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-session-'));
   const file = path.join(dir, 'empty.bld.decoded');
-  fs.writeFileSync(file, buildIgz({ objects: [{ type: 3, size: 0x20 }, { type: 4, size: 0x20 }], headTable: [0, 1] }).buf);
-  assert.throws(() => openSession(file, opts()), e =>
-    /no placement class/i.test(e.message) && e.message.includes(path.resolve(file)) && e.exitCode === 2);
+  fs.writeFileSync(
+    file,
+    buildIgz({
+      objects: [
+        { type: 3, size: 0x20 },
+        { type: 4, size: 0x20 },
+      ],
+      headTable: [0, 1],
+    }).buf,
+  );
+  assert.throws(
+    () => openSession(file, opts()),
+    e => /no placement class/i.test(e.message) && e.message.includes(path.resolve(file)) && e.exitCode === 2,
+  );
 });
 
 test('session: opening refuses when a resolved record does not match the frozen contract', () => {
   const file = levelFile();
   // inject a resolver that returns a record missing a required field; the session must not present it
-  const resolve = (buf, graph) => ({ file_has_placements: true, placements: 1, counts: { direct: 1 }, models: [], detection: { chosen: { strict: 1, entries: 1 } },
-    classes: { placement_type: 1, model_type: 2 }, rows: [{ offset: 16, span: 32, name: 'broken' }] });
-  assert.throws(() => openSession(file, opts({ deps: { gates: passing, resolve } })), e =>
-    /placement-v1|contract/i.test(e.message) && /0x10/.test(e.message) && e.exitCode === 2);
+  const resolve = () => ({
+    file_has_placements: true,
+    placements: 1,
+    counts: { direct: 1 },
+    models: [],
+    detection: { chosen: { strict: 1, entries: 1 } },
+    classes: { placement_type: 1, model_type: 2 },
+    rows: [{ offset: 16, span: 32, name: 'broken' }],
+  });
+  assert.throws(
+    () => openSession(file, opts({ deps: { gates: passing, resolve } })),
+    e => /placement-v1|contract/i.test(e.message) && /0x10/.test(e.message) && e.exitCode === 2,
+  );
 });
 
 // ---------------------------------------------------------------------------------------------------------
@@ -86,7 +111,13 @@ const first = s => s.placements[0];
 test('edit: a transform intent updates the record in memory, marks the session dirty and leaves the file alone', () => {
   const s = openTest();
   const before = fs.readFileSync(s.file);
-  const r = applyEdit(s, { kind: 'transform', target: first(s).offset, position: [11, 12, 13], heading: 45, scale: 250 });
+  const r = applyEdit(s, {
+    kind: 'transform',
+    target: first(s).offset,
+    position: [11, 12, 13],
+    heading: 45,
+    scale: 250,
+  });
   assert.deepEqual(r.placement.position, [11, 12, 13]);
   assert.equal(r.placement.rotation.heading, 45);
   assert.equal(r.placement.scale, 250);
@@ -131,7 +162,8 @@ test('edit: undoing every edit restores the opened bytes exactly', () => {
   const original = Buffer.from(s.buffer);
   applyEdit(s, { kind: 'transform', target: first(s).offset, position: [5, 6, 7], heading: 33, scale: 80 });
   applyEdit(s, { kind: 'transform', target: s.placements[1].offset, position: [1, 2, 3] });
-  undo(s); undo(s);
+  undo(s);
+  undo(s);
   assert.ok(original.equals(s.buffer), 'byte for byte back to how it opened');
 });
 
@@ -145,12 +177,18 @@ test('edit: an attribute the record has no evidence for is refused, and says whi
   assert.match(no.reason, /layout/i);
   const unsupported = canEdit(first(s), 'model');
   assert.equal(unsupported.error, 'UNSUPPORTED_FIELD');
-  assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset, model: 'x' }), /UNSUPPORTED_FIELD|unsupported/i);
+  assert.throws(
+    () => applyEdit(s, { kind: 'transform', target: first(s).offset, model: 'x' }),
+    /UNSUPPORTED_FIELD|unsupported/i,
+  );
 });
 
 test('edit: an intent naming an offset that is not a placement is refused', () => {
   const s = openTest();
-  assert.throws(() => applyEdit(s, { kind: 'transform', target: 0x999999, position: [0, 0, 0] }), /NO_SUCH_PLACEMENT|no placement/i);
+  assert.throws(
+    () => applyEdit(s, { kind: 'transform', target: 0x999999, position: [0, 0, 0] }),
+    /NO_SUCH_PLACEMENT|no placement/i,
+  );
   assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset, position: [1, 2] }), /three/i);
   assert.throws(() => applyEdit(s, { kind: 'transform', target: first(s).offset }), /nothing to change/i);
 });
@@ -163,8 +201,10 @@ test('edit: undo restores the exact bytes, not the rounded value the inspector s
   const exact = Buffer.from(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30));
   applyEdit(s, { kind: 'transform', target: p.offset, position: [1, 2, 3] });
   undo(s);
-  assert.ok(exact.equals(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30)),
-    'restoring the displayed 82.252 instead of the stored bytes would silently rewrite the field');
+  assert.ok(
+    exact.equals(s.buffer.subarray(p.offset + 0x24, p.offset + 0x30)),
+    'restoring the displayed 82.252 instead of the stored bytes would silently rewrite the field',
+  );
 });
 
 // ---------------------------------------------------------------------------------------------------------
@@ -178,7 +218,12 @@ function mapped() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-dup-'));
   const file = path.join(dir, 'level.bld.decoded');
   fs.writeFileSync(file, built.buf);
-  return openSession(file, { archive: 'level/Test.bld', entry: 3, fixups: syntheticFixups(built), deps: { gates: passing } });
+  return openSession(file, {
+    archive: 'level/Test.bld',
+    entry: 3,
+    fixups: syntheticFixups(built),
+    deps: { gates: passing },
+  });
 }
 
 test('duplicate: only same-size slots are offered, and never the source itself', () => {
@@ -186,19 +231,25 @@ test('duplicate: only same-size slots are offered, and never the source itself',
   const src = s.placements[0];
   const targets = replaceTargets(s, src);
   assert.ok(targets.length > 0);
-  assert.ok(targets.every(t => t.span === src.span), 'a different size cannot keep the count-bounded walk aligned');
+  assert.ok(
+    targets.every(t => t.span === src.span),
+    'a different size cannot keep the count-bounded walk aligned',
+  );
   assert.ok(targets.every(t => t.offset !== src.offset));
 });
 
 test('duplicate: a slot that copies a different number of bytes is refused outright', () => {
   const s = mapped();
-  const src = s.placements[0], victim = s.placements[1];
+  const src = s.placements[0],
+    victim = s.placements[1];
   // What matters is the block the recipe copies, not the distance between table entries: the pair confirmed in
   // game differs on the second (0x1498 against 0x834) and matches on the first (0x1C8 each).
   const copy = s.copy.get(victim.offset);
   s.copy.set(victim.offset, { ...copy, size: copy.size + 16 });
-  assert.throws(() => applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset }),
-    e => e.error === 'SPAN_MISMATCH' && /block of/.test(e.message));
+  assert.throws(
+    () => applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset }),
+    e => e.error === 'SPAN_MISMATCH' && /block of/.test(e.message),
+  );
 });
 
 test('duplicate: a wrapped placement and an unwrapped one are never offered for each other', () => {
@@ -210,16 +261,20 @@ test('duplicate: a wrapped placement and an unwrapped one are never offered for 
 });
 
 test('duplicate: a level with no runtime map is refused, because a write needs pointer evidence', () => {
-  const s = openTest();                                              // opened without fixups
+  const s = openTest(); // opened without fixups
   assert.equal(s.has_runtime_map, false);
-  assert.throws(() => applyEdit(s, { kind: 'replace', target: s.placements[1].offset, source: s.placements[0].offset }),
-    e => e.error === 'RUNTIME_MAP_REQUIRED' && /pointer/i.test(e.message));
+  assert.throws(
+    () => applyEdit(s, { kind: 'replace', target: s.placements[1].offset, source: s.placements[0].offset }),
+    e => e.error === 'RUNTIME_MAP_REQUIRED' && /pointer/i.test(e.message),
+  );
 });
 
 test('duplicate: the copy lands in the slot, keeps the slot name, and the source is untouched', () => {
   const s = mapped();
-  const src = s.placements[0], victim = s.placements[3];
-  const victimName = victim.name, sourceModel = src.model.path;
+  const src = s.placements[0],
+    victim = s.placements[3];
+  const victimName = victim.name,
+    sourceModel = src.model.path;
   const sourceBytes = Buffer.from(s.buffer.subarray(src.offset, src.offset + src.span));
 
   const r = applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset, position: [42, 3, 9] });
@@ -228,14 +283,18 @@ test('duplicate: the copy lands in the slot, keeps the slot name, and the source
   assert.equal(after.name, victimName, 'the slot keeps its own name so scripts still find it');
   assert.equal(after.model.path, sourceModel, 'and shows the source model');
   assert.deepEqual(after.position, [42, 3, 9]);
-  assert.ok(sourceBytes.equals(s.buffer.subarray(src.offset, src.offset + src.span)), 'the source is not moved or altered');
+  assert.ok(
+    sourceBytes.equals(s.buffer.subarray(src.offset, src.offset + src.span)),
+    'the source is not moved or altered',
+  );
   assert.ok(r.plan, 'the plan that authorised it travels with the result');
   assert.match(r.plan.recipe, /t104-generic|wrapper-proven/);
 });
 
 test('duplicate: undo puts the sacrificed slot back exactly', () => {
   const s = mapped();
-  const src = s.placements[0], victim = s.placements[3];
+  const src = s.placements[0],
+    victim = s.placements[3];
   const original = Buffer.from(s.buffer);
   applyEdit(s, { kind: 'replace', target: victim.offset, source: src.offset });
   assert.ok(!original.equals(s.buffer), 'something changed');

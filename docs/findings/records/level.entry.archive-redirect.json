@@ -1,0 +1,34 @@
+{
+  "id": "level.entry.archive-redirect",
+  "updated": "2026-09-17",
+  "editable": true,
+  "category": "gameplay-logic",
+  "confidence": "CONFIRMED",
+  "endian": "unknown",
+  "type": "launch strategy: another level's archive (.bld) and voice pack (.arc) served under level/Level_027_Tutorial.bld and level/Level_027_Tutorial.arc, entered through the confirmed tutorial pre-load checkpoint",
+  "structure": "Every level of SSPP52 Rev1 ships as a pair, level/<name>.bld (level graph and six language packs) and level/<name>.arc (voices: the tutorial's holds 477 encoded wav files in six languages, Mining's is 14 261 212 bytes). The tutorial checkpoint (level.entry.preload-checkpoint) restores the game at the slot screen and presses A; the game then reads level/Level_027_Tutorial.bld and, after the opening, level/Level_027_Tutorial.arc. The redirect patch is a second Riivolution descriptor next to the plain one, with both files of the chosen level under the tutorial's names, prepared and restored by the same checkpoint code; the binding hashes the replacement layout, so each level gets its own checkpoint (Mining's: state 7f1a2207d666…, FST 8894f3330ea9…), prepared once because the rebuilt size is stable per level.",
+  "location": {
+    "file_pattern": "level/Level_027_Tutorial.bld and level/Level_027_Tutorial.arc on the Riivolution virtual disc; tools/ssa-archive/src/editor/level-entry.mjs (redirectSteps), patch-build.mjs, save.mjs (redirectFor)",
+    "offset": "descriptor",
+    "length": 1
+  },
+  "meaning": "The game names the level to load from the save slot and opens the two files by name; everything level-specific it needs is inside them. Serving Mining's pair under the tutorial's names made the game load Mining on two identical cold boots: after the 'This Skylander is visiting from another adventure' prompt, the mine and Blobbers' opening dialogue appear where the tutorial's opening would. Confirmed on Level_000_Mining (SSPP52 Rev1); the mechanism is generic over the 76 levels, but each family (story, hub, challenge, PvP) stays LIKELY until its own two boots (docs/level-entry-status.json). Not covered: completing the level, returning to the hub, save-slot side effects, native additions (tutorial-only), and whether the edited placement of those runs (an emerald far from the opening camera) is visible, which belongs to level.transform.other-levels.",
+  "evidence": [
+    {
+      "probe": "ssa-archive list on .local/samples/DATA/files/level/Level_027_Tutorial.arc; .local/disc/filelist.txt",
+      "summary": "The tutorial .arc is an uncompressed IGA holding 477 voice files; all 76 levels have a .bld and a .arc under level/. Mining's .bld is 12 617 834 bytes against the tutorial's 15 241 322."
+    },
+    {
+      "probe": "tests/editor-redirect.test.mjs (2026-09-17)",
+      "summary": "Offline: the redirect descriptor carries both files under the tutorial names with the same rebuilt archive as the plain patch; direct launch on another level runs it with the tutorial archive monitored and refuses without a voice pack; the run prepares the checkpoint with the redirect and replays the redirect macro."
+    },
+    {
+      "experiment_id": "editor-direct-test-1789649812643-1296e432",
+      "summary": "First boot, 12:56 to 13:00 UTC on 2026-09-17, checkpoint prepared for the Mining layout then restored: FileMon read level/Level_027_Tutorial.bld at 12 662 kB (Mining's rebuilt size, the tutorial's is 15 333 kB); captures 03 and 05 show the visiting-Skylander prompt, captures 08 and 11 the mine cave with Blobbers' opening dialogue. MACRO_COMPLETED, Dolphin stopped cleanly, slot restored."
+    },
+    {
+      "experiment_id": "editor-direct-test-1789650170738-0c8c6b0a",
+      "summary": "Second boot, 13:02 to 13:04 UTC, same checkpoint (state 7f1a2207d666…, FST 8894f3330ea9…) reused, byte-identical redirected archive (570eb16dd3f6a735…): the same consumption line at 12 662 kB and the same four captures, Mining's cave and Blobbers' dialogue. Two identical boots with the predicted result."
+    }
+  ]
+}

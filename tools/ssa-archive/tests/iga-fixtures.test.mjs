@@ -16,14 +16,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const samples = path.resolve(here, '../../../.local/samples/DATA/files');
 const sample = rel => path.join(samples, ...rel.split('/'));
 const present = rel => fs.existsSync(sample(rel));
-const SKIP = rel => ({ skip: present(rel) ? false : `fixture ${rel} not extracted under .local/samples (run: node cli.mjs disc-extract --path ${rel})` });
+const SKIP = rel => ({
+  skip: present(rel)
+    ? false
+    : `fixture ${rel} not extracted under .local/samples (run: node cli.mjs disc-extract --path ${rel})`,
+});
 
 test('Level_027_Tutorial.arc matches the CONFIRMED R2 findings', SKIP('level/Level_027_Tutorial.arc'), () => {
   const buf = fs.readFileSync(sample('level/Level_027_Tutorial.arc'));
   const p = parseArchive(buf);
   assert.deepEqual(p.issues, []);
   assert.equal(p.header.count, 477);
-  assert.ok(p.entries.every(e => e.mode === 0xFFFFFFFF));
+  assert.ok(p.entries.every(e => e.mode === 0xffffffff));
   for (let i = 1; i < p.hashes.length; i++) assert.ok(p.hashes[i - 1] < p.hashes[i]);
   assert.ok(p.entries.every(e => e.start % 0x800 === 0));
   assert.equal(p.header.name_table_offset + p.header.name_table_size, buf.length);

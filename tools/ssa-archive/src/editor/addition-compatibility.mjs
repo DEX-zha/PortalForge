@@ -1,25 +1,143 @@
-import crypto from 'node:crypto';
+// Whether an object can be added to the game, and why. Every placement gets a list of checks (level, model,
+// scale, identity, recipe, test report) and one status derived from them, so the Project pane shows a reason
+// rather than a disabled button.
+//
+// A family is every placement sharing a model, a behaviour script and a scale in one level. A test report is
+// stored per family, but it only ever confirms the exact source that was booted: the others stay candidates.
 import { additionSource } from './native-additions.mjs';
+import { sha256 } from '../util/hash.mjs';
+import { isTutorial } from './levels.mjs';
+
+// Part of the family key: bumping it retires every stored report, which is how a change of recipe stops an
+// old failure (or an old success) from being reused.
 export const PROBE_VERSION = 'native-family-v2-observer-ready';
-export const familyKey = (s,p) => crypto.createHash('sha256').update(JSON.stringify([PROBE_VERSION,s.original_sha256,s.archive?.toLowerCase(),p.model?.offset,p.model?.path,p.behavior?.offset??null,p.behavior?.path??null,p.scale])).digest('hex');
-export function classifyAddition(s,p,{report=null}={}) {
-  const checks = [
-    {id:'level',status:s.has_runtime_map&&s.archive?.toLowerCase()==='level/level_027_tutorial.bld'?'pass':'blocked',detail:'Tutorial runtime map required for this recipe.'},
-    {id:'model',status:Number.isInteger(p.model?.offset)&&!!p.model?.path&&!/[/\\]inviso\.mdl$/i.test(p.model.path)?'pass':'blocked',detail:'A resolved visible model is required.'},
-    {id:'scale',status:p.scale===100?'pass':'blocked',detail:'This recipe currently supports the original 100% scale.'},
-    {id:'identity',status:p.native_addition?'blocked':'pass',detail:'Tests use an original level object as their source.'},
-    {id:'script',status:p.behavior?'pending':'pass',detail:p.behavior?`Script retained: ${p.behavior.path}. Rendering and gameplay need separate checks.`:'No placement script.'},
-    {id:'shared_model',status:'info',detail:p.shared_state?.shared?`${p.shared_state.users} placements share this model. A family test does not validate their different script parameters.`:'No shared model warning.'},
+
+const ORIGINAL_SCALE = 100;
+const INVISIBLE_MODEL = /[/\\]inviso\.mdl$/i; // the engine's placeholder for objects with nothing to draw
+
+const LABELS = {
+  blocked: 'Blocked',
+  confirmed: 'Add',
+  runtime_passed: 'Visual check pending',
+  inconclusive: 'Lifecycle check needed',
+  family_tested: 'Related source tested',
+  test_failed: 'Test failed',
+  needs_script_test: 'Needs script test',
+  needs_test: 'Needs test',
+};
+
+// What a stored report says about the runtime, mapped to the status it gives an unconfirmed placement.
+const STATUS_BY_RUNTIME = { passed: 'runtime_passed', inconclusive: 'inconclusive', failed: 'test_failed' };
+
+export const familyKey = (session, placement) =>
+  sha256(
+    JSON.stringify([
+      PROBE_VERSION,
+      session.original_sha256,
+      session.archive?.toLowerCase(),
+      placement.model?.offset,
+      placement.model?.path,
+      placement.behavior?.offset ?? null,
+      placement.behavior?.path ?? null,
+      placement.scale,
+    ]),
+  );
+
+const check = (id, passes, detail) => ({ id, status: passes ? 'pass' : 'blocked', detail });
+
+function structuralChecks(session, placement) {
+  const { model, behavior } = placement;
+  const visibleModel = Number.isInteger(model?.offset) && !!model?.path && !INVISIBLE_MODEL.test(model.path);
+  return [
+    check(
+      'level',
+      session.has_runtime_map && isTutorial(session.archive),
+      'Tutorial runtime map required for this recipe.',
+    ),
+    check('model', visibleModel, 'A resolved visible model is required.'),
+    check('scale', placement.scale === ORIGINAL_SCALE, 'This recipe currently supports the original 100% scale.'),
+    check('identity', !placement.native_addition, 'Tests use an original level object as their source.'),
+    {
+      id: 'script',
+      // A script never blocks a test: it is kept as it is, and what it does in game is judged separately.
+      status: behavior ? 'pending' : 'pass',
+      detail: behavior
+        ? `Script retained: ${behavior.path}. Rendering and gameplay need separate checks.`
+        : 'No placement script.',
+    },
+    {
+      id: 'shared_model',
+      status: 'info',
+      detail: placement.shared_state?.shared
+        ? `${placement.shared_state.users} placements share this model. A family test does not validate their different script parameters.`
+        : 'No shared model warning.',
+    },
   ];
-  const blocked=checks.find(c=>c.status==='blocked'),known=additionSource(s,p.offset);
-  const related=report?.source!=null&&report.source!==p.offset;
-  const status=blocked?'blocked':known.available?'confirmed':related?'family_tested':report?.runtime==='passed'?'runtime_passed':report?.runtime==='inconclusive'?'inconclusive':report?.runtime==='failed'?'test_failed':p.behavior?'needs_script_test':'needs_test';
-  const labels={blocked:'Blocked',confirmed:'Add',runtime_passed:'Visual check pending',inconclusive:'Lifecycle check needed',family_tested:'Related source tested',test_failed:'Test failed',needs_script_test:'Needs script test',needs_test:'Needs test'};
-  const reason=blocked?.detail??(known.available?'Confirmed native addition.':report?.runtime==='passed'?'Native creation passed. Visibility and behavior have not been confirmed.':report?.reason??(p.behavior?'A scripted source: test its native creation, rendering and behavior.':'Structurally eligible; native creation and rendering still need testing.'));
-  return {status,label:labels[status],reason:related&&!known.available?`Related source ${report.name??report.source} tested: ${report.runtime}. This exact placement is not confirmed.`:reason,available:known.available&&!blocked,testable:!blocked,family:familyKey(s,p),checks,report};
 }
-export function groupCandidates(s) {
-  const map=new Map();
-  for(const p of s.placements){const c=classifyAddition(s,p);if(!c.testable)continue;if(!map.has(c.family))map.set(c.family,{family:c.family,representative:p.offset,name:p.name,script:p.behavior?.path??null,model:p.model.path,members:[]});map.get(c.family).members.push(p.offset);}
-  return [...map.values()];
+
+// The status, in order of precedence: a failed structural check, then a confirmed recipe, then a report about
+// a sibling of the same family, then a report about this exact source, then nothing known at all.
+function statusOf({ blocked, confirmed, relatedReport, report, scripted }) {
+  if (blocked) return 'blocked';
+  if (confirmed) return 'confirmed';
+  if (relatedReport) return 'family_tested';
+  return STATUS_BY_RUNTIME[report?.runtime] ?? (scripted ? 'needs_script_test' : 'needs_test');
+}
+
+function reasonOf({ blocked, confirmed, relatedReport, report, scripted }) {
+  // A sibling's result is the most useful thing to say about an unconfirmed placement, even a blocked one.
+  if (relatedReport && !confirmed) {
+    return `Related source ${report.name ?? report.source} tested: ${report.runtime}. This exact placement is not confirmed.`;
+  }
+  if (blocked) return blocked.detail;
+  if (confirmed) return 'Confirmed native addition.';
+  if (report?.runtime === 'passed') return 'Native creation passed. Visibility and behavior have not been confirmed.';
+  if (report?.reason != null) return report.reason;
+  return scripted
+    ? 'A scripted source: test its native creation, rendering and behavior.'
+    : 'Structurally eligible; native creation and rendering still need testing.';
+}
+
+export function classifyAddition(session, placement, { report = null } = {}) {
+  const checks = structuralChecks(session, placement);
+  const facts = {
+    blocked: checks.find(c => c.status === 'blocked'),
+    confirmed: additionSource(session, placement.offset).available,
+    // A report is filed under the family, so it may describe another member than the one being classified.
+    relatedReport: report?.source != null && report.source !== placement.offset,
+    report,
+    scripted: !!placement.behavior,
+  };
+  const status = statusOf(facts);
+  return {
+    status,
+    label: LABELS[status],
+    reason: reasonOf(facts),
+    available: facts.confirmed && !facts.blocked,
+    testable: !facts.blocked,
+    family: familyKey(session, placement),
+    checks,
+    report,
+  };
+}
+
+// One entry per testable family, with the first member as its representative: what a test campaign iterates.
+export function groupCandidates(session) {
+  const families = new Map();
+  for (const placement of session.placements) {
+    const classified = classifyAddition(session, placement);
+    if (!classified.testable) continue;
+    if (!families.has(classified.family)) {
+      families.set(classified.family, {
+        family: classified.family,
+        representative: placement.offset,
+        name: placement.name,
+        script: placement.behavior?.path ?? null,
+        model: placement.model.path,
+        members: [],
+      });
+    }
+    families.get(classified.family).members.push(placement.offset);
+  }
+  return [...families.values()];
 }

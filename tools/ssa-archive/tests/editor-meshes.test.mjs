@@ -22,46 +22,66 @@ const skip = !have && 'local samples absent';
 const gates = { gates: () => ({ status: 'PASS' }) };
 
 let cached = null;
-const tutorial = () => cached ??= openSession(TUTORIAL, { archive: 'level/Level_027_Tutorial.bld', entry: 3, fixups: JSON.parse(fs.readFileSync(FIXUPS, 'utf8')), deps: gates });
+const tutorial = () =>
+  (cached ??= openSession(TUTORIAL, {
+    archive: 'level/Level_027_Tutorial.bld',
+    entry: 3,
+    fixups: JSON.parse(fs.readFileSync(FIXUPS, 'utf8')),
+    deps: gates,
+  }));
 
 test('replacement and undo/redo bind every shared model user to the correct local geometry', { skip }, () => {
   const s = openSession(TUTORIAL, { fixups: JSON.parse(fs.readFileSync(FIXUPS, 'utf8')), deps: gates });
-  const original = modelMeshes(s), source = 0x3495e4, target = 0x34ac60;
+  const original = modelMeshes(s),
+    source = 0x3495e4,
+    target = 0x34ac60;
   const sourceModel = s.placements.find(p => p.offset === source).model.offset;
   const targetModel = s.placements.find(p => p.offset === target).model.offset;
-  const sourceMesh = original.models.get(sourceModel), targetMesh = original.models.get(targetModel);
+  const sourceMesh = original.models.get(sourceModel),
+    targetMesh = original.models.get(targetModel);
   assert.notDeepEqual(sourceMesh.positions, targetMesh.positions);
   const intent = { kind: 'replace', source, target, position: [91.349, 10.435, 43.275] };
   const prepared = planReplace(s, intent);
   const before = Buffer.from(s.buffer);
-  assert.throws(() => applyEdit(s, intent), e => e.error === 'ACKNOWLEDGEMENT_REQUIRED');
+  assert.throws(
+    () => applyEdit(s, intent),
+    e => e.error === 'ACKNOWLEDGEMENT_REQUIRED',
+  );
   assert.deepEqual(s.buffer, before);
   applyEdit(s, { ...intent, acknowledged: prepared.plan.safety.filter(r => r.severity === 'critical').map(r => r.id) });
   assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, sourceMesh.positions);
   assert.deepEqual(modelMeshes(s).scenery, original.scenery, 'orphaned old mesh must not become world scenery');
-  undo(s); assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, targetMesh.positions);
-  redo(s); assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, sourceMesh.positions);
+  undo(s);
+  assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, targetMesh.positions);
+  redo(s);
+  assert.deepEqual(modelMeshes(s).models.get(targetModel).positions, sourceMesh.positions);
 });
 
-test('meshes: every model the tutorial places gets one vertex array and one index array, and they agree', { skip }, () => {
-  const { models, stats } = modelMeshes(tutorial());
-  assert.equal(stats.models, 210);
-  assert.equal(stats.with_mesh, 210);
-  assert.equal(stats.complete, true);
-  assert.equal(stats.draw_units, 2264);
-  for (const m of models.values()) {
-    assert.equal(m.positions.length, m.vertex_count * 3);
-    assert.equal(m.indices.length, m.triangle_count * 3);
-    let max = -1; for (const i of m.indices) if (i > max) max = i;
-    assert.ok(max < m.vertex_count, `${m.path} indexes vertex ${max} of ${m.vertex_count}`);
-    assert.ok(m.units >= 1);
-    assert.ok(m.fractions.every(f => f >= 6 && f <= 10));
-  }
-});
+test(
+  'meshes: every model the tutorial places gets one vertex array and one index array, and they agree',
+  { skip },
+  () => {
+    const { models, stats } = modelMeshes(tutorial());
+    assert.equal(stats.models, 210);
+    assert.equal(stats.with_mesh, 210);
+    assert.equal(stats.complete, true);
+    assert.equal(stats.draw_units, 2264);
+    for (const m of models.values()) {
+      assert.equal(m.positions.length, m.vertex_count * 3);
+      assert.equal(m.indices.length, m.triangle_count * 3);
+      let max = -1;
+      for (const i of m.indices) if (i > max) max = i;
+      assert.ok(max < m.vertex_count, `${m.path} indexes vertex ${max} of ${m.vertex_count}`);
+      assert.ok(m.units >= 1);
+      assert.ok(m.fractions.every(f => f >= 6 && f <= 10));
+    }
+  },
+);
 
 test('meshes: the result is computed once and cached on the session', { skip }, () => {
   const s = tutorial();
-  const a = modelMeshes(s), b = modelMeshes(s);
+  const a = modelMeshes(s),
+    b = modelMeshes(s);
   assert.equal(a, b);
 });
 
@@ -70,21 +90,35 @@ test('meshes: the sunflower arrives as 736 vertices in local space, inside its d
   const sun = [...models.values()].find(m => m.path.endsWith('plant_sunflower_whole.mdl'));
   assert.equal(sun.vertex_count, 736);
   assert.equal(sun.units, 7);
-  const bb = sun.bounds; assert.ok(bb);
-  for (let i = 0; i < sun.vertex_count; i++) for (let k = 0; k < 3; k++) { const x = sun.positions[3 * i + k]; assert.ok(x >= bb.min[k] - 0.4 && x <= bb.max[k] + 0.4); }
-  assert.ok(sun.positions.some((v, i) => i % 3 === 1 && v > 5), 'a sunflower is taller than five units');
+  const bb = sun.bounds;
+  assert.ok(bb);
+  for (let i = 0; i < sun.vertex_count; i++)
+    for (let k = 0; k < 3; k++) {
+      const x = sun.positions[3 * i + k];
+      assert.ok(x >= bb.min[k] - 0.4 && x <= bb.max[k] + 0.4);
+    }
+  assert.ok(
+    sun.positions.some((v, i) => i % 3 === 1 && v > 5),
+    'a sunflower is taller than five units',
+  );
 });
 
 test('meshes: the wire form is base64 of the native bytes and decodes back to the same numbers', { skip }, () => {
   const s = tutorial();
-  const { models } = modelMeshes(s), p = meshesPayload(s);
+  const { models } = modelMeshes(s),
+    p = meshesPayload(s);
   assert.equal(p.models.length, models.size);
   const m = p.models.find(x => x.path.endsWith('plants_weed2_whole.mdl'));
   // a pooled Buffer's .buffer is the whole pool: slice the view, not the pool
-  const view = (b64, T) => { const b = Buffer.from(b64, 'base64'); return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); };
-  const pos = view(m.positions, Float32Array), ix = view(m.indices, Uint32Array);
+  const view = (b64, T) => {
+    const b = Buffer.from(b64, 'base64');
+    return new T(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  };
+  const pos = view(m.positions, Float32Array),
+    ix = view(m.indices, Uint32Array);
   const src = models.get(m.model);
-  assert.equal(pos.length, src.positions.length); assert.equal(ix.length, src.indices.length);
+  assert.equal(pos.length, src.positions.length);
+  assert.equal(ix.length, src.indices.length);
   assert.deepEqual([...pos.slice(0, 9)], [...src.positions.slice(0, 9)]);
   assert.deepEqual([...ix.slice(0, 9)], [...src.indices.slice(0, 9)]);
   assert.equal(m.vertex_count, 112);
@@ -112,7 +146,10 @@ test('GET /api/meshes serves the payload with its stats', { skip }, async () => 
     assert.equal(j.stats.with_mesh, 210);
     assert.equal(j.models.length, 210);
     const m = j.models[0];
-    for (const k of ['model', 'path', 'units', 'vertex_count', 'triangle_count', 'bounds', 'positions', 'indices']) assert.ok(k in m, `field ${k}`);
+    for (const k of ['model', 'path', 'units', 'vertex_count', 'triangle_count', 'bounds', 'positions', 'indices'])
+      assert.ok(k in m, `field ${k}`);
     assert.equal(typeof m.positions, 'string');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });

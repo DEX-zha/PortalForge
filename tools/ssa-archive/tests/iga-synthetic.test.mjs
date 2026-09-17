@@ -33,7 +33,7 @@ test('synthetic v4 archive parses header words, hashes, entries, names and store
 test('lookup words: 0x10 is 0xFFFFFFFF/count and 0x14 the maximum probe distance of the sorted hashes', () => {
   const { buf } = buildArchive(sampleEntries(9));
   const p = parseArchive(buf);
-  assert.equal(p.header.flags_packed, Math.floor(0xFFFFFFFF / 9));
+  assert.equal(p.header.flags_packed, Math.floor(0xffffffff / 9));
   const est = p.hashes.map(h => Math.min(8, Math.floor(h / p.header.flags_packed)));
   assert.equal(p.header.word_14, Math.max(...p.hashes.map((h, i) => Math.abs(i - est[i]))));
   assert.deepEqual(p.issues, []);
@@ -50,14 +50,18 @@ test('layout regions cover the whole archive exactly once with the four classes'
   const { buf } = buildArchive(sampleEntries(4));
   const p = parseArchive(buf);
   let cursor = 0;
-  for (const r of p.regions) { assert.equal(r.offset, cursor); assert.ok(['METADATA', 'TABLE', 'CONTENT', 'PADDING'].includes(r.class)); cursor += r.length; }
+  for (const r of p.regions) {
+    assert.equal(r.offset, cursor);
+    assert.ok(['METADATA', 'TABLE', 'CONTENT', 'PADDING'].includes(r.class));
+    cursor += r.length;
+  }
   assert.equal(cursor, buf.length);
   assert.equal(p.regions[0].class, 'METADATA');
   assert.equal(p.regions[0].length, HEADER_SIZE);
 });
 
 test('compressed-mode entries expose chunk table indexes and the raw chunk area is preserved', () => {
-  const entries = sampleEntries(3).map((e, i) => i === 1 ? { ...e, mode: 0x10000002 } : e);
+  const entries = sampleEntries(3).map((e, i) => (i === 1 ? { ...e, mode: 0x10000002 } : e));
   const { buf } = buildArchive(entries, { chunkValues: [0x8000, 0x8004, 0x8009, 0x800d] });
   const p = parseArchive(buf);
   assert.deepEqual(p.issues, []);

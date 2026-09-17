@@ -1,32 +1,85 @@
 // The saved IGZ is one entry of the disc archive, never a replacement for the archive itself.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { extractToWorkspace } from '../workspace/manifest.mjs';
 import { rebuildFromWorkspace } from '../iga/writer.mjs';
 import { reencodeEntry, decodeStoredEntry } from '../iga/decode.mjs';
 import { verifyBuffer } from '../iga/verify.mjs';
 import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
-const hash = b => createHash('sha256').update(b).digest('hex');
+import { sha256 as hash } from '../util/hash.mjs';
 
-export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir }) {
-  const source = fs.readFileSync(original), edited = fs.readFileSync(replacements[0].file);
+// `redirect` (feature 006) asks for a second descriptor next to the first: the same rebuilt archive served under
+// the tutorial's file name, with the level's voice pack under the tutorial's, so the tutorial checkpoint loads
+// this level. It is a separate workspace under outDir/redirect, chosen by the launch mode, never by default.
+export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir, redirect = null }) {
+  const source = fs.readFileSync(original),
+    edited = fs.readFileSync(replacements[0].file);
   const workspace = path.join(outDir, 'archive-workspace');
   extractToWorkspace(source, { discPath: session.archive, sourceFile: original, outDir: workspace });
-  let built = rebuildFromWorkspace(workspace, { replacements: { [session.entry]: replacements[0].file }, reencode: reencodeEntry, padUnits: 1 });
+  let built = rebuildFromWorkspace(workspace, {
+    replacements: { [session.entry]: replacements[0].file },
+    reencode: reencodeEntry,
+    padUnits: 1,
+  });
   if (monitorSize(built.buffer.length) === monitorSize(source.length)) {
-    built = rebuildFromWorkspace(workspace, { replacements: { [session.entry]: replacements[0].file }, reencode: reencodeEntry, padUnits: 2 });
+    built = rebuildFromWorkspace(workspace, {
+      replacements: { [session.entry]: replacements[0].file },
+      reencode: reencodeEntry,
+      padUnits: 2,
+    });
   }
   const validation = verifyBuffer(built.buffer);
-  if (validation.status !== 'VALID') throw new Error('rebuilt archive failed verification: ' + JSON.stringify(validation.failures));
+  if (validation.status !== 'VALID')
+    throw new Error('rebuilt archive failed verification: ' + JSON.stringify(validation.failures));
   const e = validation.parsed.entries[session.entry];
-  const decoded = e.compression === 'NONE' ? built.buffer.subarray(e.start, e.start + e.size)
-    : decodeStoredEntry(built.buffer.subarray(e.start, e.start + e.stored_size), e,
-      { values: validation.parsed.chunk_area?.values ?? [], word_24: built.buffer.readUInt32LE(0x24), word_28: built.buffer.readUInt32LE(0x28) });
+  const decoded =
+    e.compression === 'NONE'
+      ? built.buffer.subarray(e.start, e.start + e.size)
+      : decodeStoredEntry(built.buffer.subarray(e.start, e.start + e.stored_size), e, {
+          values: validation.parsed.chunk_area?.values ?? [],
+          word_24: built.buffer.readUInt32LE(0x24),
+          word_28: built.buffer.readUInt32LE(0x28),
+        });
   if (!decoded.equals(edited)) throw new Error('rebuilt archive does not contain the saved editor bytes');
-  const rebuilt = path.join(workspace, 'rebuilt.bld'); fs.writeFileSync(rebuilt, built.buffer);
-  const ws = buildPatchWorkspace({ experimentId, game, outDir, force: true,
-    replacements: [{ disc_path: session.archive, file: rebuilt, original }] });
-  return { ...ws, rebuilt_sha256: hash(built.buffer), decoded_sha256: hash(edited), entry_verified: true,
-    original_monitor_size: monitorSize(source.length), entry: session.entry, saved_file: replacements[0].file };
+  const rebuilt = path.join(workspace, 'rebuilt.bld');
+  fs.writeFileSync(rebuilt, built.buffer);
+  const ws = buildPatchWorkspace({
+    experimentId,
+    game,
+    outDir,
+    force: true,
+    replacements: [{ disc_path: session.archive, file: rebuilt, original }],
+  });
+  let redirected = null;
+  if (redirect) {
+    if (!fs.existsSync(redirect.companion_file))
+      throw new Error('The voice pack of this level is not extracted: ' + redirect.companion_file);
+    const ws2 = buildPatchWorkspace({
+      experimentId: experimentId + '-redirect',
+      game,
+      outDir: path.join(outDir, 'redirect'),
+      force: true,
+      displayName: `PortalForge ${redirect.level} via the tutorial slot`,
+      replacements: [
+        { disc_path: redirect.archive, file: rebuilt },
+        { disc_path: redirect.companion, file: redirect.companion_file },
+      ],
+    });
+    redirected = {
+      ...ws2,
+      level: redirect.level,
+      entry_archive: redirect.archive,
+      original_monitor_size: monitorSize(source.length),
+    };
+  }
+  return {
+    ...ws,
+    rebuilt_sha256: hash(built.buffer),
+    decoded_sha256: hash(edited),
+    entry_verified: true,
+    original_monitor_size: monitorSize(source.length),
+    entry: session.entry,
+    saved_file: replacements[0].file,
+    redirect: redirected,
+  };
 }

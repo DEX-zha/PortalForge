@@ -101,13 +101,24 @@
   #error { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 40px;
            text-align: center; color: var(--high); background: var(--bg); font-size: 14px; line-height: 1.6; }
   #error b { display: block; font: 400 18px/1.3 var(--serif); color: var(--text); margin-bottom: 10px; }
+  #level-switch { display: inline-flex; gap: 4px; align-items: center; }
+  #level-picker { max-width: 280px; background: #0d1218; color: var(--text); border: 1px solid var(--line);
+                  border-radius: 4px; padding: 3px 6px; font: inherit; }
+  #capabilities .v.proven, #level-side .v.proven { color: var(--proven); }
+  #capabilities .v.likely, #level-side .v.likely { color: var(--medium); }
+  #capabilities .v.withheld, #level-side .v.withheld { color: var(--dim); }
+  #open-dialog { color: var(--text); background: var(--panel); border: 1px solid var(--high); border-radius: 8px; width: 520px; max-width: 90vw; }
+  #open-dialog::backdrop { background: #0009; }
 </style>
 <link rel="stylesheet" href="/view/workspace.css">
 
 <header>
   <b class="brand">◈ PortalForge</b>
   <span class="dim" id="file">opening…</span>
-
+  <span id="level-switch" hidden>
+    <select id="level-picker" aria-label="Level to open" title="Every level of the disc this machine holds. Opening one replaces the current scene."></select>
+    <button id="level-open" title="Open the selected level. Unsaved edits are kept until you confirm.">Open</button>
+  </span>
 
   <span style="flex:1"></span>
   <span id="tools"><button id="gizmo-move">Move</button><button id="gizmo-rotate">Rotate</button><button id="gizmo-scale">Scale</button><button id="gizmo-off">Off</button></span>
@@ -133,6 +144,11 @@
     <span id="scenery-count" class="c">0</span>
   </label>
   <div id="mesh-coverage" class="ev" style="padding:6px 12px 12px"></div>
+  <label id="snapshot-layer" class="layer" title="The level as the running game held it when the snapshot was taken: active objects solid, dormant ones dimmed, templates and finished initialisers hidden, moved objects and script clones at their in-game position. Read from Dolphin, LIKELY; never written to the file.">
+    <input id="snapshot-visible" type="checkbox" disabled><span class="n">As in game <span class="dim">· snapshot</span></span><span id="snapshot-count" class="c"></span>
+  </label>
+  <div id="snapshot-info" class="ev" style="padding:0 12px 6px">No snapshot yet: launch the level from this editor, then capture its scene while the game is playing.</div>
+  <div style="padding:0 12px 10px"><button id="snapshot-capture" disabled title="Read the scene from the running game: every object's state and position, and the actors the scripts created">Capture the scene from Dolphin</button></div>
   <label id="scripted-layer" class="layer" hidden title="Bridges and cannons at their initial position. Click a preview to select its generator. Animations and destruction are not simulated.">
     <input id="scripted-visible" type="checkbox" checked><span class="n">Bridges and cannons · preview</span>
   </label>
@@ -176,12 +192,26 @@
     <div class="ev" id="save-note" style="margin-top:6px"></div>
   </div>
   </details>
-  <details class="settings"><summary>Level information</summary><div id="tally"></div>  <span class="dim" id="evidence-note" title="where the values in this session come from"></span></details>
+  <details class="settings"><summary>Level information</summary><div id="tally"></div>  <span class="dim" id="evidence-note" title="where the values in this session come from"></span>
+  <div id="capabilities" title="What this editor can do on this level, and the evidence behind each answer"></div></details>
 </section>
 
 <div id="project-splitter" role="separator" tabindex="0" aria-label="Project panel height" aria-orientation="horizontal" aria-valuemin="180" aria-valuemax="600" aria-valuenow="300"></div>
 <section id="project-panel" aria-label="Project">
-  <div class="panel-tabs"><b>Project</b><span>Level objects</span><span class="spacer"></span><label class="thumbnail-size">Thumbnails <input id="thumbnail-size" type="range" min="110" max="220" value="150" aria-label="Thumbnail size"></label></div>
+  <div class="panel-tabs"><button id="tab-project" class="on">Project</button><button id="tab-level">Level</button><span id="bottom-tab-note">Level objects</span><span class="spacer"></span><label class="thumbnail-size">Thumbnails <input id="thumbnail-size" type="range" min="110" max="220" value="150" aria-label="Thumbnail size"></label></div>
+  <div id="level-pane" hidden>
+    <aside id="level-side" aria-label="Current level"><div id="level-current"><div class="empty">Opening…</div></div></aside>
+    <div id="level-browser">
+      <div id="level-tools">
+        <input id="level-search" type="search" placeholder="Search levels…" aria-label="Search levels">
+        <select id="level-family" aria-label="Family"><option value="all">All families</option></select>
+        <span id="level-count" aria-live="polite"></span>
+        <span class="spacer"></span>
+        <span class="ev">Open replaces the scene; unsaved edits are guarded by a dialog. Chips say how far the evidence goes for each level.</span>
+      </div>
+      <div id="levels"></div>
+    </div>
+  </div>
   <div id="project-body"><nav id="folder-tree" aria-label="Object categories"></nav><div id="asset-browser">
     <div id="object-tools">
       <input id="object-search" type="search" placeholder="Search name, model or layer…" aria-label="Search objects">
@@ -209,6 +239,13 @@
   <details id="drop-details" hidden><summary>Full plan</summary><pre id="drop-json" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
   <p id="drop-status" role="status"></p>
   <div id="drop-actions"><button id="drop-cancel">Cancel</button><button id="drop-confirm" disabled>Confirm replacement</button></div>
+</dialog>
+
+<dialog id="open-dialog" aria-labelledby="open-title">
+  <h2 id="open-title">Discard unsaved edits?</h2>
+  <p id="open-summary"></p>
+  <p>Opening another level replaces the scene. Edits that were not saved cannot be recovered afterwards: Save first to keep them.</p>
+  <div class="dialog-actions"><button id="open-cancel">Cancel</button><button id="open-discard">Discard and open</button></div>
 </dialog>
 
 <dialog id="reset-dialog" aria-labelledby="reset-title">

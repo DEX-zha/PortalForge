@@ -11,9 +11,14 @@ export function diffArchives(original, rebuilt, { hexLimit = 64 } = {}) {
   const runs = [];
   let i = 0;
   while (i < min) {
-    if (original[i] === rebuilt[i]) { i++; continue; }
-    let j = i; while (j < min && original[j] !== rebuilt[j]) j++;
-    runs.push([i, j]); i = j;
+    if (original[i] === rebuilt[i]) {
+      i++;
+      continue;
+    }
+    let j = i;
+    while (j < min && original[j] !== rebuilt[j]) j++;
+    runs.push([i, j]);
+    i = j;
   }
   if (original.length !== rebuilt.length) runs.push([min, Math.max(original.length, rebuilt.length)]);
   const regions = [];
@@ -25,11 +30,25 @@ export function diffArchives(original, rebuilt, { hexLimit = 64 } = {}) {
       const r = classifyOffset(regs, o);
       const end = r ? Math.min(e, r.offset + r.length) : e;
       if (!r) unclassified += end - o;
-      regions.push({ offset: o, length: end - o, class: r ? r.class : 'UNCLASSIFIED', label: r?.label ?? null,
-        old_hex: slice(original, o, end, hexLimit), new_hex: slice(rebuilt, o, end, hexLimit), truncated: end - o > hexLimit });
+      regions.push({
+        offset: o,
+        length: end - o,
+        class: r ? r.class : 'UNCLASSIFIED',
+        label: r?.label ?? null,
+        old_hex: slice(original, o, end, hexLimit),
+        new_hex: slice(rebuilt, o, end, hexLimit),
+        truncated: end - o > hexLimit,
+      });
       o = end;
     }
   }
-  return { regions, size_delta: rebuilt.length - original.length, unclassified_bytes: unclassified,
-    summary: regions.reduce((acc, r) => { acc[r.class] = (acc[r.class] ?? 0) + r.length; return acc; }, {}) };
+  return {
+    regions,
+    size_delta: rebuilt.length - original.length,
+    unclassified_bytes: unclassified,
+    summary: regions.reduce((acc, r) => {
+      acc[r.class] = (acc[r.class] ?? 0) + r.length;
+      return acc;
+    }, {}),
+  };
 }

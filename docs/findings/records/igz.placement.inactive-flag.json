@@ -1,0 +1,30 @@
+{
+  "id": "igz.placement.inactive-flag",
+  "updated": "2026-09-17",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "u32 at +0x54 of the placement record: 4 = placed, 5 = stored template or initially inactive object (bit 0); in RAM the same word reads 1 = active with an actor, 2 = placed but without an actor yet, 5 = never instantiated by itself",
+  "structure": "On every record of the placement class the file word is exactly 4 or 5: tutorial (class 104) 377 and 296, Mining (class 98) 381 and 236. Bit 0 set marks the objects a level stores for its scripts to clone or activate: the game-element libraries (`GameElement_*.lvl` layers: breakable-rock halves and quarters, track switches, the mine-train and elemental-gate templates, icons, enemy projectiles) and level-specific inactive actors (cutscene actors, triggers, a rescued miner). The `.lvl` layer is a related but distinct signal: 27 flagged records on Mining are in no library, 31 library members are placed with the bit clear (the Automaton's parts). In the running game every record of the class is constructed with the same class pointer 0x80481674; those stored with 4 read 1 and carry an actor pointer at +0xF4, those stored with 5 read 5 and carry no actor, their stored and current positions unchanged at the storage coordinates.",
+  "location": {
+    "file_pattern": "level/*.bld:level.bld (decoded), every level; placement record +0x54",
+    "offset": "+0x54",
+    "length": 4
+  },
+  "meaning": "A record with bit 0 set is not placed at its coordinates: it is a resource the level's scripts clone (`clone||at|facing`) or activate elsewhere, and drawing it where the file stores it shows a mine train at the origin, a track switch outside the level, rock halves in empty space. The editor keeps those records in the hidden 'Templates and disabled objects' layer and in Project > Resources on every level, with the class detected for the file (scene-roles.mjs), and links a placed twin when one exists. Not a visibility property: nothing here is written to the file, and where a script later creates the object is not read. The RAM state 2 (placed, no actor) belongs to objects the game has not activated yet, such as the Automaton's parts before the boss breaks; it is reported, not interpreted. CONFIRMED would need the same reads repeated on a second boot and a second level; the tutorial's earlier comparison (level.tutorial.scripted-preview-poses) and this Mining read are the two concordant observations behind LIKELY.",
+  "evidence": [
+    {
+      "experiment_id": "scene-pose-1789424358122",
+      "summary": "Tutorial, 2026-09-15: bit 0 of +0x54 is set on the bridge and cannon models and on the Ancient Shell resource stored off-terrain, clear on the active treasure standing on decoded world unit 737; the actors read in MEM1 point at their resource and creator (docs/editor/scene-poses.md)."
+    },
+    {
+      "probe": "census over the tutorial and Mining decoded entries (specs/006-multi-level-editing/research.md, 2026-09-17)",
+      "summary": "The word is exactly 4 or 5 on every record of the placement class of both levels; 296 and 236 records carry bit 0; every object the user reported misplaced on Mining carries it, every object seen standing in the level does not."
+    },
+    {
+      "experiment_id": "editor-direct-play-1789652048727-d8dbe468",
+      "summary": "Mining reached through the archive redirect on 2026-09-17 13:34, resident section located at 0x80dc6f48 by its stored position triples (research-probes/instance-probe.mjs). Fourteen records read: MineTrain, Lantern_01 and MiningWall_1(3), stored 4, read state 1 with actors 0x8118d154, 0x811bae94 and 0x811c0754; Rock_Breakable_Half, _Quarter, _Full, Switch_90_Art_Template, Mine_Train_Template, Rock_Bit_1, OilCan_Icon, Elemental_Gate_Template and the loot gem, stored 5, read state 5 with no actor at their storage coordinates; Automaton_Head and Spring, stored 4, read state 2 with no actor. The owned Dolphin was stopped by force once the reads were done; consumption 12 662 kB, slot restored."
+    }
+  ]
+}

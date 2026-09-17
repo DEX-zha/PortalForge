@@ -7,8 +7,20 @@ import { buildArchive, sampleEntries, corrupted } from './helpers/synthetic.mjs'
 import { verifyBuffer, verifyWorkspace } from '../src/iga/verify.mjs';
 import { extractToWorkspace } from '../src/workspace/manifest.mjs';
 
-const REASONS = ['BAD_MAGIC', 'UNSUPPORTED_VERSION', 'COUNT_MISMATCH', 'HASHES_NOT_SORTED', 'MISALIGNED_ENTRY', 'ENTRY_OVERLAP',
-  'ENTRY_OUT_OF_BOUNDS', 'NAME_TABLE_BOUNDS', 'NAME_OFFSET_OUT_OF_RANGE', 'UNSUPPORTED_MODE', 'CHUNK_TABLE_OUT_OF_RANGE', 'LOOKUP_WORDS_MISMATCH'];
+const REASONS = [
+  'BAD_MAGIC',
+  'UNSUPPORTED_VERSION',
+  'COUNT_MISMATCH',
+  'HASHES_NOT_SORTED',
+  'MISALIGNED_ENTRY',
+  'ENTRY_OVERLAP',
+  'ENTRY_OUT_OF_BOUNDS',
+  'NAME_TABLE_BOUNDS',
+  'NAME_OFFSET_OUT_OF_RANGE',
+  'UNSUPPORTED_MODE',
+  'CHUNK_TABLE_OUT_OF_RANGE',
+  'LOOKUP_WORDS_MISMATCH',
+];
 
 test('a valid synthetic archive is VALID with no failures', () => {
   const r = verifyBuffer(buildArchive(sampleEntries(5)).buf);
@@ -37,10 +49,16 @@ test('unsupported version yields status UNSUPPORTED, structural faults yield INV
 test('workspace verification detects a tampered entry file', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-ws-'));
   const { buf } = buildArchive(sampleEntries(3));
-  const manifest = extractToWorkspace(buf, { discPath: 'test/x.arc', sourceFile: path.join(dir, 'x.arc'), outDir: dir });
+  const manifest = extractToWorkspace(buf, {
+    discPath: 'test/x.arc',
+    sourceFile: path.join(dir, 'x.arc'),
+    outDir: dir,
+  });
   assert.equal(verifyWorkspace(dir).status, 'VALID');
   const victim = path.join(dir, manifest.entries[1].file);
-  const data = fs.readFileSync(victim); data[0] ^= 0xFF; fs.writeFileSync(victim, data);
+  const data = fs.readFileSync(victim);
+  data[0] ^= 0xff;
+  fs.writeFileSync(victim, data);
   const r = verifyWorkspace(dir);
   assert.equal(r.status, 'INVALID');
   assert.equal(r.failures[0].reason, 'WORKSPACE_ENTRY_HASH_MISMATCH');

@@ -14,11 +14,20 @@ async function serve(deps = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-apiedit-'));
   const file = path.join(dir, 'level.bld.decoded');
   fs.writeFileSync(file, syntheticLevel().buf);
-  const session = openSession(file, { archive: 'level/Test.bld', entry: 3, deps: { gates: () => ({ status: 'PASS' }) } });
+  const session = openSession(file, {
+    archive: 'level/Test.bld',
+    entry: 3,
+    deps: { gates: () => ({ status: 'PASS' }) },
+  });
   const s = await startServer({ session, port: 0, deps });
   return { ...s, session, dir };
 }
-const post = (s, p, body) => fetch(`${s.url}${p}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) });
+const post = (s, p, body) =>
+  fetch(`${s.url}${p}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  });
 
 test('POST /api/edit applies a transform and reports the new record, the rules and the history depth', async () => {
   const s = await serve();
@@ -33,7 +42,9 @@ test('POST /api/edit applies a transform and reports the new record, the rules a
     assert.equal(b.undo_depth, 1);
     assert.ok(Array.isArray(b.safety));
     assert.equal(fs.readFileSync(s.session.file).length, s.session.buffer.length, 'the file is untouched');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('POST /api/undo and /api/redo walk the history and refuse politely at the ends', async () => {
@@ -51,7 +62,9 @@ test('POST /api/undo and /api/redo walk the history and refuse politely at the e
     const r = await (await post(s, '/api/redo')).json();
     assert.deepEqual(r.placement.position, [1, 1, 1]);
     assert.equal((await (await post(s, '/api/redo')).json()).error, 'NOTHING_TO_REDO');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('POST /api/edit refuses a bad intent with the named error, not a stack trace', async () => {
@@ -63,7 +76,7 @@ test('POST /api/edit refuses a bad intent with the named error, not a stack trac
       [{ kind: 'transform', target }, 'NOTHING_TO_CHANGE'],
       [{ kind: 'transform', target, position: [1, 2] }, 'BAD_VALUE'],
       [{ kind: 'transform', target, model: 'x' }, 'UNSUPPORTED_FIELD'],
-      [{ kind: 'replace', target }, 'NO_SUCH_PLACEMENT'],            // replace is supported; this one names no source
+      [{ kind: 'replace', target }, 'NO_SUCH_PLACEMENT'], // replace is supported; this one names no source
       [{ kind: 'nonsense', target }, 'UNSUPPORTED_INTENT'],
     ]) {
       const r = await post(s, '/api/edit', body);
@@ -72,15 +85,26 @@ test('POST /api/edit refuses a bad intent with the named error, not a stack trac
       assert.equal(j.error, error);
       assert.ok(j.reason.length > 10, 'the refusal explains itself');
     }
-    const bad = await fetch(`${s.url}/api/edit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: 'not json' });
+    const bad = await fetch(`${s.url}/api/edit`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'not json',
+    });
     assert.equal(bad.status, 400);
     assert.equal((await bad.json()).error, 'BAD_BODY');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('POST /api/save writes only after a valid plan, and /api/patch refuses until it has one', async () => {
   let built = 0;
-  const s = await serve({ build: () => { built++; return { dir: 'patch-dir', replacements: [] }; } });
+  const s = await serve({
+    build: () => {
+      built++;
+      return { dir: 'patch-dir', replacements: [] };
+    },
+  });
   try {
     const noPatch = await post(s, '/api/patch');
     assert.equal(noPatch.status, 409);
@@ -102,7 +126,9 @@ test('POST /api/save writes only after a valid plan, and /api/patch refuses unti
     const patched = await (await post(s, '/api/patch')).json();
     assert.equal(built, 1);
     assert.equal(patched.patch.dir, 'patch-dir');
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });
 
 test('POST /api/launch refuses without a prediction and takes the lock, /api/observe releases it', async () => {
@@ -130,8 +156,12 @@ test('POST /api/launch refuses without a prediction and takes the lock, /api/obs
     assert.equal(polled.launch.running, false, 'the run is polled, not awaited over HTTP');
     assert.equal(polled.launch.experiment_id, 'exp_x');
 
-    const o = await (await post(s, '/api/observe', { experiment_id: 'exp_x', observed: 'it turned', matched: true })).json();
+    const o = await (
+      await post(s, '/api/observe', { experiment_id: 'exp_x', observed: 'it turned', matched: true })
+    ).json();
     assert.equal(o.launch.observed, 'it turned');
     assert.equal(o.locked, false);
-  } finally { await s.close(); }
+  } finally {
+    await s.close();
+  }
 });

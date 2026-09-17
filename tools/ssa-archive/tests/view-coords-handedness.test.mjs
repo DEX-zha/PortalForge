@@ -36,19 +36,23 @@ const CAMERA = { eye: [91.73, 12, 30], forward: [0, 0, 1] };
 
 test('handedness: a larger x lands further left on screen, as four booted runs observed', () => {
   const spawn = [91.73, 10.31, 44.74];
-  const movedPlusX = [99.73, 10.31, 44.74];                       // observation 1: spawn x +8 went screen-left
+  const movedPlusX = [99.73, 10.31, 44.74]; // observation 1: spawn x +8 went screen-left
   assert.ok(screenX(movedPlusX, CAMERA) < screenX(spawn, CAMERA), '+x must be screen-left');
 
-  const bladesBefore = [85.52, 22.14, 50.33], bladesAfter = [79.5, 22.14, 50.33];
+  const bladesBefore = [85.52, 22.14, 50.33],
+    bladesAfter = [79.5, 22.14, 50.33];
   assert.ok(screenX(bladesAfter, CAMERA) > screenX(bladesBefore, CAMERA), 'observation 2: -x went screen-right');
 
-  const sun1 = [82.25, 9.96, 41.95], sun2 = [79.68, 10.46, 40.94], copy = [85.5, 10, 42];
+  const sun1 = [82.25, 9.96, 41.95],
+    sun2 = [79.68, 10.46, 40.94],
+    copy = [85.5, 10, 42];
   const order = [copy, sun1, sun2].map(p => screenX(p, CAMERA));
   assert.ok(order[0] < order[1] && order[1] < order[2], 'observation 3: the copy at the largest x is leftmost');
 });
 
 test('handedness: +z moves a prop away from the camera, toward the windmill', () => {
-  const before = [79.68, 10.46, 40.94], after = [88, 10.3, 44];    // observation 4
+  const before = [79.68, 10.46, 40.94],
+    after = [88, 10.3, 44]; // observation 4
   const depth = p => p[2];
   assert.ok(depth(mapping.toView(after)) > depth(mapping.toView(before)), '+z is deeper into the scene');
   assert.ok(screenX(after, CAMERA) < screenX(before, CAMERA), 'and the same move went screen-left');

@@ -13,40 +13,68 @@ import { HEADER_SIZE, ALIGN, alignUp, encodeHeader, encodeHashes, entryTableOffs
 import { encodeChunkArea } from './chunks.mjs';
 import { readManifest } from '../workspace/manifest.mjs';
 
-export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, layout = 'preserve', padUnits = 0, transformAll = null } = {}) {
+export function rebuildFromWorkspace(
+  dir,
+  { replacements = {}, reencode = null, layout = 'preserve', padUnits = 0, transformAll = null } = {},
+) {
   const m = readManifest(dir);
   const count = m.entries.length;
-  const replaced = Object.keys(replacements).map(Number).sort((a, b) => a - b);
+  const replaced = Object.keys(replacements)
+    .map(Number)
+    .sort((a, b) => a - b);
   for (const i of replaced) if (!m.entries[i]) throw new Error(`No entry with index ${i}`);
   if (!['preserve', 'sequential'].includes(layout)) throw new Error('layout must be preserve or sequential');
 
-  let reencoded = false, transformed = 0;
+  let reencoded = false,
+    transformed = 0;
   const items = m.entries.map(e => {
     let bytes = fs.readFileSync(path.join(dir, e.file));
-    let size = e.size, span = e.stored_size, changed = false;
+    let size = e.size,
+      span = e.stored_size,
+      changed = false;
     if (replacements[e.index] !== undefined) {
       const data = fs.readFileSync(path.resolve(replacements[e.index]));
       if (e.compression === 'LZMA_CHUNKED') {
-        if (!reencode) throw new Error(`REENCODE_NOT_AVAILABLE: entry ${e.index} (${e.name}) is LZMA-chunked and no confirmed re-encoder is configured`);
-        const r = reencode(e, data, m); bytes = r.bytes; size = r.size; reencoded = true;
-      } else { bytes = data; size = data.length; }
-      span = alignUp(Math.max(bytes.length, 1)); changed = true;
+        if (!reencode)
+          throw new Error(
+            `REENCODE_NOT_AVAILABLE: entry ${e.index} (${e.name}) is LZMA-chunked and no confirmed re-encoder is configured`,
+          );
+        const r = reencode(e, data, m);
+        bytes = r.bytes;
+        size = r.size;
+        reencoded = true;
+      } else {
+        bytes = data;
+        size = data.length;
+      }
+      span = alignUp(Math.max(bytes.length, 1));
+      changed = true;
     } else if (transformAll) {
       const r = transformAll(e, bytes, m);
-      if (r) { bytes = r.bytes; size = r.size; span = alignUp(Math.max(bytes.length, 1)); changed = true; transformed++; if (e.compression === 'LZMA_CHUNKED') reencoded = true; }
+      if (r) {
+        bytes = r.bytes;
+        size = r.size;
+        span = alignUp(Math.max(bytes.length, 1));
+        changed = true;
+        transformed++;
+        if (e.compression === 'LZMA_CHUNKED') reencoded = true;
+      }
     }
     return { ...e, bytes, newSize: size, newSpan: span, changed };
   });
 
   // A re-encoder may have changed the table area (chunk-count growth): re-sync modes and header words,
   // and move the data area if the grown tables plus the 32-byte trailer no longer fit before it.
-  items.forEach((it, i) => { it.mode = m.entries[i].mode; });
+  items.forEach((it, i) => {
+    it.mode = m.entries[i].mode;
+  });
   const words = [...m.header_words];
   const originalTablesEnd = HEADER_SIZE + (m.header_words[2] ?? 0);
   const tableGrowth = words[2] - (m.header_words[2] ?? words[2]);
   const minStart = Math.min(...m.entries.map(e => e.start));
   const firstData = Math.max(minStart, alignUp(HEADER_SIZE + words[2] + 32));
-  let relayout = layout === 'sequential' || firstData !== minStart || items.some(it => it.changed && it.newSpan > it.stored_size);
+  let relayout =
+    layout === 'sequential' || firstData !== minStart || items.some(it => it.changed && it.newSpan > it.stored_size);
   let nameTableOffset = m.name_table.offset;
   if (relayout) {
     let cursor = firstData;
@@ -60,7 +88,10 @@ export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, 
     for (const it of items) it.newStart = it.start;
   }
   nameTableOffset += padUnits * ALIGN;
-  if (nameTableOffset !== m.name_table.offset) { relayout = relayout || padUnits > 0; words[6] = nameTableOffset; }
+  if (nameTableOffset !== m.name_table.offset) {
+    relayout = relayout || padUnits > 0;
+    words[6] = nameTableOffset;
+  }
   const total = nameTableOffset + m.name_table.size;
   const buf = Buffer.alloc(total);
 
@@ -68,11 +99,13 @@ export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, 
   encodeHashes(m.hashes).copy(buf, HEADER_SIZE);
   items.forEach((it, i) => {
     const o = entryTableOffset(count) + 12 * i;
-    buf.writeUInt32LE(it.newStart, o); buf.writeUInt32LE(it.newSize >>> 0, o + 4); buf.writeUInt32LE(it.mode >>> 0, o + 8);
+    buf.writeUInt32LE(it.newStart, o);
+    buf.writeUInt32LE(it.newSize >>> 0, o + 4);
+    buf.writeUInt32LE(it.mode >>> 0, o + 8);
   });
   for (const ct of m.chunk_tables ?? []) encodeChunkArea(ct).copy(buf, ct.offset);
   for (const gap of m.raw_gaps ?? []) {
-    if (gap.offset >= minStart && (relayout || padUnits)) continue;   // data-area gaps lose their meaning after a relayout
+    if (gap.offset >= minStart && (relayout || padUnits)) continue; // data-area gaps lose their meaning after a relayout
     // Gaps after the tables (the 32-byte trailer and its zero fill) move by the exact table growth,
     // which is even, so the 4-aligned record stays aligned; bytes that no longer fit are dropped.
     const offset = gap.offset >= originalTablesEnd ? gap.offset + tableGrowth : gap.offset;
@@ -94,8 +127,18 @@ export function rebuildFromWorkspace(dir, { replacements = {}, reencode = null, 
     sequential = Math.max(sequential, rel + s.length);
   });
   for (const pair of (m.name_table.tail_hex ?? '').split(';').filter(Boolean)) {
-    const [off, val] = pair.split(':'); buf[nt + parseInt(off, 16)] = parseInt(val, 16);
+    const [off, val] = pair.split(':');
+    buf[nt + parseInt(off, 16)] = parseInt(val, 16);
   }
   const strategy = reencoded ? 'REENCODE_REPLACED' : 'BYTE_PRESERVING';
-  return { buffer: buf, strategy, replaced_entries: replaced, transformed_entries: transformed, relayout, layout, pad_units: padUnits, size: total };
+  return {
+    buffer: buf,
+    strategy,
+    replaced_entries: replaced,
+    transformed_entries: transformed,
+    relayout,
+    layout,
+    pad_units: padUnits,
+    size: total,
+  };
 }

@@ -14,6 +14,6 @@ export function readChunkArea(buf, start, end) {
 export function encodeChunkArea(area) {
   if (!area) return Buffer.alloc(0);
   const b = Buffer.alloc(2 * area.values.length);
-  area.values.forEach((v, i) => b.writeUInt16LE(v & 0xFFFF, 2 * i));
+  area.values.forEach((v, i) => b.writeUInt16LE(v & 0xffff, 2 * i));
   return b;
 }

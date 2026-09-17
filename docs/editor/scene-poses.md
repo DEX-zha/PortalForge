@@ -53,11 +53,16 @@ the vertical intersection with its triangles gives **Y = 4.968**, just under the
 It already appears among the displayed scenery units; no mesh was invented.
 The reproducible diagnostic is `.local/mesh-coverage-study/terrain-pose.mjs`.
 
-The reading of bit `+0x54` stays **LIKELY**, limited to the tutorial, and is not editable.
-The **Disabled models and objects** layer displays those 296 records at their storage
-coordinates. They are hidden by default; some may be activated later by the game.
-The inspector offers a link to the active object of the same name when its model and
-behaviour agree, the treasure in particular.
+The reading of bit `+0x54` stays **LIKELY** and is not editable. Since 17 September 2026 it
+applies to every level with the class detected for the file, not only to the tutorial: on
+Mining it marks 236 records (the breakable-rock halves, the track-switch and mine-train
+templates, the game-element libraries) against 296 on the tutorial, the word being exactly
+4 or 5 on every record of both levels (see the
+[feature 006 research](../../specs/006-multi-level-editing/research.md)). The
+**Disabled models and objects** layer displays those records at their storage coordinates.
+They are hidden by default; some may be activated later by the game. The inspector offers a
+link to the active object of the same name when its model and behaviour agree, the treasure
+in particular. The bridge and cannon previews above remain tutorial-only.
 
 ## Checks
 

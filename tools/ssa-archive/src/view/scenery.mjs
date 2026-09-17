@@ -12,7 +12,9 @@ export function createScenery(scenery, material, largeMaterial = material) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(chunk.indices), 1));
-    geometry.computeVertexNormals(); geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
     const mesh = new THREE.Mesh(geometry, chunk.large_surface ? largeMaterial : material);
     mesh.userData = { editable: false, descriptors: chunk.descriptors };
     group.add(mesh);

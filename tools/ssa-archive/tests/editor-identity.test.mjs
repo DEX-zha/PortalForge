@@ -24,7 +24,10 @@ const open = file => openSession(file, { archive: 'level/x.bld', entry: 3, deps:
 
 // Everything about a placement that a transform must leave alone: every field of the frozen contract except the
 // three it is allowed to change. Written by subtraction so a field added to the contract later is covered by default.
-const identity = p => { const { position, rotation, scale, ...rest } = p; return JSON.stringify(rest); };
+const identity = p => {
+  const { position, rotation, scale, ...rest } = p;
+  return JSON.stringify(rest);
+};
 const snapshot = s => new Map(s.placements.map(p => [p.offset, identity(p)]));
 
 function synthetic() {
@@ -50,7 +53,10 @@ function burst(s) {
   return { targets, intents };
 }
 
-for (const [label, file, skip] of [['synthetic', synthetic, false], ['the tutorial', () => TUTORIAL, !haveTutorial && 'local sample absent']]) {
+for (const [label, file, skip] of [
+  ['synthetic', synthetic, false],
+  ['the tutorial', () => TUTORIAL, !haveTutorial && 'local sample absent'],
+]) {
   test(`identity (${label}): a burst of transforms leaves the placement count exactly where it was`, { skip }, () => {
     const s = open(file());
     const before = s.placements.length;
@@ -59,32 +65,49 @@ for (const [label, file, skip] of [['synthetic', synthetic, false], ['the tutori
     assert.equal(new Set(s.placements.map(p => p.offset)).size, before, 'no offset appears twice');
   });
 
-  test(`identity (${label}): every record keeps its name, model, behaviour and layers through the burst`, { skip }, () => {
-    const s = open(file());
-    const before = snapshot(s);
-    const { targets } = burst(s);
-    const after = snapshot(s);
-    assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), 'the same set of records');
-    for (const [offset, id] of before) assert.equal(after.get(offset), id, `record 0x${offset.toString(16)} changed something other than its transform`);
-    // And the objects that were edited are the ones that moved: the target of an intent is the record that changes.
-    for (const t of targets) {
-      const p = s.placements.find(x => x.offset === t.offset);
-      assert.equal(p.position[0].toFixed(1), (t === targets[0] ? -154.8 : -159.8).toFixed(1));
-    }
-  });
+  test(
+    `identity (${label}): every record keeps its name, model, behaviour and layers through the burst`,
+    { skip },
+    () => {
+      const s = open(file());
+      const before = snapshot(s);
+      const { targets } = burst(s);
+      const after = snapshot(s);
+      assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort(), 'the same set of records');
+      for (const [offset, id] of before)
+        assert.equal(
+          after.get(offset),
+          id,
+          `record 0x${offset.toString(16)} changed something other than its transform`,
+        );
+      // And the objects that were edited are the ones that moved: the target of an intent is the record that changes.
+      for (const t of targets) {
+        const p = s.placements.find(x => x.offset === t.offset);
+        assert.equal(p.position[0].toFixed(1), (t === targets[0] ? -154.8 : -159.8).toFixed(1));
+      }
+    },
+  );
 
-  test(`identity (${label}): two objects given the same position are two objects at one place, not one object twice`, { skip }, () => {
-    const s = open(file());
-    const [a, b] = s.placements.filter(p => p.model.path);
-    const spot = [12.5, 3.25, -7.75];
-    applyEdit(s, { kind: 'transform', target: a.offset, position: spot });
-    applyEdit(s, { kind: 'transform', target: b.offset, position: spot });
-    const atSpot = s.placements.filter(p => p.position.every((v, i) => Math.abs(v - spot[i]) < 1e-3));
-    assert.equal(atSpot.length, 2);
-    assert.deepEqual(atSpot.map(p => p.offset).sort(), [a.offset, b.offset].sort());
-    assert.notEqual(atSpot[0].name, undefined);
-    assert.notEqual(identity(atSpot[0]), identity(atSpot[1]), 'they are still distinguishable by everything but position');
-  });
+  test(
+    `identity (${label}): two objects given the same position are two objects at one place, not one object twice`,
+    { skip },
+    () => {
+      const s = open(file());
+      const [a, b] = s.placements.filter(p => p.model.path);
+      const spot = [12.5, 3.25, -7.75];
+      applyEdit(s, { kind: 'transform', target: a.offset, position: spot });
+      applyEdit(s, { kind: 'transform', target: b.offset, position: spot });
+      const atSpot = s.placements.filter(p => p.position.every((v, i) => Math.abs(v - spot[i]) < 1e-3));
+      assert.equal(atSpot.length, 2);
+      assert.deepEqual(atSpot.map(p => p.offset).sort(), [a.offset, b.offset].sort());
+      assert.notEqual(atSpot[0].name, undefined);
+      assert.notEqual(
+        identity(atSpot[0]),
+        identity(atSpot[1]),
+        'they are still distinguishable by everything but position',
+      );
+    },
+  );
 
   test(`identity (${label}): the saved bytes touch only the edited records' layout words`, { skip }, () => {
     const s = open(file());
@@ -99,7 +122,8 @@ for (const [label, file, skip] of [['synthetic', synthetic, false], ['the tutori
     const allowed = new Set();
     for (const t of targets) for (const off of [0x24, 0x28, 0x2c, 0x34, 0xb8]) allowed.add(t.offset + off);
     for (let q = 0; q + 4 <= original.length; q += 4) {
-      if (original.readUInt32BE(q) !== edited.readUInt32BE(q)) assert.ok(allowed.has(q), `word 0x${q.toString(16)} changed and belongs to no edited record's layout`);
+      if (original.readUInt32BE(q) !== edited.readUInt32BE(q))
+        assert.ok(allowed.has(q), `word 0x${q.toString(16)} changed and belongs to no edited record's layout`);
     }
   });
 
@@ -108,7 +132,10 @@ for (const [label, file, skip] of [['synthetic', synthetic, false], ['the tutori
     const before = s.placements.map(p => JSON.stringify(p));
     const { intents } = burst(s);
     for (let i = 0; i < intents.length; i++) undo(s);
-    assert.deepEqual(s.placements.map(p => JSON.stringify(p)), before);
+    assert.deepEqual(
+      s.placements.map(p => JSON.stringify(p)),
+      before,
+    );
     assert.equal(s.dirty, false);
   });
 }

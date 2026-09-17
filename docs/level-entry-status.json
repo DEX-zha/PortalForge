@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-16",
+  "updated": "2026-09-17",
   "game": "SSPP52 Rev1",
   "levels": [
     {
@@ -20,13 +20,24 @@
     {
       "level": "Mining",
       "archive": "level/Level_000_Mining.bld",
-      "status": "UNKNOWN",
-      "reason": "No pre-load transition and repeatable current-patch proof validated yet"
+      "status": "CONFIRMED",
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "proof": ["editor-direct-test-1789649812643-1296e432", "editor-direct-test-1789650170738-0c8c6b0a"],
+      "modes": ["direct-test", "direct-play"],
+      "limits": [
+        "The level's .bld and .arc are served under level/Level_027_Tutorial.bld and .arc through the tutorial checkpoint",
+        "One checkpoint per replacement layout (file names and sizes); the rebuilt size is stable per level",
+        "The Skylander 'visiting from another adventure' prompt precedes the level; the redirect macro taps A through it",
+        "Whether the level completes and returns to the hub normally is not covered"
+      ]
     },
     {
       "level": "Other level families",
-      "status": "UNKNOWN",
-      "reason": "Each family requires its own transition, identity and current-patch proof"
+      "status": "LIKELY",
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "reason": "The same mechanism landed in Mining on two identical boots; each family (story, hub, challenge, PvP) still needs its own two boots before CONFIRMED"
     }
   ],
   "fallback": "Explicit normal play selection; no silent direct-entry fallback",

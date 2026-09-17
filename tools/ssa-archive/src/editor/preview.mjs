@@ -5,13 +5,25 @@
 // uses (src/view/framing.mjs), into a PNG with the project's own encoder. It is not three.js: there is no lighting,
 // no depth buffer beyond painter order, and no orbiting. What it does prove is the part that was actually broken:
 // which objects are in frame, where the camera ends up, and how many pixels across a proxy lands.
-import fs from 'node:fs';
 import { encode } from '../evidence/png.mjs';
 import { mapping, scaleToView } from '../view/coords.mjs';
 import { modelMeshes } from './meshes.mjs';
 import {
-  MARKER_RATIO, MIN_INSTANCE_SCALE, GROUND, GRID_MAJOR, GRID_MINOR, GRADE_COLOUR, MARKER_COLOUR,
-  extentOf, proxySize, bulkBox, viewAxes, fitDistance, gridOf, projector, gradeOf,
+  MARKER_RATIO,
+  MIN_INSTANCE_SCALE,
+  GROUND,
+  GRID_MAJOR,
+  GRID_MINOR,
+  GRADE_COLOUR,
+  MARKER_COLOUR,
+  levelExtent,
+  proxySize,
+  bulkBox,
+  viewAxes,
+  fitDistance,
+  gridOf,
+  projector,
+  gradeOf,
 } from '../view/framing.mjs';
 
 const rgb = n => [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
@@ -19,45 +31,70 @@ const rgb = n => [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 // `meshes` draws the decoded geometry of every placement that has one, in wireframe, at the placement's
 // transform; `eye` and `target` (game coordinates) replace the level framing with a chosen viewpoint, which is
 // how a rendering is compared against a screenshot of the running game.
-export function renderPreview(session, { out, width = 1100, height = 780, layer = null, meshes = false, scenery = true, eye: eyeOpt = null, target: targetOpt = null } = {}) {
-  const chosen = layer
-    ? session.placements.filter(p => (p.layers ?? []).includes(layer))
-    : session.placements;
-  if (!chosen.length) throw Object.assign(new Error(layer ? `no placement is in layer ${layer}` : 'this level carries no placements'), { error: 'NOTHING_TO_DRAW' });
+export function renderPreview(
+  session,
+  {
+    out,
+    width = 1100,
+    height = 780,
+    layer = null,
+    meshes = false,
+    scenery = true,
+    eye: eyeOpt = null,
+    target: targetOpt = null,
+  } = {},
+) {
+  const chosen = layer ? session.placements.filter(p => (p.layers ?? []).includes(layer)) : session.placements;
+  if (!chosen.length)
+    throw Object.assign(new Error(layer ? `no placement is in layer ${layer}` : 'this level carries no placements'), {
+      error: 'NOTHING_TO_DRAW',
+    });
 
   const points = chosen.map(p => mapping.toView(p.position));
-  const { lo, reach } = extentOf(points);
+  const { lo, reach, parked } = levelExtent(points);
   const proxy = proxySize(reach);
   const bulk = bulkBox(points);
   const centre = [0, 1, 2].map(i => (bulk.lo[i] + bulk.hi[i]) / 2);
   const aspect = width / height;
   const distance = fitDistance(points, centre, { aspect });
-  let dir = null, eye, target = centre;
-  if (eyeOpt && targetOpt) { eye = mapping.toView(eyeOpt); target = mapping.toView(targetOpt); dir = [0, 1, 2].map(i => eye[i] - target[i]); }
-  else { const axes = viewAxes(); eye = centre.map((c, i) => c + axes.z[i] * distance); }
+  let dir = null,
+    eye,
+    target = centre;
+  if (eyeOpt && targetOpt) {
+    eye = mapping.toView(eyeOpt);
+    target = mapping.toView(targetOpt);
+    dir = [0, 1, 2].map(i => eye[i] - target[i]);
+  } else {
+    const axes = viewAxes();
+    eye = centre.map((c, i) => c + axes.z[i] * distance);
+  }
   const project = dir ? projector({ eye, w: width, h: height, dir }) : projector({ eye, w: width, h: height });
 
   const img = { w: width, h: height, ch: 3, data: Buffer.alloc(width * height * 3) };
   const ground = rgb(GROUND);
   for (let i = 0; i < width * height; i++) img.data.set(ground, i * 3);
   const put = (x, y, c) => {
-    x |= 0; y |= 0;
+    x |= 0;
+    y |= 0;
     if (x < 0 || y < 0 || x >= width || y >= height) return;
     img.data.set(c, (y * width + x) * 3);
   };
   const line = (a, b, c) => {
-    const p = project(a), q = project(b);
+    const p = project(a),
+      q = project(b);
     if (!p || !q) return;
     const n = Math.max(Math.abs(q.x - p.x), Math.abs(q.y - p.y)) | 0;
-    for (let i = 0; i <= n; i++) put(p.x + (q.x - p.x) * i / n, p.y + (q.y - p.y) * i / n, c);
+    for (let i = 0; i <= n; i++) put(p.x + ((q.x - p.x) * i) / n, p.y + ((q.y - p.y) * i) / n, c);
   };
 
   // The ground grid, under the lowest object, so height reads as height rather than as a position on a void.
   const { step, span } = gridOf(reach);
   const gy = lo[1] - proxy;
-  const major = rgb(GRID_MAJOR), minor = rgb(GRID_MINOR);
+  const major = rgb(GRID_MAJOR),
+    minor = rgb(GRID_MINOR);
   for (let i = 0; i <= Math.round(span / step); i++) {
-    const t = -span / 2 + i * step, mid = Math.abs(t) < step / 2 ? major : minor;
+    const t = -span / 2 + i * step,
+      mid = Math.abs(t) < step / 2 ? major : minor;
     line([centre[0] + t, gy, centre[2] - span / 2], [centre[0] + t, gy, centre[2] + span / 2], mid);
     line([centre[0] - span / 2, gy, centre[2] + t], [centre[0] + span / 2, gy, centre[2] + t], mid);
   }
@@ -67,26 +104,53 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
   const decoded = meshes ? modelMeshes(session) : null;
   const geometry = decoded?.models ?? new Map();
   const hasMesh = p => p.model?.offset != null && geometry.has(p.model.offset);
-  let meshed = 0, edges = 0, sceneryUnits = 0;
+  let meshed = 0,
+    edges = 0,
+    sceneryUnits = 0;
   if (meshes) {
     const draw = (m, world, wire) => {
-      const scr = new Array(m.vertex_count); for (let i = 0; i < m.vertex_count; i++) scr[i] = project([world[3 * i], world[3 * i + 1], world[3 * i + 2]]);
-      const seg = (a, b) => { const P = scr[a], Q = scr[b]; if (!P || !Q) return; const n = Math.max(Math.abs(Q.x - P.x), Math.abs(Q.y - P.y)) | 0; if (n > 4000) return; for (let i = 0; i <= n; i++) put(P.x + (Q.x - P.x) * i / (n || 1), P.y + (Q.y - P.y) * i / (n || 1), wire); edges++; };
-      for (let t = 0; t < m.indices.length; t += 3) { seg(m.indices[t], m.indices[t + 1]); seg(m.indices[t + 1], m.indices[t + 2]); seg(m.indices[t + 2], m.indices[t]); }
+      const scr = new Array(m.vertex_count);
+      for (let i = 0; i < m.vertex_count; i++) scr[i] = project([world[3 * i], world[3 * i + 1], world[3 * i + 2]]);
+      const seg = (a, b) => {
+        const P = scr[a],
+          Q = scr[b];
+        if (!P || !Q) return;
+        const n = Math.max(Math.abs(Q.x - P.x), Math.abs(Q.y - P.y)) | 0;
+        if (n > 4000) return;
+        for (let i = 0; i <= n; i++) put(P.x + ((Q.x - P.x) * i) / (n || 1), P.y + ((Q.y - P.y) * i) / (n || 1), wire);
+        edges++;
+      };
+      for (let t = 0; t < m.indices.length; t += 3) {
+        seg(m.indices[t], m.indices[t + 1]);
+        seg(m.indices[t + 1], m.indices[t + 2]);
+        seg(m.indices[t + 2], m.indices[t]);
+      }
     };
-    if (scenery) for (const m of decoded.scenery?.chunks ?? []) {
-      const world = new Float32Array(m.positions.length);
-      for (let i = 0; i < world.length; i += 3) world.set(mapping.toView(m.positions.subarray(i, i + 3)), i);
-      draw(m, world, [0x73, 0x81, 0x8a]);
-      sceneryUnits += m.units;
-    }
+    if (scenery)
+      for (const m of decoded.scenery?.chunks ?? []) {
+        const world = new Float32Array(m.positions.length);
+        for (let i = 0; i < world.length; i += 3) world.set(mapping.toView(m.positions.subarray(i, i + 3)), i);
+        draw(m, world, [0x73, 0x81, 0x8a]);
+        sceneryUnits += m.units;
+      }
     for (const p of chosen) {
       if (!hasMesh(p)) continue;
-      const m = geometry.get(p.model.offset), s = Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE);
-      const h = p.rotation.heading * Math.PI / 180, ch = Math.cos(h), sh = Math.sin(h), [px, py, pz] = mapping.toView(p.position);
+      const m = geometry.get(p.model.offset),
+        s = Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE);
+      const h = (p.rotation.heading * Math.PI) / 180,
+        ch = Math.cos(h),
+        sh = Math.sin(h),
+        [px, py, pz] = mapping.toView(p.position);
       // model local -> world: scale, then rotate about the vertical axis, then translate, as the scene does
       const world = new Float32Array(m.positions.length);
-      for (let i = 0; i < m.vertex_count; i++) { const x = m.positions[3 * i] * s, y = m.positions[3 * i + 1] * s, z = m.positions[3 * i + 2] * s; world[3 * i] = px + x * ch + z * sh; world[3 * i + 1] = py + y; world[3 * i + 2] = pz - x * sh + z * ch; }
+      for (let i = 0; i < m.vertex_count; i++) {
+        const x = m.positions[3 * i] * s,
+          y = m.positions[3 * i + 1] * s,
+          z = m.positions[3 * i + 2] * s;
+        world[3 * i] = px + x * ch + z * sh;
+        world[3 * i + 1] = py + y;
+        world[3 * i + 2] = pz - x * sh + z * ch;
+      }
       draw(m, world, [0xb8, 0xb3, 0xa8]);
       meshed++;
     }
@@ -100,14 +164,18 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
   for (const { p, screen } of drawn) {
     const placed = !!p.model?.path;
     const world = proxy * Math.max(scaleToView(p.scale) || 1, MIN_INSTANCE_SCALE) * (placed ? 1 : MARKER_RATIO);
-    const half = Math.max(world * screen.perUnit / 2, 0.5);
+    const half = Math.max((world * screen.perUnit) / 2, 0.5);
     sizes.push(half * 2);
     const base = placed ? rgb(GRADE_COLOUR[gradeOf(p)] ?? GRADE_COLOUR.info) : rgb(MARKER_COLOUR);
     for (let y = Math.round(screen.y - half); y <= screen.y + half; y++) {
       for (let x = Math.round(screen.x - half); x <= screen.x + half; x++) {
         // A lighter top and a darker base, so a square reads as a solid sitting on the ground rather than a sticker.
         const shade = half < 2 ? 1.12 : 0.62 + 0.5 * ((screen.y + half - y) / (half * 2));
-        put(x, y, base.map(c => Math.min(255, Math.round(c * shade))));
+        put(
+          x,
+          y,
+          base.map(c => Math.min(255, Math.round(c * shade))),
+        );
       }
     }
   }
@@ -117,13 +185,17 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
   const onScreen = drawn.filter(d => d.screen.x >= 0 && d.screen.x < width && d.screen.y >= 0 && d.screen.y < height);
   return {
     file: out ?? null,
-    width, height,
+    width,
+    height,
     image: img,
     placements: chosen.length,
     drawn: drawn.length,
-    meshed, edges, scenery_units: sceneryUnits,
+    meshed,
+    edges,
+    scenery_units: sceneryUnits,
     on_screen: onScreen.length,
     extent: Math.round(reach),
+    parked: parked.length,
     proxy_units: Math.round(proxy * 100) / 100,
     proxy_px_median: sizes.length ? Math.round(sizes[Math.floor(sizes.length / 2)] * 10) / 10 : 0,
     proxy_px_min: sizes.length ? Math.round(sizes[0] * 10) / 10 : 0,
@@ -140,20 +212,17 @@ export function renderPreview(session, { out, width = 1100, height = 780, layer 
 export const LEGIBLE_PX = 6;
 
 export function formatPreview(r) {
-  const pct = r.drawn ? Math.round(r.on_screen / r.drawn * 100) : 0;
+  const pct = r.drawn ? Math.round((r.on_screen / r.drawn) * 100) : 0;
   return [
-    `${r.placements} placements, ${r.drawn} proxies in front of the camera, ${pct}% inside the picture` + (r.meshed ? `, ${r.meshed} drawn as real meshes` : '') + (r.scenery_units ? `, ${r.scenery_units} scenery units` : ''),
-    `extent ${r.extent} units, proxy ${r.proxy_units} units`,
-    `proxy on screen: ${r.proxy_px_median} px median, ${r.proxy_px_min} to ${r.proxy_px_max}`
-      + (r.proxy_px_median < LEGIBLE_PX ? '  <-- below the legible floor, the view will look empty' : ''),
+    `${r.placements} placements, ${r.drawn} proxies in front of the camera, ${pct}% inside the picture` +
+      (r.meshed ? `, ${r.meshed} drawn as real meshes` : '') +
+      (r.scenery_units ? `, ${r.scenery_units} scenery units` : ''),
+    `extent ${r.extent} units, proxy ${r.proxy_units} units` +
+      (r.parked ? `, ${r.parked} object${r.parked === 1 ? '' : 's'} parked far away and left out of the extent` : ''),
+    `proxy on screen: ${r.proxy_px_median} px median, ${r.proxy_px_min} to ${r.proxy_px_max}` +
+      (r.proxy_px_median < LEGIBLE_PX ? '  <-- below the legible floor, the view will look empty' : ''),
     `camera ${r.camera.join(', ')} at ${r.distance} units, looking at ${r.target.join(', ')}`,
     `grid ${r.grid.step} unit squares over ${r.grid.span} units`,
     r.file ? `written ${r.file}` : 'not written',
-  ].join(String.fromCharCode(10));
-}
-
-export function previewToFile(session, opts) {
-  const r = renderPreview(session, opts);
-  if (opts?.out && !fs.existsSync(opts.out)) throw new Error(`preview could not be written to ${opts.out}`);
-  return r;
+  ].join('\n');
 }
