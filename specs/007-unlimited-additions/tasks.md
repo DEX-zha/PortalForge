@@ -15,7 +15,10 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 - [x] A03 Any resident source as a test candidate: a level with snapshot parameters classifies its objects as
       "Needs test" instead of "Blocked" (Mining: 153 testable families); Add stays reserved to confirmed
       recipes. The one-source probe of the tutorial refuses other levels and names the batch probe.
-- [ ] A04 Experiment A1, two boots: eight sunflower-class additions on Mining with the snapshot's base and anchor.
+- [ ] A04 Experiment A1, two boots: eight additions on Mining with the snapshot's base and anchor, four from active
+      placements and four from stored templates, one of them script-less (prepared, dry run clean):
+      `node research-probes/native-level-probe.mjs --level Level_000_Mining --origin 75,10.8,-46 --columns 4
+      --sources "Lantern_01,gem_emerald(2),MiningWall_1(3),amethyst,Rock_Breakable_Half,Food_Pizza,Helmet,Key Pickup"`.
 - [ ] A05 Experiment A2, two boots: 32 additions across eight families on Mining, all verified in memory.
 - [ ] A06 Findings `level.prop.native-addition.<level>` per level booted; the tutorial keeps its own.
 
@@ -25,9 +28,13 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       dependencies (a template a script clones, an object a script expects). Tests on the synthetic level.
 - [ ] B02 Inspector actions "Remove from the level" and "Place this template here"; the Project browser lists
       templates as placeable with that action.
-- [ ] B03 Experiment B1, two boots: `Barrel(20)` and one Chompy setup removed on Mining.
-- [ ] B04 Experiment B2, two boots: `Rock_Breakable_Half` and `Mine_Train_Template` revealed in front of the
-      opening camera on Mining.
+- [x] B00 The probe (`research-probes/activation-flag-boot.mjs`): flips the flag word on a copy, checks that no other
+      word moved, boots through the redirect and reads each target's state and actor from memory. The flag is not
+      an editor property until B05.
+- [ ] B03 Experiment B1, two boots: the two lanterns of Mining's opening view switched off
+      (`--off "Lantern_01,Lantern_01(1)"`); they are known to be in the captures (feature 006).
+- [ ] B04 Experiment B2, two boots: `Rock_Breakable_Half` revealed at a chosen spot on Mining
+      (`--on "Rock_Breakable_Half" --at 80,10.9,-47`).
 - [ ] B05 Finding `level.placement.activation-switch`; editable on CONFIRMED; documentation.
 
 ## Phase C — Libraries between levels

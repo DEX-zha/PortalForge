@@ -47,6 +47,9 @@ export async function runEditorGame({
   // A campaign's view of its additions, one row each, taken at every capture of the level and at the end. With
   // it a source that fails is a result, not a failed run: the batch carries many sources and judges each.
   nativeInspect = null,
+  // A research probe's own reading of the running game (placement states, for one), taken at every capture of
+  // the level and at the end. What it returns is kept in the record; a reading that throws is kept as its error.
+  inspect = null,
 } = {}) {
   figure ??= defaultFigure();
   validateSkipIntro(archive, mode, skip_intro);
@@ -88,6 +91,15 @@ export async function runEditorGame({
   // An abort can arrive while launch is still returning its PID. Do not cache a no-op
   // stop: finally must close the owned process once launch has finished assigning it.
   const stop = () => (game.pid ? (stopped ??= game.stop()) : Promise.resolve(null));
+  const read = async capture => {
+    if (!inspect) return;
+    record.inspections ??= [];
+    try {
+      record.inspections.push({ capture, result: await inspect() });
+    } catch (e) {
+      record.inspections.push({ capture, error: e.message });
+    }
+  };
   const cancel = () => {
     onProgress({ phase: 'stopping' });
     void stop();
@@ -144,6 +156,7 @@ export async function runEditorGame({
         labelPrefix: id,
         onShot: async f => {
           record.screenshots.push(f);
+          if (/tutorial|arrived/.test(f)) await read(f);
           // Scripted additions may transform or destroy themselves, and additions on another level are judged
           // at every capture once the level is reached: both keep a timeline, not only the final state.
           const native = patch.native_additions;
@@ -173,6 +186,7 @@ export async function runEditorGame({
         },
       });
       consumption();
+      await read(null);
       if (!record.consumption.verified)
         throw new Error('The file monitor did not prove that Dolphin consumed this rebuilt archive');
       if (patch.native_additions && nativeInspect) {

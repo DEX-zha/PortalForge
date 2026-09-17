@@ -265,3 +265,33 @@ test('an abort before launch returns its PID still closes the subsequently owned
   assert.equal(r.status, 'STOPPED');
   assert.ok(f.calls.some(c => c[0] === 'stop'));
 });
+
+test('a probe reads the running game at every capture of the level and at the end, and a failed reading is kept', async () => {
+  const f = fixture();
+  f.fake.runScriptSafe = async (steps, opts) => {
+    opts.onStep?.({ step: 0 });
+    await opts.onShot?.('run-menu.png');
+    await opts.onShot?.('run-tutorial-arrived.png');
+    return [];
+  };
+  let reads = 0;
+  const r = await runEditorGame({
+    ...f,
+    mode: 'test',
+    archive: 'level/Level_027_Tutorial.bld',
+    gameFactory: () => f.fake,
+    evidenceDir: f.dir,
+    inspect: async () => {
+      reads++;
+      if (reads === 2) throw new Error('bridge closed');
+      return { state: 1 };
+    },
+  });
+  assert.deepEqual(r.inspections, [
+    { capture: 'run-tutorial-arrived.png', result: { state: 1 } },
+    { capture: null, error: 'bridge closed' },
+  ]);
+  assert.equal(r.status, 'MACRO_COMPLETED');
+  const written = JSON.parse(fs.readFileSync(path.join(f.dir, r.id + '.json'), 'utf8'));
+  assert.equal(written.inspections.length, 2);
+});
