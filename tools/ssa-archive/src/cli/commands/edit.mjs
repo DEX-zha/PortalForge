@@ -23,7 +23,7 @@ const planExit = plan => (plan.validation.status === 'VALID' ? EXIT.OK : EXIT.FA
 // evidence trail as a command-line one. Nothing here is bound to one session: the server may switch levels.
 export function editorDeps(o = {}) {
   return {
-    build: ({ experimentId, replacements, session }) => {
+    build: ({ experimentId, replacements, session, redirect = null }) => {
       const game = o.game ?? setting('game');
       if (!game) {
         throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), {
@@ -33,9 +33,15 @@ export function editorDeps(o = {}) {
       const outDir = o['patch-out'] ?? path.join(localDir, 'patches', experimentId);
       const original = sampleOf(session.archive);
       if (!fs.existsSync(original)) throw new Error('Original archive sample is missing: ' + original);
-      return buildEditorPatch({ experimentId, game, replacements, outDir, original, session });
+      return buildEditorPatch({ experimentId, game, replacements, outDir, original, session, redirect });
     },
-    run: args => runEditorGame({ ...args, archive: args.session.archive, figure: args.figure ?? o.figure ?? null }),
+    // The archive to monitor is the session's, unless the launch redirected the level onto other file names.
+    run: args =>
+      runEditorGame({
+        ...args,
+        archive: args.archive ?? args.session.archive,
+        figure: args.figure ?? o.figure ?? null,
+      }),
     levels: () => levelCatalogModule().then(m => m.levelCatalog()),
     open: (query, options = {}) =>
       import('../../editor/level-open.mjs').then(m => m.openLevel(query, { game: o.game ?? undefined, ...options })),

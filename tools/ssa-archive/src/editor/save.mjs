@@ -13,6 +13,7 @@ import { FIELDS } from '../igz/model-resolve.mjs';
 import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
 import { validateSkipIntro } from './level-entry.mjs';
+import { isTutorial } from './levels.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 
 const fail = (error, reason) => {
@@ -244,6 +245,7 @@ export function patch(session, { deps = {} } = {}) {
     replacements: [{ disc_path: session.archive, file: session.lastSave.file }],
     entry: session.entry,
     session,
+    redirect: redirectFor(session),
   });
   let native_additions = null;
   if (session.lastSave.additions?.length) {
@@ -262,6 +264,7 @@ export function patch(session, { deps = {} } = {}) {
     ...result,
     dir: result.dir,
     replacements: result.replacements ?? [],
+    redirect: result.redirect ?? null,
     experiment_id: experimentId,
     save_sha256: session.lastSave.sha256,
     additions_sha256: session.lastSave.additions_sha256,
@@ -274,6 +277,14 @@ export function patch(session, { deps = {} } = {}) {
 
 function defaultBuild() {
   fail('NOT_WIRED', 'the patch builder is supplied by the CLI layer; call patch() with deps.build');
+}
+
+// The redirect a patch of another level carries (feature 006): that level served under the tutorial's file names,
+// so the confirmed tutorial checkpoint loads it. Only with the level's voice pack on disk; never for the tutorial.
+export function redirectFor(session) {
+  const level = session.level;
+  if (!level?.redirect || isTutorial(session.archive) || !level.companion?.present) return null;
+  return { ...level.redirect, companion_file: level.companion.file, level: session.archive };
 }
 
 // A launch is started, not awaited. Two boots take about ten minutes, far longer than any HTTP client will hold a
@@ -305,13 +316,24 @@ export async function launch(
       additionsDigest(native.additions) !== session.lastPatch.additions_sha256)
   )
     fail('STALE_PATCH', 'The native addition patch changed after it was built.');
-  for (const r of session.lastPatch.replacements) {
-    if (
-      r.sha256 &&
-      (!fs.existsSync(path.resolve(session.lastPatch.dir, r.file)) ||
-        hash(fs.readFileSync(path.resolve(session.lastPatch.dir, r.file))) !== r.sha256)
-    )
-      fail('STALE_PATCH', 'a replacement file changed after the patch was built');
+  // Direct entry on another level runs the redirect descriptor: the same rebuilt archive under the tutorial's file
+  // names, with the level's voice pack. Without one there is no way to reach that level automatically.
+  const direct = mode === 'direct-test' || mode === 'direct-play';
+  const redirected = direct && !isTutorial(session.archive);
+  if (redirected && !session.lastPatch.redirect)
+    fail(
+      'NO_REDIRECT_PATCH',
+      'direct entry on this level serves it under the tutorial file names and needs its voice pack: open the level by name with the game image configured, then save and patch again',
+    );
+  const runPatch = redirected ? session.lastPatch.redirect : session.lastPatch;
+  for (const p of [session.lastPatch, runPatch]) {
+    for (const r of p.replacements ?? []) {
+      if (
+        r.sha256 &&
+        (!fs.existsSync(path.resolve(p.dir, r.file)) || hash(fs.readFileSync(path.resolve(p.dir, r.file))) !== r.sha256)
+      )
+        fail('STALE_PATCH', 'a replacement file changed after the patch was built');
+    }
   }
   prediction =
     String(prediction).trim() ||
@@ -323,6 +345,7 @@ export async function launch(
     deps.run ??
     (() => fail('NOT_WIRED', 'the experiment runner is supplied by the CLI layer; call launch() with deps.run'));
 
+  const redirect = redirected ? { level: session.archive, name: session.level?.name ?? null } : null;
   session.lastLaunch = {
     experiment_id: null,
     prediction,
@@ -330,7 +353,8 @@ export async function launch(
     repeat,
     mode: mode ?? 'test',
     skip_intro,
-    patch_dir: session.lastPatch.dir,
+    redirect,
+    patch_dir: runPatch.dir,
     observed: null,
     matched: null,
     running: true,
@@ -338,10 +362,9 @@ export async function launch(
     started: new Date().toISOString(),
     at: new Date().toISOString(),
   };
-  session.lock = { patch_dir: session.lastPatch.dir, since: new Date().toISOString() };
+  session.lock = { patch_dir: runPatch.dir, since: new Date().toISOString() };
   session.locked = true;
-  const controller = new AbortController(),
-    selectedPatch = session.lastPatch;
+  const controller = new AbortController();
   const current = session.lastLaunch;
   current.controller = controller;
 
@@ -354,7 +377,9 @@ export async function launch(
         repeat,
         mode: mode ?? 'test',
         skip_intro,
-        patch: selectedPatch,
+        patch: runPatch,
+        archive: redirected ? runPatch.entry_archive : session.archive,
+        redirect,
         signal: controller.signal,
         onProgress: progress => Object.assign(current, { progress }),
       }),

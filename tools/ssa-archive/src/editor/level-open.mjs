@@ -11,7 +11,9 @@ import { extractFile } from '../disc/extract.mjs';
 import { extractToWorkspace, readManifest, writeManifest } from '../workspace/manifest.mjs';
 import { decodeWorkspace } from '../iga/decode.mjs';
 import { openSession } from './session.mjs';
-import { levelCatalog, findLevel, suggestLevels, levelEntry } from './level-catalog.mjs';
+import { levelCatalog, findLevel, suggestLevels, levelEntry, capabilitiesOf } from './level-catalog.mjs';
+import { directEntryConfirmed } from './level-entry.mjs';
+import { TUTORIAL_DISC } from './levels.mjs';
 import { setting } from '../../../dolphin-mcp/config.mjs';
 
 const refuse = (error, message, exitCode = 2) => {
@@ -30,15 +32,16 @@ function materialiseUncompressed(dir) {
   writeManifest(dir, manifest);
 }
 
-// Makes sure the level's decoded entry exists, extracting and decoding as needed, and returns the entry.
-// `game` left undefined reads the configured image; null means there is none to read from.
+// Makes sure the level's decoded entry exists, extracting and decoding as needed, and returns the entry together
+// with the level's voice pack. `game` left undefined reads the configured image; null means there is none.
 export async function ensureLevelWorkspace(
   level,
   { localDir, game = undefined, extract = extractFile, log = () => {} } = {},
 ) {
+  const image = game === undefined ? setting('game') : game;
+  const samples = path.join(localDir, 'samples');
   let original = level.original.file;
   if (!level.original.present) {
-    const image = game === undefined ? setting('game') : game;
     if (!image)
       refuse(
         'NO_GAME',
@@ -46,7 +49,7 @@ export async function ensureLevelWorkspace(
         3,
       );
     log(`extracting ${level.archive} from the game image`);
-    original = (await extract(image, level.archive, path.join(localDir, 'samples'))).file;
+    original = (await extract(image, level.archive, samples)).file;
   }
   const dir = level.workspace.dir;
   if (!level.workspace.present) {
@@ -74,7 +77,18 @@ export async function ensureLevelWorkspace(
     entry = levelEntry(dir, readManifest(dir));
     if (!entry?.decoded) refuse('DECODE_FAILED', `${level.archive}: the level entry did not decode`);
   }
-  return entry;
+  // The voice pack is needed only to serve the level under the tutorial's file names; its absence is a reason
+  // shown next to direct entry, not a refusal to open.
+  let companion = level.companion ?? null;
+  if (companion && !companion.present && image) {
+    try {
+      log(`extracting ${companion.archive} from the game image`);
+      companion = { ...companion, file: (await extract(image, companion.archive, samples)).file, present: true };
+    } catch (e) {
+      log(`voice pack not extracted: ${e.message}`);
+    }
+  }
+  return { ...entry, companion };
 }
 
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -103,12 +117,21 @@ export async function openLevel(query, { catalog = null, fixups = 'auto', game =
   } catch (e) {
     refuse('OPEN_REFUSED', e.message, e.exitCode ?? 2);
   }
+  const runtime_map = fixups === 'auto' ? level.runtime_map : map ? { file: null, source: 'given' } : null;
   session.level = {
     name: level.name,
     family: level.family,
     tutorial: level.tutorial,
-    runtime_map: fixups === 'auto' ? level.runtime_map : map ? { file: null, source: 'given' } : null,
-    capabilities: level.capabilities,
+    runtime_map,
+    companion: entry.companion,
+    // Where the level's files are served when direct entry redirects it onto the tutorial's names.
+    redirect: level.tutorial ? null : { archive: TUTORIAL_DISC.archive, companion: TUTORIAL_DISC.companion },
+    capabilities: capabilitiesOf({
+      tutorial: level.tutorial,
+      runtimeMap: runtime_map,
+      directEntry: (deps.directEntry ?? directEntryConfirmed)(),
+      companion: !!entry.companion?.present,
+    }),
   };
   return session;
 }

@@ -81,21 +81,31 @@ async function main() {
     }
   });
   $('launch-mode').addEventListener('change', refreshSaveState);
-  $('launch-mode').value = 'test';
+  $('launch-mode').value = state.tutorial ? 'test' : 'play';
+  if (!state.tutorial) $('launch-mode').querySelector('[value="test"]').disabled = true;
   try {
     const entry = await api('/api/level-entry');
-    for (const option of $('launch-mode').querySelectorAll('[value^="direct-"]')) option.disabled = !entry.supported;
+    const redirect = !state.tutorial && !!entry.redirect?.available;
+    const directOptions = $('launch-mode').querySelectorAll('[value^="direct-"]');
+    for (const option of directOptions) option.disabled = !(entry.supported || redirect);
     if (entry.supported) {
       $('launch-mode').value = 'direct-test';
       $('entry-note').textContent =
         'Direct entry skips the menus after one preparation run. A changed disc layout requires preparation again. Your current patch is loaded each time.';
+    } else if (redirect) {
+      // Feature 006: the level is served under the tutorial's file names, so the tutorial checkpoint loads it.
+      for (const option of directOptions)
+        option.textContent =
+          option.value === 'direct-play'
+            ? 'Direct level play via the tutorial slot (experimental)'
+            : 'Direct level test via the tutorial slot (experimental)';
+      $('launch-mode').value = 'direct-play';
+      $('entry-note').textContent = 'Experimental: ' + entry.redirect.why + '.';
+    } else if (entry.redirect) {
+      $('entry-note').textContent = 'Direct entry unavailable: ' + entry.redirect.why + '.';
     }
   } catch {
     /* Existing launch modes remain available. */
-  }
-  if (session.archive?.toLowerCase() !== 'level/level_027_tutorial.bld') {
-    $('launch-mode').value = 'play';
-    $('launch-mode').querySelector('[value="test"]').disabled = true;
   }
   state.placements = data.placements;
   state.layers = data.layers;
@@ -842,7 +852,8 @@ function renderCapabilities(current) {
     const v = c[key];
     if (!v) return '';
     const title = esc(v.why) + (v.finding ? ` (${esc(v.finding)})` : '');
-    return `<div class="row"><span class="k">${label}</span><span class="v ${v.available ? 'proven' : 'withheld'}" title="${title}">${v.available ? esc(v.confidence) : 'not available'}</span></div>`;
+    const state = v.available ? esc(v.confidence) + (v.experimental ? ' · experimental' : '') : 'not available';
+    return `<div class="row"><span class="k">${label}</span><span class="v ${v.available && !v.experimental ? 'proven' : 'withheld'}" title="${title}">${state}</span></div>`;
   });
   const caveat = Object.values(c).find(v => v.available && v.confidence !== 'CONFIRMED');
   $('capabilities').innerHTML =

@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { local, root } from '../experiments/run-game.mjs';
 import { readManifest } from '../workspace/manifest.mjs';
-import { isTutorial } from './levels.mjs';
+import { isTutorial, companionOf } from './levels.mjs';
 import { directEntryConfirmed } from './level-entry.mjs';
 import { setting } from '../../../dolphin-mcp/config.mjs';
 
@@ -129,8 +129,12 @@ export function levelEntry(dir, manifest) {
 
 // What the editor can do on a level, each with its confidence and the finding that carries it. Availability
 // never comes from a name: it comes from the evidence the project holds for that level.
-export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntry = false } = {}) {
+export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntry = false, companion = false } = {}) {
   const map = !!runtimeMap;
+  // Another level reaches direct entry by being served under the tutorial's file names (archive redirect). That
+  // needs the tutorial checkpoint and the level's voice pack on disk, and it is an experiment until boots say
+  // otherwise: available, so the first boot can be made, and UNKNOWN, so nobody mistakes it for a result.
+  const redirect = !tutorial && directEntry;
   return {
     transform: tutorial
       ? {
@@ -195,12 +199,27 @@ export function capabilitiesOf({ tutorial = false, runtimeMap = null, directEntr
             finding: 'level.entry.preload-checkpoint',
             why: 'a pre-load checkpoint skips the menus and re-reads the current patch',
           }
-        : {
-            available: false,
-            confidence: 'UNKNOWN',
-            finding: 'level.entry.preload-checkpoint',
-            why: 'listed as UNKNOWN in docs/level-entry-status.json: this level needs its own transition and its own proof',
-          },
+        : redirect && companion
+          ? {
+              available: true,
+              experimental: true,
+              confidence: 'UNKNOWN',
+              finding: 'level.entry.archive-redirect',
+              why: 'experimental: this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it; not yet proven in game, the first boot is the test',
+            }
+          : redirect
+            ? {
+                available: false,
+                confidence: 'UNKNOWN',
+                finding: 'level.entry.archive-redirect',
+                why: 'the voice pack (.arc) of this level is not extracted yet: open the level with the game image configured',
+              }
+            : {
+                available: false,
+                confidence: 'UNKNOWN',
+                finding: 'level.entry.preload-checkpoint',
+                why: 'listed as UNKNOWN in docs/level-entry-status.json: this level needs its own transition and its own proof',
+              },
   };
 }
 
@@ -208,10 +227,13 @@ function describe(archive, ctx) {
   const name = levelName(archive),
     tutorial = isTutorial(archive);
   const original = path.join(ctx.localDir, ...SAMPLES, ...archive.split('/'));
+  const companionArchive = companionOf(archive);
+  const companionFile = path.join(ctx.localDir, ...SAMPLES, ...companionArchive.split('/'));
   const dir = path.join(ctx.workspacesDir, workspaceName(archive));
   const manifest = tryManifest(dir);
   const entry = manifest ? levelEntry(dir, manifest) : null;
   const runtime_map = runtimeMapFor(archive, ctx);
+  const companion = { archive: companionArchive, file: companionFile, present: exists(companionFile) };
   return {
     archive,
     key: levelKey(archive),
@@ -219,12 +241,18 @@ function describe(archive, ctx) {
     family: levelFamily(name),
     tutorial,
     original: { file: original, present: exists(original) },
+    companion,
     workspace: { dir, present: !!manifest, entry },
     runtime_map,
     placements: ctx.counts.get(name.toLowerCase()) ?? null,
     direct_entry: tutorial && ctx.direct ? 'CONFIRMED' : 'UNKNOWN',
     ready: !!entry?.decoded,
-    capabilities: capabilitiesOf({ tutorial, runtimeMap: runtime_map, directEntry: ctx.direct }),
+    capabilities: capabilitiesOf({
+      tutorial,
+      runtimeMap: runtime_map,
+      directEntry: ctx.direct,
+      companion: companion.present,
+    }),
   };
 }
 

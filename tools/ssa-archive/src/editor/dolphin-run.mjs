@@ -28,6 +28,8 @@ export function defaultFigure() {
   return [configured, known].find(f => f && fs.existsSync(f)) ?? null;
 }
 
+// `redirect` names the level actually served under `archive`'s file names (feature 006): the run then uses the
+// generic redirect macro instead of the tutorial's, and records which level it was.
 export async function runEditorGame({
   patch,
   archive,
@@ -41,13 +43,15 @@ export async function runEditorGame({
   evidenceDir = path.join(local, 'dolphin-evidence/editor-runs'),
   pollMs = 3000,
   entryServices = { confirmed: directEntryConfirmed, prepare: ensureLevelEntry, restore: restoreLevelEntry },
+  redirect = null,
 } = {}) {
   figure ??= defaultFigure();
   validateSkipIntro(archive, mode, skip_intro);
   const direct = mode === 'direct-test' || mode === 'direct-play';
   const testing = mode === 'test' || mode === 'direct-test';
+  if (redirect && !direct) throw new Error('A redirected level is reached through direct entry only.');
   if (direct) {
-    entrySteps(archive);
+    entrySteps(archive, { redirect });
     if (!entryServices.confirmed())
       throw Error('Direct level entry is still being validated. Use normal play or the tutorial test.');
   }
@@ -66,6 +70,7 @@ export async function runEditorGame({
     started: new Date().toISOString(),
     patch: patch.descriptor,
     archive,
+    redirect,
     figure,
     prediction,
     screenshots: [],
@@ -103,7 +108,7 @@ export async function runEditorGame({
     let entry;
     if (direct) {
       stage = 'entry-prepare';
-      entry = await entryServices.prepare({ game, patch, archive, figure, onProgress });
+      entry = await entryServices.prepare({ game, patch, archive, figure, onProgress, redirect });
       stopped = undefined;
     }
     if (patch.native_additions) {
@@ -129,7 +134,7 @@ export async function runEditorGame({
     stage = testing || direct ? 'macro' : 'playing';
     if (testing || direct) {
       const steps = direct
-        ? entrySteps(archive, { skipIntro: skip_intro, interactive: !testing })
+        ? entrySteps(archive, { skipIntro: skip_intro, interactive: !testing, redirect })
         : tutorialSteps({ skipIntro: skip_intro });
       record.trace = await game.runScriptSafe(steps, {
         figure,

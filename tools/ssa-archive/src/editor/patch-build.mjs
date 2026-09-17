@@ -8,7 +8,10 @@ import { verifyBuffer } from '../iga/verify.mjs';
 import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 
-export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir }) {
+// `redirect` (feature 006) asks for a second descriptor next to the first: the same rebuilt archive served under
+// the tutorial's file name, with the level's voice pack under the tutorial's, so the tutorial checkpoint loads
+// this level. It is a separate workspace under outDir/redirect, chosen by the launch mode, never by default.
+export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir, redirect = null }) {
   const source = fs.readFileSync(original),
     edited = fs.readFileSync(replacements[0].file);
   const workspace = path.join(outDir, 'archive-workspace');
@@ -47,6 +50,28 @@ export function buildEditorPatch({ experimentId, session, replacements, original
     force: true,
     replacements: [{ disc_path: session.archive, file: rebuilt, original }],
   });
+  let redirected = null;
+  if (redirect) {
+    if (!fs.existsSync(redirect.companion_file))
+      throw new Error('The voice pack of this level is not extracted: ' + redirect.companion_file);
+    const ws2 = buildPatchWorkspace({
+      experimentId: experimentId + '-redirect',
+      game,
+      outDir: path.join(outDir, 'redirect'),
+      force: true,
+      displayName: `PortalForge ${redirect.level} via the tutorial slot`,
+      replacements: [
+        { disc_path: redirect.archive, file: rebuilt },
+        { disc_path: redirect.companion, file: redirect.companion_file },
+      ],
+    });
+    redirected = {
+      ...ws2,
+      level: redirect.level,
+      entry_archive: redirect.archive,
+      original_monitor_size: monitorSize(source.length),
+    };
+  }
   return {
     ...ws,
     rebuilt_sha256: hash(built.buffer),
@@ -55,5 +80,6 @@ export function buildEditorPatch({ experimentId, session, replacements, original
     original_monitor_size: monitorSize(source.length),
     entry: session.entry,
     saved_file: replacements[0].file,
+    redirect: redirected,
   };
 }

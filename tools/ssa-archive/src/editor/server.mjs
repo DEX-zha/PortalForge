@@ -267,12 +267,33 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     '/api/session': res => json(res, 200, sessionSummary(session)),
     '/api/levels': levelList,
     '/api/catalog': res => json(res, 200, catalog(session)),
-    '/api/level-entry': res =>
-      json(res, 200, {
-        supported: session.archive?.toLowerCase() === TUTORIAL && directEntryConfirmed(),
+    '/api/level-entry': res => {
+      const tutorial = session.archive?.toLowerCase() === TUTORIAL,
+        confirmed = directEntryConfirmed(),
+        companion = session.level?.companion ?? null;
+      // Another level reaches direct entry through the archive redirect (feature 006): the same tutorial
+      // checkpoint, with the level's files served under the tutorial's names. An experiment, and labelled so.
+      const redirect = tutorial
+        ? null
+        : {
+            available: confirmed && !!companion?.present,
+            experimental: true,
+            finding: 'level.entry.archive-redirect',
+            why: !confirmed
+              ? 'the tutorial checkpoint is not confirmed on this machine'
+              : !companion
+                ? 'this session was opened on a file: open the level by name so its voice pack can be extracted'
+                : !companion.present
+                  ? `the voice pack ${companion.archive} is not extracted: open the level with the game image configured`
+                  : 'this level is served under the tutorial file names so the confirmed tutorial checkpoint loads it; not yet proven in game, the first boot is the test',
+          };
+      return json(res, 200, {
+        supported: tutorial && confirmed,
+        redirect,
         preparation:
           'A checkpoint is prepared once for each compatible disc layout. Changed level bytes are loaded after restoration.',
-      }),
+      });
+    },
     '/api/addition-validation': res => json(res, 200, validationStatus()),
     '/api/placements': res => json(res, 200, { placements: session.placements, layers: session.layers }),
     // Real geometry, decoded once per session from the two geometry sections and cached (feature 004).

@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { local, defaultScript, readScript, profileLog } from '../experiments/run-game.mjs';
 import { felk, profile, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
-import { TUTORIAL_ARCHIVE } from './levels.mjs';
+import { TUTORIAL_ARCHIVE, TUTORIAL_COMPANION, TUTORIAL_DISC } from './levels.mjs';
 export const ENTRY_VERSION = 1;
 export const TUTORIAL = TUTORIAL_ARCHIVE;
 const directory = path.join(local, 'level-entry');
@@ -76,9 +76,31 @@ export function tutorialSteps({ direct = false, skipIntro = false, interactive =
   }
   return result;
 }
+// Archive redirect (feature 006, UNKNOWN): another level's archive and voice pack are served under the tutorial's
+// file names, so the confirmed tutorial checkpoint makes the game load that level. After the transition nothing
+// is known about what the game shows, so the macro only proves that the redirected archive was read and takes
+// pictures spaced apart, with a tap of A between them for whatever prompt the level opens with. The same steps
+// serve test and play: in play the player takes over once they end.
+export function redirectSteps() {
+  return [
+    { press: 'A', frames: 60 },
+    { wait_monitor: TUTORIAL_DISC.archive, timeout: 240 },
+    { wait: 20 },
+    { shot: 'redirect-loading' },
+    { wait: 40 },
+    { shot: 'redirect-arrived-1' },
+    { press: 'A' },
+    { wait: 15 },
+    { shot: 'redirect-arrived-2' },
+    { press: 'A' },
+    { wait: 15 },
+    { shot: 'redirect-arrived-3' },
+  ];
+}
 export function entrySteps(archive = TUTORIAL, options = {}) {
   if (archive.toLowerCase() !== TUTORIAL)
     throw Error('Direct entry is not yet validated for this level. Choose normal play.');
+  if (options.redirect) return redirectSteps();
   return tutorialSteps({ ...options, direct: true });
 }
 const fileHash = async file => {
@@ -117,8 +139,12 @@ async function entryBinding(patch, figure) {
   const replacements =
     patch.replacements ??
     JSON.parse(fs.readFileSync(path.join(path.dirname(patch.descriptor), 'patch.json'))).replacements;
-  if (replacements.length !== 1 || replacements[0].disc_path.toLowerCase() !== TUTORIAL)
-    throw Error('Direct entry currently requires a tutorial-only archive patch.');
+  // The checkpoint transitions into the tutorial's file names: the patch may replace that archive, and its voice
+  // pack when another level is redirected onto them, and nothing else.
+  const paths = replacements.map(r => r.disc_path.toLowerCase()).sort();
+  const allowed = [[TUTORIAL], [TUTORIAL, TUTORIAL_COMPANION].sort()];
+  if (!allowed.some(a => a.length === paths.length && a.every((p, i) => p === paths[i])))
+    throw Error('Direct entry currently requires a patch of the tutorial archive, with or without its voice pack.');
   return {
     game: cache.hash,
     runtime: await fileHash(felk),
@@ -146,8 +172,8 @@ export async function readEntryFst(
   for (let at = 0; at < length; at += 65536) h.update(await read(address + at, Math.min(65536, length - at)));
   return { address, length, sha256: h.digest('hex') };
 }
-export async function ensureLevelEntry({ game, patch, archive, figure, onProgress = () => {} }) {
-  entrySteps(archive);
+export async function ensureLevelEntry({ game, patch, archive, figure, onProgress = () => {}, redirect = null }) {
+  entrySteps(archive, { redirect });
   const binding = await entryBinding(patch, figure),
     key = hash(JSON.stringify(binding));
   const folder = path.join(directory, key),

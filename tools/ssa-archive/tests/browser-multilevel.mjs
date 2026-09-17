@@ -116,15 +116,22 @@ try {
   const capabilities = await evaluate(
     `[...document.querySelectorAll('#capabilities .row')].map(r => [r.querySelector('.k').textContent, r.querySelector('.v').textContent])`,
   );
+  // Direct entry on Mining is the archive redirect experiment: offered when its voice pack is on disk.
+  const direct = session.level.capabilities.direct_entry;
   assert.deepEqual(capabilities, [
     ['Move / rotate / scale', 'LIKELY'],
     ['Duplicate', 'not available'],
     ['Add', 'not available'],
     ['Automatic test', 'not available'],
-    ['Direct entry', 'not available'],
+    ['Direct entry', direct.available ? 'UNKNOWN · experimental' : 'not available'],
   ]);
-  step('capabilities', { capabilities });
-  assert.equal(await evaluate(`document.getElementById('launch-mode').value`), 'play', 'no macro outside the tutorial');
+  step('capabilities', { capabilities, redirect: direct.available });
+  assert.equal(
+    await evaluate(`document.getElementById('launch-mode').value`),
+    direct.available ? 'direct-play' : 'play',
+    'no tutorial macro outside the tutorial; the redirect experiment when the voice pack is there',
+  );
+  assert.equal(await evaluate(`document.querySelector('#launch-mode [value="test"]').disabled`), true);
   const diag = await evaluate(`document.getElementById('diag').textContent`);
   assert.match(diag, /scenery blocks/);
   step('mining-drawn', { diag });
