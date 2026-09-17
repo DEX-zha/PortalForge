@@ -8,24 +8,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { local } from '../experiments/run-game.mjs';
 import { familyKey, PROBE_VERSION } from './addition-compatibility.mjs';
+import { ATTEMPT_CREATED, HEAP } from './native-layout.mjs';
 
 export const reportsDir = path.join(local, 'addition-validation');
 const KEPT_LAUNCHES = 20;
 const BYTE_ORDER_MARK = new RegExp('^' + String.fromCharCode(0xfeff));
 
 // What one run says about each addition: `passed` when the last inspection found a live, distinct instance that
-// matches the request; `observed` when an earlier inspection did but the last did not (a script may have
-// transformed or destroyed it, a pickup may have been collected); `failed` otherwise, with the last reason.
+// matches the request; `observed` when the game created it and it is not there at the end, either seen alive at
+// an earlier inspection or already gone at the first one, the factory having returned an instance (a script may
+// have transformed or destroyed it, a pickup may have been collected); `failed` otherwise, with the last reason.
+const factoryReturned = row => row.attempt === ATTEMPT_CREATED && row.pointer >= HEAP.start && row.pointer < HEAP.end;
+
 export function judgeRun(additions, samples = []) {
   const last = samples.at(-1)?.rows ?? [];
   return additions.map(addition => {
+    const rows = samples.flatMap(sample => sample.rows.filter(row => row.id === addition.id));
     const final = last.find(row => row.id === addition.id) ?? null;
-    const seen = samples.some(sample => sample.rows.some(row => row.id === addition.id && row.runtime === 'passed'));
-    const runtime = final?.runtime === 'passed' ? 'passed' : seen ? 'observed' : 'failed';
+    const seen = rows.some(row => row.runtime === 'passed');
+    const created = seen || rows.some(factoryReturned);
+    const runtime = final?.runtime === 'passed' ? 'passed' : created ? 'observed' : 'failed';
     return {
       id: addition.id,
       source: addition.source,
       runtime,
+      seen_alive: seen,
       reason: final?.reason ?? 'The additions were never inspected.',
       verification_error: final?.verification_error ?? null,
       state: final?.state ?? null,
@@ -38,7 +45,8 @@ export function judgeRun(additions, samples = []) {
 const RUNTIME_OF = { passed: 'passed', observed: 'inconclusive', failed: 'failed' };
 const REASONS = {
   passed: 'Created by the game and verified from memory.',
-  observed: 'Seen alive during the run but not at its end: a script may have transformed, collected or destroyed it.',
+  observed:
+    'Created by the game but not there at the end of the run: its own script may have transformed, collected or destroyed it.',
 };
 
 function readReport(file) {

@@ -9,6 +9,8 @@ import {
   ACTIVATION_HASH,
   NATIVE_MAGIC,
   NATIVE_HEADER_MAGIC,
+  LIVE_HEADER_MAGIC,
+  LIVE_HEADER_BYTES,
   NATIVE_STRIDE,
   TABLE,
   TABLE_STRIDE,
@@ -107,11 +109,14 @@ export async function verifyNativeFactory(read = readNativeBytes) {
 export function locateAdditionRows(memory, additions, options = {}) {
   const { base, layout } = nativeOptions(options);
   const found = [];
-  if (layout === 'table') {
-    for (let off = 0; off + 0x10 + NATIVE_STRIDE <= memory.length; off += 4) {
-      if (memory.readUInt32BE(off) !== NATIVE_HEADER_MAGIC || memory.readUInt32BE(off + 12) !== TABLE_STRIDE) continue;
+  if (layout === 'table' || layout === 'live') {
+    // Both keep 40-byte rows after a header and the shared argument block; the live header is two words longer.
+    const magic = layout === 'live' ? LIVE_HEADER_MAGIC : NATIVE_HEADER_MAGIC;
+    const head = layout === 'live' ? LIVE_HEADER_BYTES : 0x10;
+    for (let off = 0; off + head + NATIVE_STRIDE <= memory.length; off += 4) {
+      if (memory.readUInt32BE(off) !== magic || memory.readUInt32BE(off + 12) !== TABLE_STRIDE) continue;
       const count = memory.readUInt32BE(off + 8),
-        first = off + 0x10 + NATIVE_STRIDE;
+        first = off + head + NATIVE_STRIDE;
       if (!count || first + count * TABLE_STRIDE > memory.length) continue;
       for (let at = first; at < first + count * TABLE_STRIDE; at += TABLE_STRIDE)
         found.push({

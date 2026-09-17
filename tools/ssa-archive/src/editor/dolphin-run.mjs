@@ -4,13 +4,8 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { GameSession, local } from '../experiments/run-game.mjs';
-import {
-  installNativePatch,
-  verifyNativeFactory,
-  verifyNativeInstances,
-  verifyNativeLifecycle,
-  inspectAdditions,
-} from './native-run.mjs';
+import { installNativePatch, verifyNativeFactory } from './native-run.mjs';
+import { watchAdditions } from './native-watch.mjs';
 import {
   ensureLevelEntry,
   restoreLevelEntry,
@@ -22,9 +17,8 @@ import {
 import { setting } from '../../../dolphin-mcp/config.mjs';
 import { isTutorial } from './levels.mjs';
 
-// In play, the additions are looked at every fifth poll (about fifteen seconds), forty times at most.
+// In play, the additions are looked at every fifth poll, about fifteen seconds apart.
 const PLAY_LOOK_EVERY = 5;
-const PLAY_LOOKS = 40;
 
 export function defaultFigure() {
   const configured = setting('figure');
@@ -55,6 +49,9 @@ export async function runEditorGame({
   // A campaign's view of its additions, one row each, taken at every capture of the level and at the end. With
   // it a source that fails is a result, not a failed run: the batch carries many sources and judges each.
   nativeInspect = null,
+  // For a patch that carries the live routine: measures the level once the run has reached it and writes the
+  // additions into the game (native-live.mjs `liveArrival`).
+  nativeArrival = null,
   // A research probe's own reading of the running game (placement states, for one), taken at every capture of
   // the level and at the end. What it returns is kept in the record; a reading that throws is kept as its error.
   inspect = null,
@@ -99,32 +96,18 @@ export async function runEditorGame({
   // An abort can arrive while launch is still returning its PID. Do not cache a no-op
   // stop: finally must close the owned process once launch has finished assigning it.
   const stop = () => (game.pid ? (stopped ??= game.stop()) : Promise.resolve(null));
-  // Every run that carries additions inspects each of them, row by row (feature 007): the result is filed per
-  // family by the caller. A run whose additions are all confirmed recipes still fails when one is missing; a run
-  // with experimental additions records the failure and goes on, because the player came to play.
+  // Additions are the watcher's business (native-watch.mjs): the run only tells it when a capture of the level
+  // was taken, when the player is playing and when the macro has ended.
   const native = patch.native_additions ?? null;
-  const services = {
-    install: installNativePatch,
-    fingerprint: verifyNativeFactory,
-    inspect: inspectAdditions,
-    verify: verifyNativeInstances,
-    ...nativeServices,
-  };
-  const inspectRows = nativeInspect ?? (native ? (rows, opts) => services.inspect(rows, undefined, opts) : null);
-  const tolerant =
-    !!nativeInspect || !!native?.additions.some(a => a.experimental) || native?.options?.layout === 'table';
-  const sample = async capture => {
-    if (!native || !inspectRows) return null;
-    record.native_samples ??= [];
-    try {
-      const rows = await inspectRows(native.additions, native.options ?? {});
-      record.native_samples.push({ capture, rows });
-      return rows;
-    } catch (e) {
-      record.native_samples.push({ capture, rows: [], error: e.message });
-      return null;
-    }
-  };
+  const services = { install: installNativePatch, fingerprint: verifyNativeFactory, ...nativeServices };
+  const additions = watchAdditions({
+    native,
+    record,
+    run: id,
+    inspect: nativeInspect,
+    arrival: nativeArrival,
+    services,
+  });
   const read = async capture => {
     if (!inspect) return;
     record.inspections ??= [];
@@ -191,21 +174,7 @@ export async function runEditorGame({
         onShot: async f => {
           record.screenshots.push(f);
           if (/tutorial|arrived/.test(f)) await read(f);
-          // Scripted additions may transform or destroy themselves, and additions on another level are judged
-          // at every capture once the level is reached: both keep a timeline, not only the final state.
-          const timeline = native?.additions.some(a => a.script != null) || native?.options?.context === 'activation';
-          if (/tutorial|arrived/.test(f)) await sample(f);
-          if (timeline && /tutorial|arrived/.test(f)) {
-            record.native_observations ??= [];
-            try {
-              record.native_observations.push({
-                capture: f,
-                ...(await services.verify(native.additions, undefined, native.options ?? {})),
-              });
-            } catch (e) {
-              record.native_observations.push({ capture: f, verified: false, reason: e.message });
-            }
-          }
+          await additions.atCapture(f);
         },
         onStep: step => {
           consumption();
@@ -216,46 +185,19 @@ export async function runEditorGame({
       await read(null);
       if (!record.consumption.verified)
         throw new Error('The file monitor did not prove that Dolphin consumed this rebuilt archive');
-      if (native) await sample(null);
-      if (native && tolerant) {
-        try {
-          record.native_additions = await verifyNativeLifecycle(
-            patch.native_additions.additions,
-            record.native_observations ?? [],
-            services.verify,
-            patch.native_additions.options ?? {},
-          );
-        } catch (e) {
-          record.native_additions = { verified: false, reason: e.message };
-        }
-      } else if (patch.native_additions)
-        record.native_additions = await verifyNativeLifecycle(
-          patch.native_additions.additions,
-          record.native_observations ?? [],
-          services.verify,
-          patch.native_additions.options ?? {},
-        );
+      await additions.atEnd();
       record.status = 'MACRO_COMPLETED';
     }
     if (!testing) {
       if (!direct) await game.loadFigure(figure, 1);
       onProgress({ phase: 'playing', pid: game.pid });
-      // While the player plays, look at the additions now and then until each has been seen alive: in classic
-      // play the level is reached by hand, and a pickup may be collected long before the game closes.
-      let polls = 0,
-        looks = 0,
-        settled = !native;
+      let polls = 0;
       for (;;) {
         signal?.throwIfAborted();
         if (!(await game.json('dolphin_status')).pid) break;
         consumption();
         onProgress({ phase: 'playing', pid: game.pid, consumption: record.consumption });
-        if (!settled && ++polls % PLAY_LOOK_EVERY === 0 && looks < PLAY_LOOKS) {
-          looks++;
-          const rows = await sample('playing');
-          const seen = id => record.native_samples.some(s => s.rows.some(r => r.id === id && r.runtime === 'passed'));
-          settled = !!rows && native.additions.every(a => seen(a.id));
-        }
+        if (++polls % PLAY_LOOK_EVERY === 0) await additions.whilePlaying({ levelRead: record.consumption.verified });
         await sleep(pollMs, undefined, { signal });
       }
       record.status = 'CLOSED';

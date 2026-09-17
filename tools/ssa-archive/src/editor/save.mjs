@@ -18,6 +18,7 @@ import {
 } from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
 import { judgeRun, fileLaunchReports } from './addition-reports.mjs';
+import { liveArrival } from './native-live.mjs';
 import { validateSkipIntro } from './level-entry.mjs';
 import { isTutorial } from './levels.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
@@ -272,6 +273,8 @@ export function patch(session, { deps = {} } = {}) {
       sha256: hash(recipe.ini),
       additions: structuredClone(session.lastSave.additions),
       options: recipe.options,
+      // A level never measured: the launch measures it and writes the table into the game (native-live.mjs).
+      ...(recipe.options.layout === 'live' ? { live: true } : {}),
     };
     fs.writeFileSync(path.join(result.dir, 'portalforge-additions.json'), JSON.stringify(native_additions, null, 2));
   }
@@ -398,6 +401,13 @@ export async function launch(
         patch: runPatch,
         archive: redirected ? runPatch.entry_archive : session.archive,
         redirect,
+        ...(runPatch.native_additions?.live
+          ? {
+              nativeArrival: (deps.liveArrival ?? liveArrival)(session, runPatch.native_additions.additions, {
+                ...(deps.snapshotDir ? { snapshotDir: deps.snapshotDir } : {}),
+              }),
+            }
+          : {}),
         signal: controller.signal,
         onProgress: progress => Object.assign(current, { progress }),
       }),

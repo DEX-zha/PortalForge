@@ -51,13 +51,19 @@ export const familyKey = (session, placement) =>
 const check = (id, passes, detail) => ({ id, status: passes ? 'pass' : 'blocked', detail });
 
 // The recipe needs to know where the level sits in memory: a constant on the tutorial, the scene snapshot's
-// measure on any other level (native-params.mjs).
+// measure on a level that has one (native-params.mjs), and otherwise the measure the first launch takes when it
+// reaches the level (native-live.mjs). None of them blocks an addition.
 function levelCheck(session) {
-  const params = nativeParamsFor(session);
-  const detail = isTutorial(session.archive)
-    ? 'The tutorial sits at its validated place in memory.'
-    : (params.reason ?? 'Level parameters read from its scene snapshot.');
-  return check('level', params.available, detail);
+  const measured = nativeParamsFor(session).available;
+  return {
+    id: 'level',
+    status: measured ? 'pass' : 'info',
+    detail: isTutorial(session.archive)
+      ? 'The tutorial sits at its validated place in memory.'
+      : measured
+        ? 'Level measured: its table is compiled into the patch.'
+        : 'Level not measured yet: the first launch from the editor measures it and writes the additions into the game.',
+  };
 }
 
 function structuralChecks(session, placement) {

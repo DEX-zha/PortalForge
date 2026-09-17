@@ -8,8 +8,12 @@
 // end (addition-probe.mjs `inspectProbe`): class, state, actor, parent, model, script and the transform that was
 // asked for.
 //
-// A batch confirms nothing by itself. It writes one report per family, which the catalogue shows next to Add as
-// "verified in game"; findings stay a human decision on two identical boots.
+// A level that was never measured runs the same batch through the live routine (native-live.mjs): the run
+// measures the level when it reaches it, and the batch is laid out there, next to the placement the level was
+// anchored on, which is active and therefore near the player.
+//
+// A batch confirms nothing by itself. Like any launch it files one report per family, which the catalogue shows
+// next to Add as "verified in game"; findings stay a human decision on two identical boots.
 import fs from 'node:fs';
 import path from 'node:path';
 import { classifyAddition, groupCandidates, PROBE_VERSION } from './addition-compatibility.mjs';
@@ -18,6 +22,7 @@ import { compileNativeProbe, nativeCapacity } from './native-patch.mjs';
 import { nativeParamsFor } from './native-params.mjs';
 import { inspectAdditions } from './native-run.mjs';
 import { judgeRun, fileLaunchReports, reportsDir } from './addition-reports.mjs';
+import { liveArrival } from './native-live.mjs';
 import { redirectFor } from './save.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
@@ -85,11 +90,21 @@ export function batchAdditions(session, sources, { origin, spacing = 2.5, column
 
 export { judgeRun };
 
+// Where a batch stands when nobody said: beside the placement the level is anchored on. That placement is active
+// with an actor when the level starts, so the player is within its activation range and the batch is too.
+function besideAnchor(session, anchor) {
+  const placement = session.placements.find(p => p.offset === anchor.offset);
+  if (!placement) throw Error('Give the batch an origin: the anchor of this level is not one of its placements.');
+  return [placement.position[0] + 2, placement.position[1], placement.position[2] + 2];
+}
+
 export async function runLevelBatch(
   session,
   {
-    sources,
-    origin,
+    sources = null,
+    auto = 8,
+    visibleOnly = false,
+    origin = null,
     spacing,
     columns,
     layout = 'slot',
@@ -105,15 +120,33 @@ export async function runLevelBatch(
   if (session.dirty || session.edits.length || hash(session.buffer) !== session.original_sha256)
     throw Error('A batch runs on the unedited level: reset the scene before testing sources.');
   if (session.additions?.length) throw Error('A batch runs without scene additions: remove them first.');
-  const params = nativeParamsFor(session);
-  if (!params.available) throw Error(params.reason);
 
-  const additions = batchAdditions(session, sources, { origin, spacing, columns });
-  const options = { ...params.options, layout, limit: additions.length };
-  const capacity = nativeCapacity(options, { scripted: true });
-  if (additions.length > capacity)
-    throw Error(`This layout holds ${capacity} additions in one patch; the batch asks for ${additions.length}.`);
-  const recipe = compileNativeProbe(additions, options);
+  // The batch, once it is known where it stands: the named sources, or one source per family around that spot.
+  const plan = (level, at = origin ?? besideAnchor(session, level.anchor)) => ({
+    origin: at,
+    additions: batchAdditions(session, sources ?? campaignSources(session, { origin: at, count: auto, visibleOnly }), {
+      origin: at,
+      spacing,
+      columns,
+    }),
+  });
+
+  const known = nativeParamsFor(session);
+  const live = layout === 'live' || !known.available;
+  let level = live ? null : known;
+  let batch = live ? null : plan(known);
+  let recipe;
+  if (live) {
+    recipe = compileNativeProbe([], { layout: 'live', capacity: nativeCapacity({ layout: 'live' }) });
+  } else {
+    const options = { ...known.options, layout, limit: batch.additions.length };
+    const capacity = nativeCapacity(options, { scripted: true });
+    if (batch.additions.length > capacity)
+      throw Error(
+        `This layout holds ${capacity} additions in one patch; the batch asks for ${batch.additions.length}.`,
+      );
+    recipe = compileNativeProbe(batch.additions, options);
+  }
 
   const tutorial = isTutorial(session.archive);
   mode ??= tutorial ? 'test' : 'direct-test';
@@ -134,13 +167,38 @@ export async function runLevelBatch(
 
   const file = path.join(built.dir, 'portalforge-additions.ini');
   fs.writeFileSync(file, recipe.ini);
-  const native_additions = { version: 1, file, sha256: hash(recipe.ini), additions, options: recipe.options };
+  const native_additions = {
+    version: 1,
+    file,
+    sha256: hash(recipe.ini),
+    additions: batch?.additions ?? [],
+    options: recipe.options,
+    ...(live ? { live: true } : {}),
+  };
   fs.writeFileSync(path.join(built.dir, 'portalforge-additions.json'), JSON.stringify(native_additions, null, 2));
   const runPatch = tutorial ? { ...built, native_additions } : { ...built.redirect, native_additions };
   const redirect = tutorial ? null : { level: session.archive, name: session.level?.name ?? null };
   log(
-    `batch of ${additions.length} on ${session.archive}: ${recipe.bytes} bytes of ${layout} recipe, base 0x${params.base.toString(16)}, anchor ${params.anchor.name}`,
+    live
+      ? `live batch on ${session.archive}: ${recipe.bytes} bytes of routine, the level is measured at arrival`
+      : `batch of ${batch.additions.length} on ${session.archive}: ${recipe.bytes} bytes of ${layout} recipe, base 0x${known.base.toString(16)}, anchor ${known.anchor.name}`,
   );
+
+  // A live batch is laid out by the run itself, once it has measured the level.
+  const arrival = live
+    ? (deps.liveArrival ?? liveArrival)(
+        session,
+        ({ params }) => {
+          level = params;
+          batch = plan(params);
+          log(
+            `measured: base 0x${params.base.toString(16)}, anchor ${params.anchor.name}; ${batch.additions.length} additions from ${batch.origin.map(n => n.toFixed(1)).join(', ')}`,
+          );
+          return batch.additions;
+        },
+        session.snapshots_dir ? { snapshotDir: session.snapshots_dir } : {},
+      )
+    : null;
 
   const started = new Date().toISOString();
   let record = null,
@@ -152,37 +210,41 @@ export async function runLevelBatch(
       archive: tutorial ? session.archive : runPatch.entry_archive,
       mode,
       redirect,
-      prediction:
-        prediction ||
-        `${additions.length} added objects stand on a grid from ${origin.map(n => n.toFixed(1)).join(', ')}, created by the game itself.`,
+      prediction: prediction || 'A batch of added objects stands on a grid near the start, created by the game itself.',
       nativeInspect: (rows, opts) => inspectAdditions(rows, undefined, opts),
+      ...(arrival ? { nativeArrival: arrival } : {}),
       // A probe's own reading next to the rows: what a spawner left behind, for one.
-      ...(inspect ? { inspect: capture => inspect({ params, additions, capture }) } : {}),
+      ...(inspect
+        ? { inspect: capture => (batch ? inspect({ params: level, additions: batch.additions, capture }) : []) }
+        : {}),
     });
   } catch (e) {
     error = e.message;
   }
+  const additions = batch?.additions ?? [];
   const byOffset = new Map(session.placements.map(p => [p.offset, p]));
   const results = judgeRun(additions, record?.native_samples ?? []).map(row => ({
     ...row,
     name: byOffset.get(row.source)?.name ?? null,
     family: classifyAddition(session, byOffset.get(row.source)).family,
   }));
-  const batch = {
+  const outcome = {
     version: PROBE_VERSION,
     level: session.archive,
     started,
     finished: new Date().toISOString(),
     run: record?.id ?? null,
     status: record?.status ?? 'FAILED',
-    error: error ?? record?.error ?? null,
+    error: error ?? record?.error ?? record?.native_arrival?.error ?? null,
     consumption: record?.consumption ?? null,
     screenshots: record?.screenshots ?? [],
-    params: { base: params.base, anchor: params.anchor, snapshot: params.snapshot ?? null },
+    live,
+    params: level ? { base: level.base, anchor: level.anchor, snapshot: level.snapshot ?? null } : null,
+    arrival: record?.native_arrival ?? null,
     options: recipe.options,
     bytes: recipe.bytes,
     recipe_sha256: hash(recipe.ini),
-    origin,
+    origin: batch?.origin ?? null,
     additions,
     results,
     whole_batch: record?.native_additions ?? null,
@@ -191,43 +253,6 @@ export async function runLevelBatch(
   // The cards of these families show what this boot saw, like after any launch.
   if (record?.native_samples?.length) fileLaunchReports(session, results, { run: record.id, dir: reports });
   const out = path.join(dir, `batch-${started.replace(/[:.]/g, '-')}.json`);
-  fs.writeFileSync(out, JSON.stringify(batch, null, 2));
-  return { ...batch, file: out };
-}
-
-// Two boots of the same batch, judged together: a source passes when both boots passed it. One report per
-// family, in the format the catalogue already reads; nothing here confirms a family.
-export function writeFamilyReports(batches, { dir = reportsDir } = {}) {
-  if (batches.length < 2) throw Error('A family report needs two boots of the same batch.');
-  const same = batches.every(b => JSON.stringify(b.additions) === JSON.stringify(batches[0].additions));
-  if (!same) throw Error('These boots did not run the same batch.');
-  fs.mkdirSync(dir, { recursive: true });
-  const reports = [];
-  for (const first of batches[0].results) {
-    const rows = batches.map(b => b.results.find(r => r.id === first.id));
-    const passed = rows.every(r => r?.runtime === 'passed');
-    const observed = rows.some(r => r?.runtime === 'passed' || r?.runtime === 'observed');
-    const report = {
-      version: PROBE_VERSION,
-      family: first.family,
-      source: first.source,
-      name: first.name,
-      level: batches[0].level,
-      runtime: passed ? 'passed' : observed ? 'inconclusive' : 'failed',
-      observed_live: observed,
-      visual: 'pending',
-      gameplay: 'pending',
-      runs: batches.length,
-      reason: passed
-        ? 'Native creation passed in every run; visual and gameplay review pending.'
-        : (rows.find(r => r?.runtime !== 'passed')?.verification_error ??
-          rows.find(r => r?.runtime !== 'passed')?.reason ??
-          'No complete native result.'),
-      batch: batches.map(b => b.run),
-      updated: batches.at(-1).finished,
-    };
-    fs.writeFileSync(path.join(dir, first.family + '.json'), JSON.stringify(report, null, 2));
-    reports.push(report);
-  }
-  return reports;
+  fs.writeFileSync(out, JSON.stringify(outcome, null, 2));
+  return { ...outcome, file: out };
 }

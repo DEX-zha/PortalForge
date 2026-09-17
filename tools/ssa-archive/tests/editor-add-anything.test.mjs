@@ -197,7 +197,7 @@ test('several additions of one family count as one verdict, the worst, and a van
   assert.match(report.reason, /collected or destroyed/);
 });
 
-test('another level needs only its scene snapshot to make everything addable', t => {
+test('another level is addable before it was ever measured, and compiles its table in once it has been', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-anything-mining-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, 'level.decoded');
@@ -205,10 +205,9 @@ test('another level needs only its scene snapshot to make everything addable', t
   const s = openSession(file, { archive: 'level/Level_000_Mining.bld', entry: 3, deps: gates });
   s.snapshots_dir = path.join(dir, 'snapshots');
   const [crate, barrel] = s.placements;
-  assert.throws(
-    () => applyEdit(s, { kind: 'add', source: crate.offset, position: [0, 0, 0] }),
-    e => e.error === 'ADDITION_SOURCE_UNAVAILABLE' && /scene snapshot/.test(e.message),
-  );
+  // Never measured: the addition is accepted, and its patch will carry the live routine.
+  applyEdit(s, { kind: 'add', source: barrel.offset, position: [1, 2, 3] });
+  assert.deepEqual(additionCompileOptions(s, s.additions), { layout: 'live', capacity: 59 });
   saveSnapshot(
     {
       version: 1,
@@ -223,7 +222,34 @@ test('another level needs only its scene snapshot to make everything addable', t
   );
   const added = applyEdit(s, { kind: 'add', source: crate.offset, position: [4, 5, 6] }).placement;
   assert.equal(added.native_addition.source, crate.offset);
-  assert.equal(s.additions[0].experimental, true);
+  assert.equal(s.additions[1].experimental, true);
   const options = additionCompileOptions(s, s.additions);
   assert.deepEqual([options.base, options.context], [0x80d00000, 'activation']);
+});
+
+test('an object the factory created and that is gone at the first reading is created-then-removed, not failed', () => {
+  const additions = [
+    { id: -1, source: 8 },
+    { id: -2, source: 16 },
+  ];
+  const gone = { id: -1, source: 8, runtime: 'inconclusive', attempt: 2, pointer: 0x81235624, reason: 'gone' };
+  const never = {
+    id: -2,
+    source: 16,
+    runtime: 'failed',
+    attempt: 0,
+    pointer: 0,
+    reason: 'Source guards have not passed yet.',
+  };
+  const judged = judgeRun(additions, [
+    { capture: 'arrived', rows: [gone, never] },
+    { capture: null, rows: [gone, never] },
+  ]);
+  assert.deepEqual(
+    judged.map(r => [r.runtime, r.seen_alive]),
+    [
+      ['observed', false],
+      ['failed', false],
+    ],
+  );
 });

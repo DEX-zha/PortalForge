@@ -7,7 +7,9 @@
 
 **Status**: Phase A booted and S01 to S03 implemented (2026-09-17): additions work on Mining from placed objects
 and stored templates (8 of 8, two boots), 32 fit in one patch (32 of 32, two boots), and every object of a level
-with a scene snapshot can be added, verified by each launch. Rendering has not been looked at yet. See
+can be added, verified by each launch, on levels that were never measured too: the launch measures the level and
+writes the additions into the running game (Undead Volcano, two boots). Rendering was looked at for the added
+enemies only. See
 [validation](validation.md) and [tasks](tasks.md).
 
 **Input**: User request (translated from French): "Analyse the project and everything we did. We still cannot add

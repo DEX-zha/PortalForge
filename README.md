@@ -8,7 +8,7 @@
   <a href="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
   <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-357%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-364%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
   <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
   <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
   <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
@@ -102,7 +102,7 @@ scope stating what the run does **not** prove.
 | Boot straight into the chosen level from Patch (the level served under the tutorial's file names) | **CONFIRMED** (Mining, two identical boots); LIKELY for the other levels | [`docs/level-entry-status.json`](docs/level-entry-status.json) |
 | Tell stored templates and disabled objects from placed ones, on every level | **LIKELY** (read in the running game on Mining) | [`docs/findings/`](docs/findings/) `igz.placement.inactive-flag` |
 | Draw the scene as the game runs it: states, actors and the objects scripts create | **LIKELY**, read-only (Mining, one run) | [`docs/findings/`](docs/findings/) `level.runtime.scene-snapshot` |
-| Add any object of a level, stored templates and enemies included, verified by every launch | **LIKELY** (Mining: 8 of 8, 32 of 32 and six moving enemies, two identical boots each; seen on screen for the enemies only) | [`specs/007-unlimited-additions/validation.md`](specs/007-unlimited-additions/validation.md) |
+| Add any object of any level, stored templates and enemies included, verified by every launch; a level never opened before is measured by its first launch | **LIKELY** (Mining: 8 of 8, 32 of 32 and six moving enemies; Undead Volcano, never measured: 8 of 8 written into the running game; two identical boots each; seen on screen for the enemies only) | [`specs/007-unlimited-additions/validation.md`](specs/007-unlimited-additions/validation.md) |
 | Objects from other levels; thousands of additions in plain play | **UNKNOWN** — specified, gate M4A | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
 | New geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
 
@@ -217,7 +217,7 @@ docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
 
 - **Start here** — [`docs/README.md`](docs/README.md) indexes every document.
 - **Formats** — [IGA v4 containers](docs/format/iga-v4.md) · [IGZ level editing](docs/format/igz-level-editing.md) · [mesh geometry](docs/format/igz-mesh-geometry.md)
-- **Editor** — [roadmap](docs/editor/roadmap.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
+- **Editor** — [roadmap](docs/editor/roadmap.md) · [adding objects](docs/editor/adding-objects.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
 - **Runtime** — [Dolphin MCP, gate M0](docs/mcp/dolphin-mcp.md) · [how experiments are judged](docs/experiments/README.md)
 - **Findings** — [index](docs/findings/) with one JSON record per claim, rendered to Markdown by `cli.mjs findings render`
 - **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/) · [007 unlimited additions](specs/007-unlimited-additions/)
@@ -232,7 +232,7 @@ a documented batch is never reported as a delivered one.
 duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are UNKNOWN, and no tool is allowed
 to pretend otherwise. A property is only made editable once its finding is CONFIRMED.
 
-**Tests and reproduction.** 357 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
+**Tests and reproduction.** 364 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
 browser runs (catalogue, and the level switch across three levels) and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
 successes — the research files are full of them, because they are what makes the successes trustworthy.
 

@@ -1,10 +1,10 @@
 # Validation: what was booted, and what it does and does not prove
 
 Every run below went through the editor's own builder and launcher (`research-probes/native-level-probe.mjs`):
-Mining reached through the archive redirect and the tutorial checkpoint, patch consumption proven by the file
+the level reached through the archive redirect and the tutorial checkpoint, patch consumption proven by the file
 monitor, every addition read back from memory at each capture of the level and at the end, clean stop and research
-profile restored. Records: `.local/dolphin-evidence/editor-runs/<run>.json`; batch results:
-`.local/addition-campaigns/level_000_mining/`.
+profile restored. Mining unless a section says otherwise. Records: `.local/dolphin-evidence/editor-runs/<run>.json`;
+batch results: `.local/addition-campaigns/<level>/`.
 
 ## A1 — the recipe on another level (2026-09-17)
 
@@ -93,6 +93,35 @@ Skylander pushed into view during the opening dialogue, where the same capture o
 **Not proven**: combat, damage, loot and defeat; what an added enemy does outside its activation range; enemies
 whose template is not in the level (phase C).
 
+## L1 — a level never measured: the table written into the running game (2026-09-17)
+
+Undead Volcano had no scene snapshot and had never been booted by this project. Its patch carried the live
+routine: 3 256 bytes, the same for every level, with an empty table of 59 rows. The launch reached the level
+through the archive redirect, measured it at the first capture of the level (base `0x80DBA5A0`, anchor
+`Life_Vine_01`, first attempt), laid eight sources out beside that anchor and wrote them into the game.
+
+| Source | Boot 1 | Boot 2 |
+|---|---|---|
+| `Life_Vine_01`, `TeleporterStart(11)`, `Block_Template`, `RiseBlock_model`, `Elemental_sunBeams`, `Reflect_Start(3)` | alive at all four readings | alive at all four readings |
+| `HatBox_Pickup(1)`, `Pottery_D(13)` | created, gone at the first reading | created, gone at the first reading |
+
+Runs `editor-direct-test-1789674098348-7b8a8ff7` and `editor-direct-test-1789674397828-eb0134fc`: the same routine
+(sha256 `971662e6a2…`), the same measure, the same batch and the same verdict per source. For the two that are gone
+the factory had returned an instance (the row reads "created" with a valid pointer) whose memory was already reused
+at the first reading: their own scripts removed them. They are filed as created then removed; the first boots
+labelled them failed, which the verdict no longer does. The measure was kept as the level's scene snapshot, so the
+level's next patch compiles its table in. Finding `level.prop.native-addition-live-table`, LIKELY. These two boots
+are also the first to land in Undead Volcano through the archive redirect.
+
+One boot on a third family, `Challenge_Level_005` (run `editor-direct-test-1789674572271-d7e99109`): the redirect
+landed in the challenge (its three-minute timer on screen), the level was measured at the first attempt (base
+`0x80DCB064`, anchor `Elemental_Swarmer(6)`, an enemy, because nothing still and script-less was active), eight
+rows were written and the factory returned eight instances; three were alive at the end, five were gone at the
+first reading. One boot proves nothing by the project's rule; it says the path holds on a challenge level.
+
+**Not proven**: rendering; classic play, where the level is reached by hand and the measure is triggered by the
+archive being read; hub and PvP levels; refilling the table while the game runs.
+
 ## What these boots change
 
 - Success criteria SC-001 (additions on a second level) and SC-002 (at least 32 in one patch) are met as far as
@@ -100,5 +129,6 @@ whose template is not in the level (phase C).
 - The experimental addition of constitution 1.2.0 rests on A1: the recipe creates placed objects and stored
   templates alike on a level it had never run on.
 - The editor's switch to the table layout past 18 additions rests on A2.
+- Additions no longer need a level to have been measured (L1): the first launch from the editor measures it.
 - To add an enemy, add its template (E2), not the set-up record that places it (E1). Mining's cards carry 44
   family reports after these ten boots: 30 verified in game, 14 created then removed by their own script.

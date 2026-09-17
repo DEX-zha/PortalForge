@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { compileNativePatch, nativeCapacity } from './native-patch.mjs';
+import { assertAdditions, compileNativePatch, nativeCapacity } from './native-patch.mjs';
 import { nativeParamsFor } from './native-params.mjs';
 import { sha256 } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
@@ -77,12 +77,12 @@ function recipeFor(placement, offset) {
 export function additionSource(session, offset) {
   const placement = placementAt(session, offset);
   const recipe = recipeFor(placement, offset);
-  const params = placement ? nativeParamsFor(session) : null;
+  // An addition only names file offsets, so nothing about the level has to be known to make one: where the
+  // level sits in memory matters when the patch is compiled, or at the launch that measures it (native-live.mjs).
   const checks = [
     [!!placement, 'This object no longer exists.'],
     [findingConfirmed(), 'Native additions are still being validated.'],
     [!placement?.native_addition, 'Add from the original object rather than from one of its copies.'],
-    [params?.available, params?.reason],
     [placement?.scale === ORIGINAL_SCALE, 'The source must keep its original 100% scale for native addition.'],
   ];
   const reason = checks.find(([passes]) => !passes)?.[1] ?? null;
@@ -96,13 +96,19 @@ export function additionSource(session, offset) {
   };
 }
 
-// How the patch of a scene is compiled: the level's own parameters, and the layout that holds the count. The
-// proven slot layout is used for as long as it fits; past it the compact table takes over, which the launch
-// verifies like everything else.
+// How the patch of a scene is compiled. On a level that has been measured (the tutorial, or any level with a
+// scene snapshot) the table is compiled in with the level's own parameters: the slot layout for as long as it
+// fits, the compact table past it. On a level never measured the patch carries the live routine, and the launch
+// measures the level and writes the table into the game.
 export function additionCompileOptions(session, additions) {
   const params = nativeParamsFor(session);
-  if (!params.available) throw Error(params.reason);
   const count = additions.length;
+  if (!params.available) {
+    const capacity = nativeCapacity({ layout: 'live' });
+    if (count > capacity) throw Error(`This patch holds at most ${capacity} added objects.`);
+    assertAdditions(additions);
+    return { layout: 'live', capacity };
+  }
   const attempt = layout => {
     try {
       compileNativePatch(additions, { ...params.options, layout, limit: Math.max(count, 1) });

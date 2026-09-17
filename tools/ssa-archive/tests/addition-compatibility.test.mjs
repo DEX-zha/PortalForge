@@ -60,11 +60,11 @@ test('an object with nothing to draw is addable; only what cannot work is blocke
   s = session([row]);
   s.has_runtime_map = false;
   assert.equal(classifyAddition(s, row).available, true);
-  // Another level without a scene snapshot has no known place in memory.
+  // A level that was never measured is no obstacle either: its first launch measures it.
   s.archive = 'level/Level_099_Nowhere.bld';
   r = classifyAddition(s, row);
-  assert.equal(r.status, 'blocked');
-  assert.match(r.reason, /scene snapshot/);
+  assert.equal(r.available, true);
+  assert.ok(r.checks.some(c => c.id === 'level' && c.status === 'info' && /first launch/.test(c.detail)));
   s.archive = 'level/Level_027_Tutorial.bld';
   row.scale = 120;
   r = classifyAddition(s, row);

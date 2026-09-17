@@ -23,13 +23,7 @@ import { GECKO_AREA, INSTANCE, INSTANCE_BYTES, PLACEMENT_CLASS, SLOT } from '../
 import { chooseAnchor, nativeParamsFor } from '../src/editor/native-params.mjs';
 import { saveSnapshot } from '../src/editor/scene-snapshot.mjs';
 import { classifyAddition } from '../src/editor/addition-compatibility.mjs';
-import {
-  batchAdditions,
-  campaignSources,
-  judgeRun,
-  runLevelBatch,
-  writeFamilyReports,
-} from '../src/editor/addition-campaign.mjs';
+import { batchAdditions, campaignSources, judgeRun, runLevelBatch } from '../src/editor/addition-campaign.mjs';
 
 // Feature 007, phase A: the native recipe on every level. What is level-specific became data (the resident base,
 // the readiness anchor), the tutorial's output must not move by a byte, and a compact layout raises the count a
@@ -299,7 +293,8 @@ test('level parameters come from the newest scene snapshot, and from nothing els
   const [crate, barrel, camera] = s.placements;
   assert.equal(nativeParamsFor(s).available, false);
   assert.match(nativeParamsFor(s).reason, /scene snapshot/);
-  assert.equal(classifyAddition(s, crate).status, 'blocked');
+  // Not having been measured does not block an addition: the launch will measure the level (native-live.mjs).
+  assert.equal(classifyAddition(s, crate).status, 'needs_test');
 
   // The camera is active too, but a still, visible, script-less prop is the better landmark.
   const rows = [
@@ -438,22 +433,15 @@ test('a batch lays its sources on a grid, goes through save, patch and the redir
   );
   assert.ok(fs.existsSync(result.file));
 
-  // Two boots of the same batch make the family reports; one boot, or two different batches, make none.
-  const reports = path.join(dir, 'reports');
-  assert.throws(() => writeFamilyReports([result], { dir: reports }), /two boots/);
-  assert.throws(
-    () => writeFamilyReports([result, { ...result, additions: result.additions.slice(1) }], { dir: reports }),
-    /same batch/,
-  );
-  const written = writeFamilyReports([result, result], { dir: reports });
+  // Like any launch, the boot filed what it saw under each family. The crate and the barrel share a model and have
+  // no script, so they are one family, and its verdict is the worse of the two.
+  const filed = fs.readdirSync(places.reports).map(f => JSON.parse(fs.readFileSync(path.join(places.reports, f))));
+  assert.equal(filed.length, 1);
+  assert.equal(filed[0].family, result.results[0].family);
   assert.deepEqual(
-    written.map(r => [r.name, r.runtime]),
-    [
-      ['Crate_01', 'passed'],
-      ['Barrel_01', 'failed'],
-    ],
+    [filed[0].runtime, filed[0].launches.length, filed[0].launches[0].additions, filed[0].launches[0].run],
+    ['failed', 1, 2, 'batch-run'],
   );
-  assert.ok(fs.existsSync(path.join(reports, written[0].family + '.json')));
 
   // An edited scene is not a batch: the campaign measures sources, not the user's work.
   s.edits.push({ kind: 'transform' });

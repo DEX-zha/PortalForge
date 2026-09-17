@@ -1,0 +1,26 @@
+{
+  "id": "level.prop.native-addition-live-table",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Additions written into the running game, on a level never measured",
+  "structure": "A level-independent routine with an empty 59-row table in the Gecko area; header {magic PFNL, busy, count, stride, anchor, capacity}; the launcher writes rows, anchor, then count through the Dolphin bridge",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler, live layout, Level_039_UndeadVolcano"
+  },
+  "meaning": "Dolphin's Gecko code handler re-reads its code list from memory every frame, and the addition routine creates every row whose attempt word is zero. A routine compiled with no addition, no base and no anchor therefore serves every level: it idles while its count word is zero. On Undead Volcano, a level that had never been measured, the launch reached the level through the archive redirect, located its resident section and the placements active with an actor (base 0x80DBA5A0, anchor Life_Vine_01, first attempt), laid eight sources out beside that anchor and wrote them into the game: rows, anchor, then the count, whose last byte is the only one that changes and makes the switch atomic. On two identical boots the routine created all eight: six were read back alive at every reading, and two (a hat box pickup and a pottery) had been returned by the factory and were already gone at the first reading, removed by their own scripts. The measure is kept as the level's scene snapshot, so its next patch compiles the table in. Not judged: rendering, refilling the table while the game runs, classic play where the level is reached by hand, hub and PvP levels.",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789674098348-7b8a8ff7",
+      "summary": "L1 boot 1: measured at arrival in one attempt, 8 rows written, 6 of 8 alive at all four readings, 2 created and gone; consumption proven; clean stop, profile restored."
+    },
+    {
+      "probe": "editor-direct-test-1789674397828-eb0134fc",
+      "summary": "L1 boot 2: the same routine (sha256 971662e6a2…), the same base, anchor and batch, the same verdict for each source."
+    }
+  ]
+}

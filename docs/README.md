@@ -19,6 +19,7 @@ below live in the untracked `.local/` folder. See the [project README](../README
 |---|---|
 | [editor/roadmap.md](editor/roadmap.md) | The six ordered steps towards every object placeable and every level editable: state, cost and evidence rule of each. |
 | [editor/dolphin-workflow.md](editor/dolphin-workflow.md) | The Save → Patch → Launch chain, the launch modes, the `spawn EPERM` permission trap, and moving scripted props. |
+| [editor/adding-objects.md](editor/adding-objects.md) | Adding an object the level does not contain: what stands behind Add on a card, how the game creates it, measured levels and the live table, what a launch checks. |
 | [editor/direct-entry.md](editor/direct-entry.md) | Booting straight into the edited tutorial: checkpoint before level load, FST binding, and why a restored scene is not evidence. |
 | [editor/scripted-movement.md](editor/scripted-movement.md) | Barrels and assets: which object actually moves in game, and the controls that showed the difference. |
 | [editor/scene-poses.md](editor/scene-poses.md) | Bridges, cannons and model objects: the poses read back from Dolphin, and why the previews stay read-only. |

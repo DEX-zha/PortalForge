@@ -40,11 +40,18 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 - [x] S03a First use on enemies: four model-less enemy set-ups of Mining (`Intro_Elemental_Swarmer(1)`,
       `Intro_Elemental_Near(6)`, `Intro_Elemental_Heavy(1)`, `Intro_Enemy_Thief(1)`) were created, 4 of 4, then
       removed themselves once their script had run; what they leave behind is read by `--scan`.
-- [ ] S04 Generic routine: count, anchor and table address read from the header; an empty table is inert.
-      The tutorial's compiled recipe stays available unchanged.
-- [ ] S05 Live table: the launcher locates the level at arrival, picks the anchor from what is active, writes the
-      rows, refills when they are created; checkpoint identity covers the routine.
-- [ ] S06 Experiment L1, one boot on Mining: live write, refill, savestate loop.
+- [x] S04 Generic routine (`layout: 'live'` in `native-patch.mjs`): the count and the anchor are header words, the
+      59 rows are empty at boot, an empty table is inert, and the bytes are the same for every level. The
+      tutorial's compiled recipe is unchanged (pinned test).
+- [x] S05 Live table (`native-live.mjs`, `native-watch.mjs`): a level never measured patches the live routine; the
+      launch measures the level at the first capture of it (or, in classic play, once its archive has been read),
+      keeps the measure as the level's scene snapshot, and writes rows, anchor, then count. No level needs a
+      snapshot beforehand any more; a measured level still compiles its table in.
+- [ ] S05b Refill: write the next 59 rows once the first are created, keeping each batch's instance pointers for
+      the readings; the savestate loop of a level campaign.
+- [x] S06 Experiment L1 on 2026-09-17: two identical boots on Undead Volcano, never measured before, 8 of 8
+      created by the live routine (6 alive at every reading, 2 removed by their scripts); one boot on
+      `Challenge_Level_005` ([validation](validation.md)).
 - [ ] S07 Level campaign in one boot: every family of the level in batches with the arrival savestate between
       them; families that hang the level filed as unsafe.
 - [ ] S08 Experiment M1, two boots: MEM2 arena end lowered by a Riivolution memory patch, marker block intact.

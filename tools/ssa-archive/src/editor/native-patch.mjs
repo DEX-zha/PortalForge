@@ -10,8 +10,11 @@
 // own clone call, scripted ones in the activation manager. `activation` runs every addition in the activation
 // manager behind the anchor, which does not depend on a script cloning something at level start.
 //
-// Two data layouts. `slot` is the proven one: 144 bytes per addition, the factory's argument block living in
-// the slot. `table` keeps 40 bytes per addition and one shared argument block, rebuilt before every call.
+// Three data layouts. `slot` is the first proven one: 144 bytes per addition, the factory's argument block living
+// in the slot. `table` keeps 40 bytes per addition and one shared argument block, rebuilt before every call.
+// `live` is the table with nothing compiled in: the count, the anchor and the rows are header words and rows that
+// the launcher writes into the running game once it has measured where the level sits (native-live.mjs), so the
+// same bytes serve every level and no level needs to have been measured beforehand.
 export const NATIVE_BASE = 0x80dbc020;
 export const TUTORIAL_ANCHOR = 0x81105604; // the sunflower source, active with an actor when the level is ready
 // Mixed eight-copy proof: level.prop.native-addition-capacity. Keep the byte guard.
@@ -33,10 +36,16 @@ export const TABLE = {
   model: 0x20,
   script: 0x24,
 };
+// The header of the `live` layout. `busy` is the routine's own re-entrancy word; the launcher writes `anchor`,
+// the rows, then `count` last, and the routine does nothing while `count` is zero.
+export const LIVE_HEADER_MAGIC = 0x50464e4c;
+export const LIVE_HEADER = { magic: 0x00, busy: 0x04, count: 0x08, stride: 0x0c, anchor: 0x10, capacity: 0x14 };
+export const LIVE_HEADER_BYTES = 0x18;
+const STATIC_HEADER_BYTES = 0x10;
 const PLACEMENT_CLASS = 0x80481674;
 const MEM1_END = 0x81800000;
 const CONTEXTS = ['validated', 'activation'];
-const LAYOUTS = ['slot', 'table'];
+const LAYOUTS = ['slot', 'table', 'live'];
 export const FACTORY_HASH = '8fcf8ff29324baff5246ef8dbf3dcab41c983941b8ac603b7554fff8bd2b42a3';
 export const ACTIVATION_HASH = '77ce73ad478b451bf6bf01c67104fbc439e5dc5a09818351bcf36babc9cd0b18';
 const hex = n => (n >>> 0).toString(16).padStart(8, '0').toUpperCase();
@@ -126,11 +135,62 @@ export function nativeOptions(options = {}) {
   if (!CONTEXTS.includes(resolved.context)) throw Error(`Native context must be one of ${CONTEXTS.join(', ')}`);
   if (!LAYOUTS.includes(resolved.layout)) throw Error(`Native layout must be one of ${LAYOUTS.join(', ')}`);
   if (!Number.isInteger(resolved.limit) || resolved.limit < 1) throw Error('Native limit must be a positive integer');
+  if (resolved.layout === 'live') {
+    // The live routine always runs in the activation manager, behind an anchor the launcher writes.
+    resolved.context = 'activation';
+    // How many rows the routine is compiled with; the launcher may fill fewer, never more.
+    resolved.capacity = options.capacity ?? NATIVE_LIMIT;
+    if (!Number.isInteger(resolved.capacity) || resolved.capacity < 1)
+      throw Error('Native live capacity must be a positive integer');
+  }
   return resolved;
+}
+
+// One row of the `table` and `live` layouts, as the ten words the routine reads. The launcher writes the same
+// words into the running game.
+export function tableRowWords(addition, base) {
+  const words = Array(TABLE_STRIDE / 4).fill(0);
+  words[TABLE.id / 4] = addition.id >>> 0;
+  addition.position.forEach((v, i) => (words[TABLE.position / 4 + i] = floatWord(v)));
+  words[TABLE.source / 4] = base + addition.source;
+  words[TABLE.heading / 4] = floatWord(addition.heading);
+  words[TABLE.model / 4] = addition.model == null ? 0 : base + addition.model;
+  words[TABLE.script / 4] = addition.script == null ? 0 : base + addition.script;
+  return words;
+}
+
+// What every layout asks of an addition before it is compiled or written into the game.
+export function assertAdditions(additions, { base = NATIVE_BASE, scripts = true } = {}) {
+  const ids = new Set();
+  for (const a of additions) {
+    if (!a || !Number.isInteger(a.id) || a.id < -2147483648 || a.id >= 0 || ids.has(a.id))
+      throw Error('Addition identities must be distinct negative int32 integers');
+    ids.add(a.id);
+    // A source with nothing to draw (a trigger, a spawner) has no model record: its model word is zero.
+    for (const k of a.model == null ? ['source'] : ['source', 'model'])
+      if (!Number.isInteger(a[k]) || a[k] < 0 || base + a[k] + 0xf8 >= MEM1_END || a[k] % 4)
+        throw Error('Invalid resident source/model offset');
+    if (
+      !Array.isArray(a.position) ||
+      a.position.length !== 3 ||
+      [...a.position, a.heading, a.scale].some(n => !Number.isFinite(n) || !Number.isFinite(Math.fround(n)))
+    )
+      throw Error('Native transform must be finite float32');
+    if (a.scale <= 0 || a.scale > 1000) throw Error('Native scale must be in (0,1000]');
+    if (a.scale !== 100) throw Error('Native additions currently require the source scale of 100%');
+    if (
+      scripts &&
+      a.script != null &&
+      (!Number.isInteger(a.script) || a.script < 0 || a.script % 4 || base + a.script >= MEM1_END)
+    )
+      throw Error('Invalid script offset');
+  }
 }
 
 export function compileNativePatch(additions, options = {}) {
   const settings = nativeOptions(options);
+  // The live routine carries no addition: what it creates is written into the game by the launcher.
+  if (settings.layout === 'live') return { ...compile([], { ...settings, probe: true }), options: settings };
   const everything = settings.context === 'activation';
   // Scripted sources and experimental ones (any source without its own confirmed recipe, a stored template for
   // one) are created from the activation manager; a confirmed script-less source keeps its validated hook.
@@ -167,6 +227,18 @@ export const compileNativeProbe = (additions, options = {}) => compileNativePatc
 // twice and holds fewer; its real size is checked when it is compiled.
 export function nativeCapacity(options = {}, { scripted = false } = {}) {
   const settings = nativeOptions(options);
+  if (settings.layout === 'live') {
+    let rows = 0;
+    for (let n = 1; n <= 512; n++) {
+      try {
+        compile([], { ...settings, capacity: n, probe: true });
+        rows = n;
+      } catch {
+        break;
+      }
+    }
+    return rows;
+  }
   const sample = i => ({
     id: -i - 1,
     source: 0,
@@ -200,36 +272,18 @@ function compile(
     anchor = TUTORIAL_ANCHOR,
     layout = 'slot',
     limit = NATIVE_LIMIT,
+    capacity = NATIVE_LIMIT,
   } = {},
 ) {
-  const table = layout === 'table';
-  if (!Array.isArray(additions) || !additions.length || additions.length > limit)
-    throw Error(`Native patch requires 1..${limit} additions`);
-  if (probe && anchor === null) throw Error('This level has no readiness anchor: take a scene snapshot first');
-  const ids = new Set();
-  for (const a of additions) {
-    if (!a || !Number.isInteger(a.id) || a.id < -2147483648 || a.id >= 0 || ids.has(a.id))
-      throw Error('Addition identities must be distinct negative int32 integers');
-    ids.add(a.id);
-    // A source with nothing to draw (a trigger, a spawner) has no model record: its model word is zero.
-    for (const k of a.model == null ? ['source'] : ['source', 'model'])
-      if (!Number.isInteger(a[k]) || a[k] < 0 || base + a[k] + 0xf8 >= MEM1_END || a[k] % 4)
-        throw Error('Invalid resident source/model offset');
-    if (
-      !Array.isArray(a.position) ||
-      a.position.length !== 3 ||
-      [...a.position, a.heading, a.scale].some(n => !Number.isFinite(n) || !Number.isFinite(Math.fround(n)))
-    )
-      throw Error('Native transform must be finite float32');
-    if (a.scale <= 0 || a.scale > 1000) throw Error('Native scale must be in (0,1000]');
-    if (a.scale !== 100) throw Error('Native additions currently require the source scale of 100%');
-    if (
-      probe &&
-      a.script != null &&
-      (!Number.isInteger(a.script) || a.script < 0 || a.script % 4 || base + a.script >= MEM1_END)
-    )
-      throw Error('Invalid script offset');
+  const live = layout === 'live';
+  const table = layout === 'table' || live;
+  if (!live) {
+    if (!Array.isArray(additions) || !additions.length || additions.length > limit)
+      throw Error(`Native patch requires 1..${limit} additions`);
+    if (probe && anchor === null) throw Error('This level has no readiness anchor: take a scene snapshot first');
+    assertAdditions(additions, { base, scripts: probe });
   }
+  const headerBytes = live ? LIVE_HEADER_BYTES : STATIC_HEADER_BYTES;
   const p = new PPC(),
     guardZero = (r, yes = false) => {
       p.cmpi(r, 0);
@@ -259,6 +313,15 @@ function compile(
   p.lw(0, 4, 30);
   p.cmpi(0, 0);
   p.branch('restore', 4, 2);
+  if (live) {
+    // Nothing to do until the launcher has written a count, and never more rows than were compiled in.
+    p.lw(29, LIVE_HEADER.count, 30);
+    p.cmpi(29, 0);
+    p.branch('restore', 12, 2);
+    p.lw(0, LIVE_HEADER.capacity, 30);
+    p.cmp(29, 0, true);
+    p.branch('restore', 12, 1);
+  }
   if (probe) {
     // The activation manager's r30 is its native observer list. Clones with a
     // nonzero activation range were disposed of after early creation. The
@@ -272,7 +335,11 @@ function compile(
     p.branch('restore', 12, 2);
     // A placement known to be active with an actor once the level is ready. On the tutorial it is the
     // independently validated sunflower source; elsewhere it comes from the level's scene snapshot.
-    p.imm(3, anchor);
+    if (live) {
+      p.lw(3, LIVE_HEADER.anchor, 30);
+      p.cmpi(3, 0);
+      p.branch('restore', 12, 2);
+    } else p.imm(3, anchor);
     p.lw(0, 0, 3);
     p.imm(4, PLACEMENT_CLASS);
     p.cmp(0, 4);
@@ -286,11 +353,11 @@ function compile(
   }
   p.li(0, 1);
   p.sw(0, 4, 30);
-  p.li(29, additions.length);
+  if (!live) p.li(29, additions.length);
   // r31 walks the additions. In the table layout r28 is the one argument block every call shares, laid out
   // like a slot so that the factory sees exactly what the proven layout showed it.
-  if (table) p.d(14, 28, 30, 0x10);
-  p.d(14, 31, 30, table ? 0x10 + NATIVE_STRIDE : 0x10);
+  if (table) p.d(14, 28, 30, headerBytes);
+  p.d(14, 31, 30, table ? headerBytes + NATIVE_STRIDE : headerBytes);
   const row = table ? TABLE : { attempt: 0x04, pointer: 0x08, source: 0x2c, model: 0x84, script: 0x88 };
   const block = table ? 28 : 31;
   p.label('loop');
@@ -405,22 +472,22 @@ function compile(
   p.emit(probe ? 0x7f03c378 : 0x7c7d1b78);
   p.branch('tail');
   p.label('data');
-  p.emit(NATIVE_HEADER_MAGIC);
+  p.emit(live ? LIVE_HEADER_MAGIC : NATIVE_HEADER_MAGIC);
   p.emit(0);
-  p.emit(additions.length);
+  p.emit(live ? 0 : additions.length);
   p.emit(table ? TABLE_STRIDE : NATIVE_STRIDE);
+  if (live) {
+    p.emit(0); // the anchor, written by the launcher
+    p.emit(capacity);
+  }
   if (table) for (let i = 0; i < NATIVE_STRIDE / 4; i++) p.emit(0); // the shared argument block
   p.label('records');
+  if (live) for (let i = 0; i < (capacity * TABLE_STRIDE) / 4; i++) p.emit(0); // empty rows for the launcher
   for (const a of additions) {
-    const words = Array((table ? TABLE_STRIDE : NATIVE_STRIDE) / 4).fill(0);
+    let words = Array(NATIVE_STRIDE / 4).fill(0);
     const script = a.script == null ? 0 : base + a.script;
     if (table) {
-      words[TABLE.id / 4] = a.id >>> 0;
-      a.position.forEach((v, i) => (words[TABLE.position / 4 + i] = floatWord(v)));
-      words[TABLE.source / 4] = base + a.source;
-      words[TABLE.heading / 4] = floatWord(a.heading);
-      words[TABLE.model / 4] = a.model == null ? 0 : base + a.model;
-      words[TABLE.script / 4] = script;
+      words = tableRowWords(a, base);
     } else {
       words[0] = NATIVE_MAGIC;
       words[0x1c / 4] = a.id >>> 0;
@@ -460,6 +527,7 @@ function compile(
     game: 'SSPP52',
     revision: 1,
     count: additions.length,
+    ...(live ? { capacity } : {}),
     bytes: lines.length * 8,
     records_offset: p.labels.get('records'),
     stride: table ? TABLE_STRIDE : NATIVE_STRIDE,
