@@ -8,12 +8,12 @@
 //   observe records what was actually seen and is what releases that lock, so a run cannot be quietly forgotten.
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
 import { authorisedWords } from './session.mjs';
 import { FIELDS } from '../igz/model-resolve.mjs';
 import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
 import { validateSkipIntro } from './level-entry.mjs';
+import { sha256 as hash } from '../util/hash.mjs';
 
 const fail = (error, reason) => {
   const e = new Error(`${error}: ${reason}`);
@@ -22,7 +22,6 @@ const fail = (error, reason) => {
   throw e;
 };
 const hexAt = (buf, at) => buf.subarray(at, at + 4).toString('hex');
-const hash = buf => crypto.createHash('sha256').update(buf).digest('hex');
 
 // What this save changes, and what it must not. Built from the edit history, then checked word by word against
 // the working buffer, so an unexplained byte is a refusal rather than a surprise in the game.
@@ -36,7 +35,7 @@ export function buildSavePlan(session) {
   }
   const original = fs.existsSync(session.file) ? fs.readFileSync(session.file) : null;
   if (!original) failures.push({ stage: 'source', reason: `${session.file} is gone since the session opened` });
-  else if (crypto.createHash('sha256').update(original).digest('hex') !== session.original_sha256) {
+  else if (hash(original) !== session.original_sha256) {
     failures.push({
       stage: 'source',
       reason: `${session.file} changed since the session opened: its hash no longer matches, so this save would overwrite someone else's work`,

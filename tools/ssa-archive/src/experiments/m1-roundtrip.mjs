@@ -6,7 +6,6 @@
 //           'reencode' (every LZMA entry re-encoded, .bld). The variant decides what the game proves.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import {
   GameSession,
   gameFromConfig,
@@ -22,8 +21,8 @@ import { verifyBuffer } from '../iga/verify.mjs';
 import { rebuildFromWorkspace } from '../iga/writer.mjs';
 import { diffArchives } from '../iga/diff.mjs';
 import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
+import { sha256 } from '../util/hash.mjs';
 
-const sha256 = b => createHash('sha256').update(b).digest('hex');
 const samplesRoot = path.join(local, 'samples');
 
 async function prepareRebuild({ archive, variant, game, id, log = console.log }) {

@@ -6,7 +6,6 @@
 // PASS only when every run has no crash/load error and the observation matches the prediction.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import {
   GameSession,
   gameFromConfig,
@@ -23,8 +22,8 @@ import { rebuildFromWorkspace } from '../iga/writer.mjs';
 import { diffArchives } from '../iga/diff.mjs';
 import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
 import { decodeWorkspace, reencodeEntry } from '../iga/decode.mjs';
+import { sha256 } from '../util/hash.mjs';
 
-const sha256 = b => createHash('sha256').update(b).digest('hex');
 const samplesRoot = path.join(local, 'samples');
 const TYPES = {
   f32le: [4, (b, o, v) => b.writeFloatLE(v, o), (b, o) => b.readFloatLE(o)],

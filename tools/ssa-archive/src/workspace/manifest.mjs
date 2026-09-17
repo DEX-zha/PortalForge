@@ -3,10 +3,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
 import Ajv from 'ajv/dist/2020.js'; // contracts use JSON Schema draft 2020-12
 import addFormats from 'ajv-formats';
 import { parseArchive, entryStoredBytes } from '../iga/reader.mjs';
+import { sha256 } from '../util/hash.mjs';
 
 export const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, '../../../..');
@@ -27,7 +27,6 @@ export function validateManifest(manifest) {
   return { valid: v(manifest), errors: v.errors ?? [] };
 }
 
-const sha256 = b => createHash('sha256').update(b).digest('hex');
 const safeName = name =>
   path
     .basename(name.replace(/\\/g, '/'))

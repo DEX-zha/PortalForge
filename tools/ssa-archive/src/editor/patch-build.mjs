@@ -1,13 +1,12 @@
 // The saved IGZ is one entry of the disc archive, never a replacement for the archive itself.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { extractToWorkspace } from '../workspace/manifest.mjs';
 import { rebuildFromWorkspace } from '../iga/writer.mjs';
 import { reencodeEntry, decodeStoredEntry } from '../iga/decode.mjs';
 import { verifyBuffer } from '../iga/verify.mjs';
 import { buildPatchWorkspace, monitorSize } from '../patch/riivolution.mjs';
-const hash = b => createHash('sha256').update(b).digest('hex');
+import { sha256 as hash } from '../util/hash.mjs';
 
 export function buildEditorPatch({ experimentId, session, replacements, original, game, outDir }) {
   const source = fs.readFileSync(original),

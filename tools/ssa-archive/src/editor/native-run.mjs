@@ -1,7 +1,6 @@
 // Install a reviewed recipe only for a cold, editor-owned research session.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { profile, portOccupied, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import {
   compileNativePatch,
@@ -11,7 +10,7 @@ import {
   NATIVE_STRIDE,
   NATIVE_BASE,
 } from './native-patch.mjs';
-const hash = b => createHash('sha256').update(b).digest('hex');
+import { sha256 as hash } from '../util/hash.mjs';
 export const readNativeBytes = async (address, length) =>
   Buffer.from(await bridgeCall('memory.read_bytes', [address, length]), 'hex');
 

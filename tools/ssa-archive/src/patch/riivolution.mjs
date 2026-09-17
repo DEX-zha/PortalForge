@@ -3,10 +3,9 @@
 // Dolphin splits the XML path on '/' only (docs/mcp/dolphin-mcp.md, research.md R9).
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { buildDescriptor } from '../../../dolphin-mcp/runtime.mjs';
+import { sha256File } from '../util/hash.mjs';
 
-const sha256File = f => createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const xmlAttr = s =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const monitorSize = bytes => `${Math.floor(bytes / 1000)} kB`;

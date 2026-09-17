@@ -2,13 +2,13 @@
 // mark a candidate CONFIRMED; rendering and gameplay evidence remain separate.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { GameSession, gameFromConfig, defaultScript, readScript, local } from '../experiments/run-game.mjs';
 import { defaultFigure } from './dolphin-run.mjs';
 import { compileNativeProbe, NATIVE_BASE, NATIVE_MAGIC, NATIVE_STRIDE } from './native-patch.mjs';
 import { installNativePatch, verifyNativeFactory, verifyNativeInstances, readNativeBytes } from './native-run.mjs';
 import { classifyAddition, PROBE_VERSION } from './addition-compatibility.mjs';
-const hash = b => createHash('sha256').update(b).digest('hex');
+import { sha256 as hash } from '../util/hash.mjs';
 export const reportsDir = path.join(local, 'addition-validation');
 export function readFamilyReport(family) {
   if (!/^[a-f0-9]{64}$/.test(family ?? '')) return null;

@@ -1,6 +1,5 @@
 // Lenient IGA v4 parser: never throws on malformed input, collects failures instead so that
 // verify can report every problem with offset, actual and expected values (FR-006).
-import { createHash } from 'node:crypto';
 import {
   HEADER_SIZE,
   ENTRY_SIZE,
@@ -16,8 +15,7 @@ import {
   maxProbeDistance,
 } from './header.mjs';
 import { readChunkArea } from './chunks.mjs';
-
-const sha256 = b => createHash('sha256').update(b).digest('hex');
+import { sha256 } from '../util/hash.mjs';
 
 export function parseArchive(buf) {
   const issues = [];

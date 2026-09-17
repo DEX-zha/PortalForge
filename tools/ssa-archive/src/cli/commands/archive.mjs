@@ -2,7 +2,6 @@
 // diff, patch.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { identify as identifyDisc } from '../../disc/identify.mjs';
 import { listDisc, extractFile } from '../../disc/extract.mjs';
 import { parseArchive, summarize } from '../../iga/reader.mjs';
@@ -14,8 +13,8 @@ import { buildPatchWorkspace } from '../../patch/riivolution.mjs';
 import { CliError, EXIT, need } from '../errors.mjs';
 import { parseReplace } from '../args.mjs';
 import { sampleOf } from '../paths.mjs';
+import { sha256 } from '../../util/hash.mjs';
 
-const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
 const hex32 = value => '0x' + (value >>> 0).toString(16).padStart(8, '0');
 
 function readArchive(file) {
