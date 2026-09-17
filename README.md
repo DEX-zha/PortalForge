@@ -8,7 +8,7 @@
   <a href="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
   <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-299%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-337%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
   <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
   <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
   <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
@@ -54,15 +54,22 @@ through Riivolution, exactly the way the retail game reads them.
 A Unity-like workspace: **Hierarchy** and layers on the left, the **Scene** in the middle with the level's real
 decoded meshes and Move/Rotate/Scale gizmos, the **Inspector** on the right (position, model, behaviour script,
 layers, shared state, evidence and safety flags), and the **Project** browser at the bottom with categories and
-3D thumbnails generated from the level's own geometry.
+3D thumbnails generated from the level's own geometry. The **Level** tab next to it lists the 76 levels of the
+disc, each with its state and what the editor is allowed to do there; the header picker opens any of them.
 
 Each card in Project carries its verdict rather than a guess: **Add** for a source with a confirmed native
 recipe, **Needs test** for one that is structurally eligible but never booted, **Related source tested** when a
 sibling of the same family was the one actually proven. The counters read the same way — 673 objects,
 9 that can be added, 234 testable families, and the addition budget used out of 8.
 
+The view shows the level as the game stores it: placed objects in the default layers, stored templates and
+disabled objects (the ones a script clones or activates later) in a hidden layer of their own. While the level
+plays in the launcher's Dolphin, **As in game** reads the running scene from memory and draws what the game
+created at run time — the cannon on a moved push block, the fan blades, a key — over the stored placements.
+
 The toolbar chain is the whole workflow: **Save → Patch → Launch**. Launch owns its own Dolphin, runs the
-tutorial macro, captures every step and closes cleanly — or drops you straight into the level to play it yourself.
+tutorial macro, captures every step and closes cleanly — or drops you straight into the chosen level to play
+it yourself.
 
 ## Evidence, not vibes
 
@@ -92,7 +99,10 @@ scope stating what the run does **not** prove.
 | Boot straight into the edited tutorial, skipping the menus | **CONFIRMED** (tutorial only) | [`docs/editor/direct-entry.md`](docs/editor/direct-entry.md) |
 | Open any of the 76 levels by name and move its objects | **CONFIRMED** (tutorial and Mining, two identical boots each); LIKELY on the levels not booted with an edit yet | [`specs/006-multi-level-editing/`](specs/006-multi-level-editing/) |
 | Boot straight into the chosen level from Patch (the level served under the tutorial's file names) | **CONFIRMED** (Mining, two identical boots); LIKELY for the other levels | [`docs/level-entry-status.json`](docs/level-entry-status.json) |
-| Cross-level import, new geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4A / M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
+| Tell stored templates and disabled objects from placed ones, on every level | **LIKELY** (read in the running game on Mining) | [`docs/findings/`](docs/findings/) `igz.placement.inactive-flag` |
+| Draw the scene as the game runs it: states, actors and the objects scripts create | **LIKELY**, read-only (Mining, one run) | [`docs/findings/`](docs/findings/) `level.runtime.scene-snapshot` |
+| Any object of any level, as many times as wanted; objects from other levels | **UNKNOWN** — specified, gates M4A / M5 | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
+| New geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
 
 `node tools/ssa-archive/cli.mjs gates` prints the current state of every gate with its evidence.
 
@@ -208,7 +218,7 @@ docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
 - **Editor** — [roadmap](docs/editor/roadmap.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
 - **Runtime** — [Dolphin MCP, gate M0](docs/mcp/dolphin-mcp.md) · [how experiments are judged](docs/experiments/README.md)
 - **Findings** — [index](docs/findings/) with one JSON record per claim, rendered to Markdown by `cli.mjs findings render`
-- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/)
+- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/) · [007 unlimited additions](specs/007-unlimited-additions/)
 
 ## How the project is developed
 
@@ -220,8 +230,8 @@ a documented batch is never reported as a delivered one.
 duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are UNKNOWN, and no tool is allowed
 to pretend otherwise. A property is only made editable once its finding is CONFIRMED.
 
-**Tests and reproduction.** 299 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus a scripted WebGL
-browser run and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
+**Tests and reproduction.** 337 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
+browser runs (catalogue, and the level switch across three levels) and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
 successes — the research files are full of them, because they are what makes the successes trustworthy.
 
 **One standard for the code.** Prettier and ESLint run over both tools from the repository root
