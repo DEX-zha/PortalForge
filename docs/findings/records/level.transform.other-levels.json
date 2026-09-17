@@ -12,7 +12,7 @@
     "offset": "placement record +0x24 (xyz), +0x34 (heading), +0xB8 (scale)",
     "length": 20
   },
-  "meaning": "The game reads the edited position of a placement on a level other than the tutorial: lowering Mining's two opening-scene lanterns by 5 units through the editor's own path (open by name, transform, save, patch, direct launch through the archive redirect) removes the lantern from the top-left of the opening captures and puts its glow lower on the left edge, identically on two cold boots of a byte-identical patch. Confirmed on Mining; with the tutorial that is two levels, the record layout is validated on all 76, so transforms are offered everywhere, CONFIRMED where the level itself was booted (docs/level-entry-status.json) and LIKELY elsewhere. Scripted placements keep their own caveat (level.pushblock.track-dependency): the lanterns' light script did not object, push blocks did on the tutorial. Duplication still needs a runtime map per level.",
+  "meaning": "The game reads the edited position of a placement on a level other than the tutorial: lowering Mining's two opening-scene lanterns by 5 units through the editor's own path (open by name, transform, save, patch, direct launch through the archive redirect) removes the lantern from the top-left of the opening captures and puts its glow lower on the left edge, identically on two cold boots of a byte-identical patch. Confirmed on Mining; with the tutorial that is two levels, the record layout is validated on all 76, so transforms are offered everywhere, CONFIRMED only for the levels listed in confirmed_levels, whose edited transforms were tested, and LIKELY elsewhere. The entry matrix proves reaching a level, not the effect of an edit. Scripted placements keep their own caveat (level.pushblock.track-dependency): the lanterns' light script did not object, push blocks did on the tutorial. Duplication still needs a runtime map per level.",
   "evidence": [
     {
       "probe": "ssa-archive corpus over all 76 level archives (docs/reports/placement-corpus-all-levels.json)",
@@ -30,5 +30,8 @@
       "experiment_id": "editor-direct-test-1789650921032-81b4cf69",
       "summary": "13:15 to 13:17 UTC, the same byte-identical patch and checkpoint: shot diff against the emerald run gives the same 112x96 px cluster at (0, 32), 6 445 px; shot diff against the first lantern run gives no cluster above 1 457 px (the glow's flicker and the dialogue), so the two lantern boots agree. Two identical boots with the predicted, visible effect."
     }
+  ],
+  "confirmed_levels": [
+    "level/Level_000_Mining.bld"
   ]
 }

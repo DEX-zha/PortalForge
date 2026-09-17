@@ -1,4 +1,5 @@
-// Native additions: extra instances created by the game itself at boot, from a confirmed recipe, without
+// Native additions: extra instances created by the game itself during launch, using confirmed or experimental
+// sources as described below, without
 // replacing any existing object and without inserting a byte into the level.
 //
 // An addition lives in the session and in a sidecar next to the saved level (<level>.portalforge.json). The
@@ -102,7 +103,8 @@ export function additionSource(session, offset) {
 // How the patch of a scene is compiled. On a level that has been measured (the tutorial, or any level with a
 // scene snapshot) the table is compiled in with the level's own parameters: the slot layout for as long as it
 // fits, the compact table past it. On a level never measured the patch carries the live routine, and the launch
-// measures the level and writes the table into the game.
+// measures the level and writes the table into the game. A scene exceeding the compiled table also uses
+// the live routine, even on a measured level, with the launch refilling batches.
 export function additionCompileOptions(session, additions) {
   const params = nativeParamsFor(session);
   const count = additions.length;

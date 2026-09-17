@@ -126,3 +126,22 @@ test('render writes one Markdown table per category with the confidence label', 
   assert.equal(list({ dir }).length, 2);
   assert.equal(load('iga-v4.header.magic', { dir }).confidence, 'CONFIRMED');
 });
+
+test('render refreshes the format document beside its relocated introduction', () => {
+  const dir = tmp();
+  const outDir = path.join(dir, 'docs', 'findings');
+  const formatDir = path.join(dir, 'docs', 'format');
+  fs.mkdirSync(formatDir, { recursive: true });
+  fs.writeFileSync(path.join(formatDir, 'iga-v4.intro.md'), '# Format introduction\n\nCurrent gate scope.\n');
+  fs.writeFileSync(path.join(formatDir, 'iga-v4.md'), 'stale generated content');
+  save(base({ id: 'iga.header.test', category: 'container' }), { dir });
+  const files = render({ dir, outDir });
+  const target = path.join(formatDir, 'iga-v4.md');
+  assert.ok(files.includes(target));
+  const rendered = fs.readFileSync(target, 'utf8');
+  assert.match(rendered, /^# Format introduction/);
+  assert.match(rendered, /Current gate scope/);
+  assert.match(rendered, /iga\.header\.test/);
+  assert.ok(!rendered.includes('stale generated content'));
+  assert.ok(!fs.existsSync(path.join(dir, 'docs', 'iga-v4.md')));
+});

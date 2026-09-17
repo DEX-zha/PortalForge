@@ -1,5 +1,9 @@
 # Data Model: SSA Level Research
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Entities from the specification's Key Entities, refined by Phase 0. All persisted forms are JSON files under `.local/` (game-derived) or Markdown under `docs/` (findings). Byte values are integers; hashes and byte dumps are lowercase hex strings.
 
 ## SourceGameCopy

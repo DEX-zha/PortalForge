@@ -1,4 +1,4 @@
-// The level every confirmed editing recipe was proven on. A recipe that reads "tutorial only" checks this one
+// The level used by the original editing recipes and the confirmed native source list. A recipe that reads "tutorial only" checks this one
 // constant, so widening support to another level is a deliberate change in one place.
 export const TUTORIAL_ARCHIVE = 'level/level_027_tutorial.bld';
 // The tutorial's voice pack, read by the game right after the level archive.

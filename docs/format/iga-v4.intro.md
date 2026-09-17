@@ -6,4 +6,4 @@ Confidence labels per FR-013: **CONFIRMED** (observed on local data and exercise
 
 Local samples (game data, not committed): `character/001_Gryphon.arc` (42 entries), `character/001_Gryphon.bld` (7), `level/Level_000_Mining.bld` (7), `level/Level_027_Tutorial.arc` (477), `level/Level_027_Tutorial.bld` (7), `level/Challenge_Level_000.bld`, `level/Challenge_Level_001.bld`. All container fields are little-endian except the per-chunk compressed size (big-endian u16). Every sample rebuilds byte-identically from an extracted workspace (`tools/ssa-archive/tests/iga-fixtures.test.mjs`); every compressed entry decodes to an IGZ file and re-encodes into an archive that decodes identically (`tests/decode.test.mjs`).
 
-Open questions are the UNKNOWN rows below and the IGZ structure needed for M2.
+M1, M2 and M3 are PASS. Open questions remain in the UNKNOWN rows, particularly the structures needed for cross-level asset import (M4A), collision (M4B) and gameplay (M5).

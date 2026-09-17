@@ -1,5 +1,9 @@
 # Phase 1 data model: 3D placement editor
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Entities the editor holds while a level is open. The placement itself is not redefined here: it is the frozen
 contract `specs/002-igz-entity-model/contracts/placement-v1.schema.json`, and everything below refers to it.
 

@@ -149,7 +149,18 @@ placements of the same span touches none.
 - Instances that share a behaviour script (`+0xF0`) share the script record (refcount bumped): per-instance
   script variables are untested.
 
-## 6. The editor: `ssa-archive edit` (experimental)
+## 6. The editor: `ssa-archive edit`
+
+From the repository root, `node tools/ssa-archive/cli.mjs edit open Level_027_Tutorial --open` starts the
+3D editor. It shows placements, decoded read-only scenery, source cards and per-level evidence; Save → Patch →
+Launch runs a dedicated Dolphin profile. Locked sessions, invalid save plans and unsupported properties are
+refused. Duplication consumes an eligible equal-size slot and requires a runtime map. Experimental native
+additions are a separate [007 workflow](../editor/adding-objects.md), without IGZ insertion.
+
+Tutorial transform/replacement proofs are described below. Mining position edits were confirmed by
+`editor-direct-test-1789650694320-cf7db99e` and `editor-direct-test-1789650921032-81b4cf69`, scoped in
+`level.transform.other-levels`. Entry alone does not prove an edit; other levels remain LIKELY.
+Type indices in the examples below belong to the tutorial and are detected per file elsewhere.
 
 Data model (CONFIRMED by `igz.placement.type104-record`, two identical boots of the windmill-blades move):
 

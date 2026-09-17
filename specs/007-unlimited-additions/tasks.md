@@ -11,10 +11,10 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       the runtime verification reads from the level's base. The tutorial's output is pinned byte for byte.
 - [x] A02 Compact row (`layout: 'table'`): 40 bytes per addition and one shared argument block; `nativeCapacity`
       measures 18 (slot) and 59 (table); the catalogue reports the confirmed limit and what fits. The editor's
-      limit stays eight until a capacity finding says otherwise.
+      limit stayed eight at this stage; S02/S05b superseded it with experimental additions and the 590 guard.
 - [x] A03 Any resident source as a test candidate: a level with snapshot parameters classifies its objects as
       "Needs test" instead of "Blocked" (Mining: 153 testable families); Add stays reserved to confirmed
-      recipes. The one-source probe of the tutorial refuses other levels and names the batch probe.
+      recipes at this stage; S02 superseded that gate. The one-source probe of the tutorial refuses other levels and names the batch probe.
 - [x] A04 Experiment A1, two boots on 2026-09-17: eight additions on Mining with the snapshot's base and anchor,
       four from active placements and four from stored templates, one of them script-less. 8 of 8 created on both
       boots, the same compiled recipe ([validation](validation.md)).
@@ -32,8 +32,7 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       longer gates; a source without its own confirmed recipe gives an addition marked `experimental`, created from
       the activation manager; objects with nothing to draw carry a zero model word; an addition of an addition is
       refused with the reason; past 18 additions the scene compiles as the table layout. Cards say Add with the
-      evidence: confirmed, verified in game, related source tested, failed in game, not verified. Only a level
-      without a scene snapshot, or a source at another scale, is blocked.
+      evidence: confirmed, verified in game, related source tested, failed in game, not verified. A source at another scale is blocked. The original snapshot requirement was removed by S05.
 - [x] S03 Every run inspects its additions row by row at the captures of the level, during play and at the end
       (`inspectAdditions`), a run with experimental additions goes on when one is missing, and the launch files the
       verdict per family with its launches (`addition-reports.mjs`); the launch note says how many were verified.
@@ -68,7 +67,7 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 ## Phase P — The Project tab and the game-wide catalogue
 
 - [x] P01 `object-kinds.mjs`: the kind of a record (model path and script path; bare name when it has neither) and
-      its folder, from its library layer and its script directory. No display name decides anything.
+      its folder, from its library layer and its script directory. Display names do not decide folders; bare names distinguish model-less, script-less kinds.
 - [x] P02 Every entry of `/api/catalog` carries `folder` and `kind`; `src/view/asset-folders.mjs` draws what it is
       given and the regex on names is gone.
 - [x] P03 `game-catalogue.mjs`, `edit catalogue`, `GET` and `POST /api/library`: 8 800 kinds in 75 levels in about
@@ -94,8 +93,8 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 
 ## Phase C — Libraries between levels
 
-- [ ] C01 Catalogue: for every library, the levels holding it and its templates (from the census); Project shows
-      "in N levels" for objects absent from the current level. Zero boots.
+- [x] C01 Superseded by P01–P04: the catalogue groups kinds by full model/script paths with their libraries,
+      templates and levels; foreign cards show their levels without becoming addable. No import is implied.
 - [ ] C02 Runtime fixup map per level from the snapshot's resident dump (`igz fixups` on the dump the snapshot
       writes); stored under `.local/dolphin-evidence/runtime-maps/<level>.json`, which the editor already reads.
       One snapshot per level.
@@ -118,23 +117,23 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
       patch of up to the capacity through the editor's builder and launcher, every addition inspected from memory
       at each capture of the level and at the end, one result file per boot, family reports from two boots of the
       same batch. Tests with a fake builder and runner. The editor's Test button still drives the tutorial only.
-- [ ] V02 The promotion rule (family passes when every tested member passed on two boots, same model and
-      script) proposed to the constitution; applied only once accepted.
-- [ ] V03 Campaign over Mining's 153 families (six boots with the table layout, unattended); reports written by the
-      tool, findings after review.
-- [ ] V04 Campaign over the tutorial's 234 families with the same tool; the nine hand-confirmed sources become
-      family findings.
+- [x] V02 Closed as superseded: constitution 1.2.0 permits experimental additions and explicitly rejects
+      automatic promotion from a family report. Confirmation remains source-specific and reviewed.
+- [ ] V03 Complete Mining coverage beyond R1's 152 drawable-model sources; model-less families and singletons
+      remain S07. Keep creation, survival and visual review separate; reports do not promote recipes.
+- [ ] V04 Campaign over the tutorial's remaining families; retain the nine exact confirmed sources and their
+      original scope. New members remain experimental until individually reviewed.
 
 ## Dependencies
 
 A01 → A02 → A03 → A04 → A05 → A06. S01 → S02 → S03; S04 → S05 → S06 → S07, after A05; S08 → S09. B01 → B02 → B03/B04 → B05, independent of A. C01 and C02 first; C03 decides
-C04; C05 after C03 loads; C06 before C07; C08 closes. V01 → V02 → V03 → V04, and V03 needs A03.
+C04; C05 after C03 loads; C06 before C07; C08 closes. V01 → V03 → V04, and V03 needs A03. V02 is closed as superseded.
 
 ## Phase 6: Convergence
 
 Appended on 2026-09-17 by a convergence pass (`speckit-converge`): what `spec.md`, `plan.md` and the constitution
-ask for and the code does not do yet, beyond the tasks still open above (B01 to B05, C02 to C08, S07 to S09, V02 to
-V04). Existing tasks were not renumbered or rewritten.
+ask for and the code does not do yet, beyond the tasks still open above (B01 to B05, C02 to C08, S07/S09 and V03/V04). The audit subsequently closed C01, V02 and T011 with explicit
+supersession; task identifiers are retained.
 
 - [x] T001 Reword FR-001 in `spec.md`: a level without a snapshot is no longer refused, its first launch measures it (`native-live.mjs`); the requirement now matches the code per FR-001.
 - [ ] T002 Take the census in the editor's own launch, not only in `research-probes/native-level-probe.mjs`: count the level's own active objects at arrival and at each reading in `native-watch.mjs`, keep it in the run record and show it in the launch note per FR-012 (partial)
@@ -146,4 +145,4 @@ V04). Existing tasks were not renumbered or rewritten.
 - [ ] T008 Boot the classic-play path of the live routine, where the level is reached by hand and the measure is triggered by the archive being read, and one hub and one PvP level through the redirect, and record them in `validation.md` and `docs/level-entry-status.json` per US1/AC1 (partial)
 - [ ] T009 Add a corpus check that skips without local samples: on every decoded level each record falls in exactly one folder and the game catalogue covers every level but the title screen, in `tests/` per SC-007 (partial)
 - [ ] T010 Add a command that turns a family's report into a finding draft with its run ids for review, in `src/cli/commands/` per FR-004 (partial)
-- [ ] T011 Close or re-scope V02, V03 and V04: the promotion rule they wait for was replaced by the experimental addition of constitution 1.2.0, and R1 ran Mining's campaign per plan: Phase V (unrequested)
+- [x] T011 Documentation audit: V02 closed as superseded; V03 narrowed to coverage absent from R1; V04 retains source-specific review. No capability was promoted.

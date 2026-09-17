@@ -5,7 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildArchive } from './helpers/synthetic.mjs';
 import { syntheticLevel } from './helpers/synthetic-level.mjs';
-import { levelCatalog, findLevel, capabilitiesOf, entryStatusFor } from '../src/editor/level-catalog.mjs';
+import {
+  levelCatalog,
+  findLevel,
+  capabilitiesOf,
+  entryStatusFor,
+  transformStatusFor,
+} from '../src/editor/level-catalog.mjs';
 import { openLevel } from '../src/editor/level-open.mjs';
 import { entrySteps, redirectSteps } from '../src/editor/level-entry.mjs';
 import { buildEditorPatch } from '../src/editor/patch-build.mjs';
@@ -58,7 +64,11 @@ test('the voice pack is part of the catalogue and decides whether the redirect i
   assert.equal(confirmed.direct_entry.confidence, 'CONFIRMED');
   assert.equal(confirmed.direct_entry.experimental, undefined);
   assert.match(confirmed.direct_entry.why, /two identical boots/);
-  assert.equal(confirmed.transform.confidence, 'CONFIRMED', 'a level booted with an edit has confirmed transforms');
+  assert.equal(confirmed.transform.confidence, 'LIKELY', 'entry evidence alone never confirms transforms');
+  assert.equal(
+    capabilitiesOf({ transformStatus: 'CONFIRMED', entryStatus: 'UNKNOWN' }).transform.confidence,
+    'CONFIRMED',
+  );
   assert.equal(confirmed.transform.finding, 'level.transform.other-levels');
   assert.equal(capabilitiesOf({ tutorial: false, entryStatus: 'LIKELY' }).transform.confidence, 'LIKELY');
   const likely = capabilitiesOf({ tutorial: false, directEntry: true, companion: true, entryStatus: 'LIKELY' });
@@ -91,6 +101,24 @@ test('the entry matrix gives each level its status, the other families theirs, a
     'UNKNOWN',
     'an unknown label is not a claim',
   );
+});
+
+test('transform confidence requires a confirmed finding explicitly covering the requested archive', t => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-transform-status-'));
+  t.after(() => fs.rmSync(repoRoot, { recursive: true, force: true }));
+  const archive = 'level/Level_000_Mining.bld';
+  assert.equal(transformStatusFor(archive, { repoRoot }), 'LIKELY');
+  const dir = path.join(repoRoot, 'docs/findings/records');
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 'level.transform.other-levels.json');
+  const write = confidence => fs.writeFileSync(file, JSON.stringify({ confidence, confirmed_levels: [archive] }));
+  write('CONFIRMED');
+  assert.equal(transformStatusFor('LEVEL/level_000_mining.BLD', { repoRoot }), 'CONFIRMED');
+  assert.equal(transformStatusFor('level/Level_001_Castle.bld', { repoRoot }), 'LIKELY');
+  write('LIKELY');
+  assert.equal(transformStatusFor(archive, { repoRoot }), 'LIKELY', 'a demotion takes effect without a code change');
+  fs.writeFileSync(file, JSON.stringify({ confidence: 'CONFIRMED' }));
+  assert.equal(transformStatusFor(archive, { repoRoot }), 'LIKELY', 'no scope means no level promotion');
 });
 
 test('opening extracts the voice pack when a game image is there, and says so when it is not', async () => {

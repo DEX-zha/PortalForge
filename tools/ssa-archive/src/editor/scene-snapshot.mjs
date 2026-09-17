@@ -15,7 +15,6 @@ export const SNAPSHOT_VERSION = 1;
 // The +0x54 word of a constructed placement record, as read in Mining and the tutorial (igz.placement.inactive-flag).
 export const STATE_LABELS = { 1: 'active', 2: 'dormant', 3: 'finished', 5: 'template' };
 export const snapshotsDir = path.join(local, 'dolphin-evidence', 'scene-snapshots');
-export const snapshotFolder = archive => path.join(snapshotsDir, levelName(archive).toLowerCase());
 
 export const MEM1 = { start: 0x80000000, end: 0x81800000 };
 const CHUNK = 0x10000;
@@ -64,7 +63,8 @@ export async function locateResidentSection(session, readBytes, { start = 0x80c0
   throw new Error('the level section was not found in MEM1');
 }
 
-// The whole resident object section, read once so every record comes from the same instant.
+// The whole resident object section, read in bridge-sized chunks. A running game can change
+// between chunks; this is an observation over the read interval, not an atomic snapshot.
 export async function readResidentSection(session, base, readBytes) {
   const sec = session.graph.sections[session.graph.object_section];
   const size = sec.offset + sec.size;

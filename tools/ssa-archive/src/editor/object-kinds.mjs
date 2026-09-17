@@ -3,8 +3,8 @@
 // A level says where each of its records comes from: the library layer it was compiled from
 // (`Enemy_Elemental_Swarmer.lvl`), and the directory of its behaviour script in the game's own content tree
 // (`Levels/_Enemies/Elemental_Swarmer/scripts`, `Levels/Includes/GameElement_PushBlock`, `Levels/Level_000/Scripts`).
-// Folders and kinds are read from that, never guessed from a display name, so two objects that happen to share a
-// name are never merged and an object always falls in exactly one folder.
+// Folders come from that structure, never a display name. Kinds use full model/script paths; records with
+// neither fall back to a normalized bare name. Equal fallback names group together without proving asset identity.
 //
 // Three depths of identity, so that nothing stored for one level can be read as another's:
 //   record  (level archive, file offset)       unique on the disc; the only thing an addition's source may name
@@ -42,7 +42,7 @@ export const drawsSomething = placement => !!placement.model?.path && !INVISIBLE
 export const bareName = name => (name ?? '').replace(/\s*\(\d+\)\s*$/, '').trim();
 
 // The kind of a record: its model path and its script path. A record with neither (a camera mark, a position) is
-// its own kind under its bare name, so that such records are never merged into one.
+// grouped by its normalized bare name, instead of merging every model-less/script-less record into one kind.
 export function kindOf(placement) {
   const model = fileOf(placement.model?.path);
   const script = fileOf(placement.behavior?.path);

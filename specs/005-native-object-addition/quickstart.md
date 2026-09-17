@@ -1,5 +1,9 @@
 # Use and validation
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 1. Open the tutorial with its runtime map; refresh the editor after the server has been updated.
 2. In Project, pick **Can add**: nine exact validated sources, among them the Nipper and Clamper Chompies, two coins, the Barrel, two sunflowers and a weed. The other entries show their diagnostic, detailed in the inspector. See the list in [compatibility.md](compatibility.md).
 3. Press and hold on the thumbnail or the name, move towards the scene and release. The point follows the visible surface, or the horizontal plane when there is no surface. No object has to be chosen for replacement.
@@ -18,4 +22,4 @@ Checks: `npm test` in `tools/ssa-archive` and `tools/dolphin-mcp`. From the root
 
 Two boots of the patch produced by that scenario were validated: see [validation.md](validation.md). The detailed data, captures and reports stay local.
 
-The `--barrel`, `--chompy`, `--coin`, `--clamper` and `--weed` options of that browser test select the source. `--eight` checks eight real drops, the refusal of the ninth, the history and the save/reopen of the patch.
+The `--barrel`, `--chompy`, `--coin`, `--clamper` and `--weed` options of that browser test select the source. `--eight` checks eight real drops, acceptance and undo of the ninth (007), the history and the save/reopen of the patch.

@@ -1,8 +1,12 @@
 # Feature Specification: Real addition of extra objects
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `main` (folder independent from the branch)
 **Created**: 2026-09-16
-**Status**: Implemented and validated: nine exact sources, eight additions and direct tutorial entry. The editor path, the patch and Dolphin all PASS; the other levels remain to be studied. See validation.md.
+**Status**: Confirmed baseline implemented: nine exact tutorial sources, eight additions, scale 100, and direct tutorial entry. Features 006–007 extend level support and experimental additions without widening this confirmed recipe. See [validation](validation.md).
 
 **Extension requested on 2026-09-16**: aim for eight additions per patch, widen the confirmed sources and launch the level directly to speed up editing. A direct entry must load the bytes of the current patch, including after the additions have been modified; an old restored scene is not evidence. The first protocol targets the tutorial; the other levels then require their own strategy and their own evidence. The interface keeps a plain launch and states explicitly which levels are supported. The published limits stay the ones actually validated.
 **Input**: Drag an object from the Project pane into the Scene, as in Unity, to create an extra instance in front of the camera. Explicit choice: "real addition in the game", not a copy that only exists in the editor.

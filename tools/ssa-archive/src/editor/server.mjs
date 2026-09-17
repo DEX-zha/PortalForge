@@ -32,7 +32,7 @@ import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { directEntryConfirmed, TUTORIAL } from './level-entry.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
-import { capabilitiesOf, levelKey } from './level-catalog.mjs';
+import { capabilitiesOf, levelKey, transformStatusFor } from './level-catalog.mjs';
 import { isTutorial } from './levels.mjs';
 import { captureSceneSnapshot, saveSnapshot, latestSnapshot, snapshotSummary } from './scene-snapshot.mjs';
 import { buildCatalogue, libraryFor, readCatalogue, catalogueFile } from './game-catalogue.mjs';
@@ -214,6 +214,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
       listed?.capabilities ??
       capabilitiesOf({
         tutorial: isTutorial(session.archive),
+        transformStatus: transformStatusFor(session.archive),
         runtimeMap: session.has_runtime_map ? { file: null, source: 'given' } : null,
         directEntry: directEntryConfirmed(),
       })

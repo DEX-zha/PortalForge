@@ -19,7 +19,7 @@ below live in the untracked `.local/` folder. See the [project README](../README
 |---|---|
 | [editor/roadmap.md](editor/roadmap.md) | The six ordered steps towards every object placeable and every level editable: state, cost and evidence rule of each. |
 | [editor/dolphin-workflow.md](editor/dolphin-workflow.md) | The Save → Patch → Launch chain, the launch modes, the `spawn EPERM` permission trap, and moving scripted props. |
-| [editor/adding-objects.md](editor/adding-objects.md) | Adding an object the level does not contain: what stands behind Add on a card, how the game creates it, measured levels and the live table, what a launch checks. |
+| [editor/adding-objects.md](editor/adding-objects.md) | Adding extra instances from sources resident in the level: what stands behind Add on a card, how the game creates it, measured levels and the live table, what a launch checks. |
 | [editor/direct-entry.md](editor/direct-entry.md) | Booting straight into the edited tutorial: checkpoint before level load, FST binding, and why a restored scene is not evidence. |
 | [editor/scripted-movement.md](editor/scripted-movement.md) | Barrels and assets: which object actually moves in game, and the controls that showed the difference. |
 | [editor/scene-poses.md](editor/scene-poses.md) | Bridges, cannons and model objects: the poses read back from Dolphin, and why the previews stay read-only. |
@@ -36,9 +36,9 @@ below live in the untracked `.local/` folder. See the [project README](../README
 
 ## Gate state
 
-`m0-status.json`, `m1-status.json`, `m2-status.json`, `m3-status.json` and `level-entry-status.json` are read by
-the tooling — `node tools/ssa-archive/cli.mjs gates` prints them with their evidence. They stay at the root of
-`docs/` because the code and the MCP server resolve those exact paths.
+`node tools/ssa-archive/cli.mjs gates` prints M0 through M5 from the gate records at the root of `docs/`.
+`level-entry-status.json` is a separate matrix used by the editor for direct entry; reaching a level does not
+confirm edits on it. See the [specification status](../specs/README.md) for delivered and pending work.
 
 | Gate | State | Meaning |
 |---|---|---|
@@ -51,7 +51,8 @@ the tooling — `node tools/ssa-archive/cli.mjs gates` prints them with their ev
 ## Images
 
 `images/` holds the few illustrations published with the documentation: the project logo, a capture of the
-editor, and three in-game frames used as evidence in the README. Everything else stays local.
+editor and its game-wide catalogue, and six in-game frames used as evidence in the README.
+[Image provenance](images/README.md) records their sources. Everything else stays local.
 
 ## Reusing this documentation
 

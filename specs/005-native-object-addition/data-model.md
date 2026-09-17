@@ -1,5 +1,9 @@
 # Implemented model
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Addition: a new stable identifier, source (level + placement/model), finite position [x,y,z], orientation/scale, confirmed recipe version. No existing victim/target is used as the copy's identity.
 
 Recipe: game/revision, the required digests, the required assets/contexts, limits, evidence and confidence. Only CONFIRMED makes a source addable. Handler hypotheses stay UNKNOWN/LIKELY and not editable.

@@ -8,7 +8,7 @@
   <a href="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DEX-zha/PortalForge/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" />
   <img alt="Node" src="https://img.shields.io/badge/Node.js-24-339933?style=flat-square" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-373%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-375%20SSA%20%2B%206%20MCP-brightgreen?style=flat-square" />
   <img alt="Gates" src="https://img.shields.io/badge/gates-M0--M3%20PASS-success?style=flat-square" />
   <img alt="Evidence" src="https://img.shields.io/badge/evidence-two%20identical%20boots-8A2BE2?style=flat-square" />
   <img alt="Local AI" src="https://img.shields.io/badge/local%20AI-2%C3%97%20DGX%20Spark-76B900?style=flat-square" />
@@ -38,8 +38,8 @@ It is three things in one repository:
 
 - **A format toolkit** — readers, writers and diffing for the game's `IGA v4` archives and the `IGZ v5` object
   graphs inside them, including the LZMA chunking, the placement records, the scripts and the GX mesh geometry.
-- **A 3D editor** — a local server plus a browser view (Three.js, no bundler) that opens any of the game's 76
-  levels with its real geometry and placements, lets you move, rotate, duplicate and **add** objects, and compiles
+- **A 3D editor** — a local server plus a browser view (Three.js, no bundler) that lists 76 archives and opens the game's 75
+  scenes with their real geometry and placements (Title has no placements), lets you move, rotate, duplicate and **add** objects, and compiles
   the result back into a Riivolution patch.
 - **An experiment harness** — a dedicated Dolphin instance driven over MCP, with input macros, memory reads,
   screenshots and machine-checked experiment records, so that every claim about the game can be reproduced.
@@ -49,19 +49,27 @@ through Riivolution, exactly the way the retail game reads them.
 
 ## The editor
 
-![PortalForge editor](docs/images/editor-workspace.png)
+[![PortalForge editor — full user capture on Level_021_Sheep](docs/images/editor-workspace.png)](docs/images/editor-workspace.png)
 
 A Unity-like workspace: **Hierarchy** and layers on the left, the **Scene** in the middle with the level's real
 decoded meshes and Move/Rotate/Scale gizmos, the **Inspector** on the right (position, model, behaviour script,
 layers, shared state, evidence and safety flags), and the **Project** browser at the bottom with categories and
-3D thumbnails generated from the level's own geometry. The **Level** tab next to it lists the 76 levels of the
-disc, each with its state and what the editor is allowed to do there; the header picker opens any of them.
+3D thumbnails generated from the level's own geometry. The **Level** tab lists all 76 archives with their
+capabilities; the header picker opens the 75 scenes that contain placements. Title is a menu archive.
 
-Every object of a level can be added, enemies and objects with nothing to draw included, and each card says
+The Project scope switches between **This level** and **Whole game**: 8 800 kinds across 75 scenes, identified
+by their model and script paths. Objects found only in other levels show where they live; their cards are
+read-only until cross-level import is proven. Build or refresh this local index with `node tools/ssa-archive/cli.mjs edit catalogue`.
+
+![The Whole game catalogue](docs/images/editor-catalogue.png)
+
+Resident sources at scale 100 can be added, enemies and objects with nothing to draw included, and each card says
 what stands behind its **Add**: a confirmed recipe, *verified in game* with the number of launches, *related
 source tested*, *failed in game* with the reason, or *not verified*. The proof follows the addition instead of
 gating it: every launch reads each added object back from the game's memory and files the result on its card.
-A scene takes more additions than one patch holds: the launch writes them into the running game, table after table (152 on Mining); eight is the count two identical boots confirmed.
+A table holds 59 additions. The editor can refill it while the game runs: two Mining boots constructed 152
+instances. The scene guard is 590, not a proven capacity. More than 59 additions require the editor launch;
+eight additions from nine exact tutorial sources remain the confirmed scope. Other sources stay experimental.
 
 The view shows the level as the game stores it: placed objects in the default layers, stored templates and
 disabled objects (the ones a script clones or activates later) in a hidden layer of their own. While the level
@@ -74,17 +82,54 @@ it yourself.
 
 ## Evidence, not vibes
 
-Every capability in this repository has to survive the same rule: **two identical cold boots, a proven file
-consumption, and a visual result** — a boot that merely succeeds proves nothing, and neither does a memory write.
+A CONFIRMED editing recipe requires **two identical cold boots, proven file consumption and a visible
+result**. Experimental additions are allowed separately: each launch checks their creation in memory and
+records the result, without promoting them. Creation, survival and gameplay behavior are different claims.
 
-| A duplicated prop, in game | Eight native additions, in game | The additions during play |
-|---|---|---|
-| ![Three sunflowers instead of two](docs/images/evidence-duplicated-sunflower.png) | ![Extra barrel, coins and Chompies around Hugo](docs/images/evidence-native-additions-hugo.png) | ![Added enemies attacking the Skylander](docs/images/evidence-native-additions-combat.png) |
-| A third sunflower copied over a weed slot, with the original pair untouched (`editor-test-1789503985200`, 2/2 boots) | A barrel, coins and Chompy Nippers created natively next to Hugo — nothing was sacrificed to make room (`editor-direct-play-1789592930696`) | The same additions keep their scripts and activation ranges: they move, fight and can be destroyed |
+The frames below are shown whole. Open an image to view the original PNG at its native resolution.
+The in-game counts come from the recorded memory inspections, not from counting objects in a screenshot.
 
-Each of those runs has a machine-readable record under `.local/dolphin-evidence/experiments/`, a finding in
-[`docs/findings/`](docs/findings/) carrying its confidence level (CONFIRMED / LIKELY / UNKNOWN), and a written
-scope stating what the run does **not** prove.
+**Mining: 152 native creations through three live batches.** Two identical boots returned 152 instances each;
+107 remained at the last reading of the pictured boot. This frame shows the running scene during its opening
+dialogue, not all 152 objects. Scripts and interactions affect later survival. Run
+`editor-direct-test-1789675647260-f7aa929c`, capture 11; [R1 results](specs/007-unlimited-additions/validation.md#r1--more-than-the-table-holds-152-additions-the-whole-level-in-one-boot-2026-09-17), LIKELY.
+
+[![Mining during the 152-addition experiment, complete frame](docs/images/evidence-mining-152-additions.png)](docs/images/evidence-mining-152-additions.png)
+
+**Mining: six added enemy sources.** Both boots verified 6/6 in memory; the final captures show fire at the
+right edge and the Skylander displaced into view. Run `editor-direct-test-1789672812252-5e9db3c3`,
+capture 11. Creation and observed movement are documented; full combat, damage and loot remain unvalidated.
+[E2 results](specs/007-unlimited-additions/validation.md#e2--enemies-from-their-stored-templates-2026-09-17), LIKELY.
+
+[![Mining enemy-template experiment, complete frame](docs/images/evidence-mining-enemy-templates.png)](docs/images/evidence-mining-enemy-templates.png)
+
+**Undead Volcano: the first launch measures the level and fills the live table.** Both boots returned eight
+instances; six survived every reading and two were removed by their scripts. This frame documents arrival
+in the level; it does not establish the rendering of all additions. Run
+`editor-direct-test-1789674397828-eb0134fc`, capture 11; [L1 results](specs/007-unlimited-additions/validation.md#l1--a-level-never-measured-the-table-written-into-the-running-game-2026-09-17), LIKELY.
+
+[![Undead Volcano live-table experiment, complete frame](docs/images/evidence-undead-volcano-live-table.png)](docs/images/evidence-undead-volcano-live-table.png)
+
+**Tutorial: a third sunflower through same-size replacement.** A weed slot is replaced; the original pair
+is preserved. `editor-test-1789503985200`, two identical boots, CONFIRMED.
+
+[![Three sunflowers instead of two, complete frame](docs/images/evidence-duplicated-sunflower.png)](docs/images/evidence-duplicated-sunflower.png)
+
+**Tutorial: eight native additions near Hugo.** Barrel, coins and Chompy Nippers, with no sacrificed object.
+Frame from `editor-direct-play-1789592930696`; the confirmed source/count scope is recorded in
+[005 validation](specs/005-native-object-addition/validation.md).
+
+[![Native additions near Hugo, complete frame](docs/images/evidence-native-additions-hugo.png)](docs/images/evidence-native-additions-hugo.png)
+
+**The same tutorial additions during play.** Scripts and activation ranges are retained. This frame does not
+validate complete combat or collection semantics.
+
+[![Tutorial additions during play, complete frame](docs/images/evidence-native-additions-combat.png)](docs/images/evidence-native-additions-combat.png)
+
+Run records stay under `.local/dolphin-evidence/editor-runs/` and `experiments/`;
+[findings](docs/findings/) state confidence and limits. [Image provenance](docs/images/README.md) identifies
+the exact local frames. The editor screenshot above was supplied by the user on 2026-09-18, shown uncropped;
+its interface state is not independent proof of game behavior.
 
 ## What works today
 
@@ -93,18 +138,19 @@ scope stating what the run does **not** prove.
 | Read, verify, rebuild and diff `IGA v4` archives (`.arc` / `.bld`, LZMA) | **CONFIRMED** | [`docs/format/iga-v4.md`](docs/format/iga-v4.md), gate M1 |
 | Change one value in a level and see the predicted in-game effect | **CONFIRMED** | gate M2 |
 | Duplicate a record by same-size replacement (never by insertion) | **CONFIRMED** | gate M3, [`docs/format/igz-level-editing.md`](docs/format/igz-level-editing.md) |
-| Move / rotate / re-place props from the 3D editor | **CONFIRMED** | [`specs/003-placement-editor-3d/`](specs/003-placement-editor-3d/) |
+| Move / rotate / re-place props from the 3D editor | **CONFIRMED** on the tutorial; position edits on Mining; LIKELY elsewhere | [`specs/003-placement-editor-3d/`](specs/003-placement-editor-3d/) |
 | Decode the level's GX mesh geometry and draw the real scenery | **LIKELY**, read-only | [`docs/format/igz-mesh-geometry.md`](docs/format/igz-mesh-geometry.md) |
 | Translate a scripted prop together with its private trajectory | **CONFIRMED** | [`docs/editor/scripted-movement.md`](docs/editor/scripted-movement.md) |
 | **Add** up to eight extra objects with no victim, from nine exact sources | **CONFIRMED** (tutorial, SSPP52 Rev1) | [`specs/005-native-object-addition/validation.md`](specs/005-native-object-addition/validation.md) |
 | Boot straight into the edited tutorial, skipping the menus | **CONFIRMED** (tutorial only) | [`docs/editor/direct-entry.md`](docs/editor/direct-entry.md) |
-| Open any of the 76 levels by name and move its objects | **CONFIRMED** (tutorial and Mining, two identical boots each); LIKELY on the levels not booted with an edit yet | [`specs/006-multi-level-editing/`](specs/006-multi-level-editing/) |
+| Open any of the 75 scenes by name and move its objects | **CONFIRMED** (tutorial and Mining, two identical boots each); LIKELY on the levels not booted with an edit yet | [`specs/006-multi-level-editing/`](specs/006-multi-level-editing/) |
 | Boot straight into the chosen level from Patch (the level served under the tutorial's file names) | **CONFIRMED** (Mining, two identical boots); LIKELY for the other levels | [`docs/level-entry-status.json`](docs/level-entry-status.json) |
 | Tell stored templates and disabled objects from placed ones, on every level | **LIKELY** (read in the running game on Mining) | [`docs/findings/`](docs/findings/) `igz.placement.inactive-flag` |
 | Draw the scene as the game runs it: states, actors and the objects scripts create | **LIKELY**, read-only (Mining, one run) | [`docs/findings/`](docs/findings/) `level.runtime.scene-snapshot` |
 | Add any object of any level, stored templates and enemies included, verified by every launch; a level never opened before is measured by its first launch | **LIKELY** (Mining: 8 of 8, 32 of 32 and six moving enemies; Undead Volcano, never measured: 8 of 8 written into the running game; two identical boots each; seen on screen for the enemies only) | [`specs/007-unlimited-additions/validation.md`](specs/007-unlimited-additions/validation.md) |
-| Objects from other levels; thousands of additions in plain play | **UNKNOWN** — specified, gate M4A | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
-| New geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
+| Import objects held only in another level | **UNKNOWN**, gate M4A; the Whole game catalogue is read-only | [`specs/007-unlimited-additions/`](specs/007-unlimited-additions/) |
+| More than 59 additions without the editor | **UNKNOWN**; a 256 KB MEM2 reservation held on two boots plus a control, but no table lives there yet | [007 validation](specs/007-unlimited-additions/validation.md) |
+| New geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4A / M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
 
 `node tools/ssa-archive/cli.mjs gates` prints the current state of every gate with its evidence.
 
@@ -146,10 +192,11 @@ flowchart TD
     K --> L
 
     O --> P{"Two identical boots<br/>and a visible result?"}
-    P -->|no| Q["Negative result — documented,<br/>with what it does not prove"]
+    P -->|no| Q["Unverified, LIKELY or failed<br/>record the actual result and limits"]
     P -->|yes| R["Finding CONFIRMED"]
     R --> S["Gates M0 – M5"]
-    S -.->|only CONFIRMED properties are exposed as editable| E
+    S -.->|CONFIRMED properties are editable| E
+    O -.->|experimental additions keep runtime reports| E
     Q -.->|next hypothesis| F
 ```
 
@@ -158,8 +205,9 @@ Two things in that loop carry the project.
 The **save plan** is the safety rail: it is built *before* the write, checked word by word against the bytes that
 are about to be written, and any byte outside an edited attribute makes the whole save refuse rather than degrade.
 
-The **findings loop** is what keeps the editor honest: a run does not unlock a feature, a confirmed finding does.
-Until two identical boots agree, a capability stays a diagnostic — visible, explained, and refused.
+The **findings loop** keeps confidence separate from availability. Editable file properties require confirmed
+findings. Constitution 1.2.0 permits experimental runtime additions from resident sources, labelled and
+inspected at launch; a family report never promotes its members automatically.
 
 ## Getting started
 
@@ -168,23 +216,20 @@ research profile described in [`docs/mcp/dolphin-mcp.md`](docs/mcp/dolphin-mcp.m
 repository, and none ever will.
 
 ```powershell
-# 1. install (two independent packages, no bundler)
-cd tools/dolphin-mcp   ; npm ci --ignore-scripts ; npm test
-cd ../ssa-archive      ; npm ci --ignore-scripts ; npm test
+# Run from the repository root.
+npm ci
+npm ci --prefix tools/dolphin-mcp --ignore-scripts
+npm ci --prefix tools/ssa-archive --ignore-scripts
+npm test --prefix tools/dolphin-mcp
+npm test --prefix tools/ssa-archive
 
-# 2. point the toolkit at your own image
-#    .local/dolphin-config.json  ->  { "game": "D:/path/to/SSA.wbfs" }
-node cli.mjs identify --game "D:/path/to/SSA.wbfs"
+# Set game, figure and Dolphin paths in .local/dolphin-config.json (see the MCP dossier).
+node tools/ssa-archive/cli.mjs identify --game "D:/path/to/SSA.wbfs"
+node tools/ssa-archive/cli.mjs edit levels
+node tools/ssa-archive/cli.mjs edit open Level_027_Tutorial --port 7400 --open
 
-# 3. open the 3D editor on a level; extraction and decoding happen on first use, under .local/
-node cli.mjs edit levels
-node cli.mjs edit open Level_027_Tutorial --port 7400 --open
-
-# or serve one decoded file explicitly (no level picker in that mode)
-node cli.mjs disc-extract --game "D:/path/to/SSA.wbfs" --path level/Level_027_Tutorial.bld --out .local/samples
-node cli.mjs extract .local/samples/DATA/files/level/Level_027_Tutorial.bld --out .local/workspaces/tutorial-bld --decode
-node cli.mjs edit serve .local/workspaces/tutorial-bld/entries/3-level.bld.decoded \
-  --archive level/Level_027_Tutorial.bld --entry 3 --port 7400 --open
+# Once level workspaces are available, build the Whole game index.
+node tools/ssa-archive/cli.mjs edit catalogue
 ```
 
 The header of the editor lists every level of the disc; **Open** switches to another one, and the Level
@@ -220,7 +265,7 @@ docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
 - **Editor** — [roadmap](docs/editor/roadmap.md) · [adding objects](docs/editor/adding-objects.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
 - **Runtime** — [Dolphin MCP, gate M0](docs/mcp/dolphin-mcp.md) · [how experiments are judged](docs/experiments/README.md)
 - **Findings** — [index](docs/findings/) with one JSON record per claim, rendered to Markdown by `cli.mjs findings render`
-- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/) · [007 unlimited additions](specs/007-unlimited-additions/)
+- **Specs** — [current status and remaining work](specs/README.md) · [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/) · [007 unlimited additions](specs/007-unlimited-additions/)
 
 ## How the project is developed
 
@@ -230,15 +275,16 @@ a documented batch is never reported as a delivered one.
 
 **Gates before capabilities.** M0 (runtime), M1 (archive round-trip), M2 (controlled mutation) and M3 (entity
 duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are UNKNOWN, and no tool is allowed
-to pretend otherwise. A property is only made editable once its finding is CONFIRMED.
+to pretend otherwise. A property is only made editable once its finding is CONFIRMED; experimental runtime additions have the separate
+labelled, launch-verified scope described above.
 
-**Tests and reproduction.** 373 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
+**Tests and reproduction.** 375 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
 browser runs (catalogue, and the level switch across three levels) and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
 successes — the research files are full of them, because they are what makes the successes trustworthy.
 
 **One standard for the code.** Prettier and ESLint run over both tools from the repository root
 (`npm run format`, `npm run lint`) and in CI, so style is never a review topic and an unused import or a
-duplicated option key fails the build. Every module opens with what it is for, machine-specific paths live in
+duplicated option key fails the build. Modules document their purpose; machine-specific paths live in
 `.local/dolphin-config.json` rather than in the source, and a refactor of boot-proven code is checked against
 recorded outputs of the real level before it lands.
 

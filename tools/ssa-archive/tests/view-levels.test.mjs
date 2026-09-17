@@ -39,7 +39,7 @@ test('chips say how far the evidence goes, and carry the reason in their title',
   const tutorial = capabilitiesOf({ tutorial: true, runtimeMap: { file: 'm' }, directEntry: true });
   assert.deepEqual(
     Object.keys(CAPABILITY_LABELS).map(k => chip(k, tutorial[k]).cls),
-    ['proven', 'proven', 'proven', 'proven', 'proven'],
+    ['proven', 'proven', 'experimental', 'proven', 'proven'],
   );
   assert.equal(chip('transform', tutorial.transform).text, 'Move');
 
@@ -47,11 +47,11 @@ test('chips say how far the evidence goes, and carry the reason in their title',
   const chips = Object.fromEntries(Object.keys(CAPABILITY_LABELS).map(k => [k, chip(k, other[k])]));
   assert.deepEqual(
     Object.values(chips).map(c => c.text),
-    ['Move · likely', 'Duplicate · no map', 'Add · tutorial only', 'Test · manual', 'Direct entry · experimental'],
+    ['Move · likely', 'Duplicate · no map', 'Add · experimental', 'Test · manual', 'Direct entry · experimental'],
   );
   assert.deepEqual(
     Object.values(chips).map(c => c.cls),
-    ['likely', 'withheld', 'withheld', 'withheld', 'experimental'],
+    ['likely', 'withheld', 'experimental', 'withheld', 'experimental'],
   );
   assert.match(chips.duplicate.title, /ptr-scan/);
   assert.match(chips.direct_entry.title, /level\.entry\.archive-redirect/);

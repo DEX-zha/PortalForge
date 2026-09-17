@@ -60,10 +60,11 @@ exactly one folder:
 | **This level** / layer | the level's own objects, by the layer its authors put them in |
 | **Logic** / layer | records with nothing to draw: triggers, cameras, sounds, the level's scripts |
 
-A switch widens the tab from **This level** to the **Whole game**: every *kind* of object of the 76 levels, 8 800
+A switch widens the tab from **This level** to the **Whole game**: every *kind* of object of the 75 scenes with placements (76 archives including Title), 8 800
 of them, with the levels that hold each. A kind is a model path and a script path within the game's Content tree,
 so a placed instance and the template it was cloned from are one kind, and two objects that merely share a name
-are not. The catalogue is built
+are not. Records with neither a model nor a script use their normalized bare name as a fallback, so equal
+fallback names group together without proving asset equivalence. The catalogue is built
 once (`edit catalogue`, or the button the tab offers; about seven seconds) and kept under `.local/`.
 
 - A kind the open level holds is shown as this level's own object: select it, drag it, add it. Looking for "a

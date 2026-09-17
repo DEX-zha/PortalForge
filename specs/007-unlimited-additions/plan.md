@@ -1,6 +1,6 @@
 # Implementation Plan: Add any object, anywhere, as many times as wanted
 
-**Branches**: one per phase | **Date**: 2026-09-17 | **Spec**: [spec.md](spec.md)
+**Branch**: `feat/007-unlimited-additions` | **Date**: 2026-09-17 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
@@ -19,7 +19,7 @@ of them. Everything is read from the game before it is written to the file, and 
 The user's answer to phase A was that a gate before adding is the wrong shape: everything must be addable now,
 blocked objects included, and proof has to be fast. The [study](study-add-anything.md) found how, without a boot:
 verify at launch instead of before adding (S1), write the table into the running game so one boot verifies a level
-and the count is unbounded while the editor drives (S2), reserve MEM2 through the OS arena for thousands of
+and the count exceeds a single table while the editor drives, up to the current 590 guard (S2), reserve MEM2 through the OS arena for thousands of
 additions in plain play (S3). S1 to S3 come before phases B and C; A1 and A2 stay the first boots, because S2
 builds on the compact table.
 
@@ -40,8 +40,9 @@ addition's `source` may name. A *family* is per level (archive, model, script, s
 therefore never leaks between levels. A *kind* is new and crosses levels: the record's model and script paths
 within the game's Content tree, lower-cased and hashed, so that a placed instance and the template it was cloned
 from are one kind; a
-record with neither is its own kind under its bare name, so that marks and positions are never merged. The
-libraries that carry a kind are attributes of it. Offsets are in no key. Anything that points outside the open
+record with neither falls back to its normalized bare name, so different names remain distinct while equal
+fallback names group together without proving asset equivalence. The
+libraries that carry a kind are attributes of it. Offsets identify records, but are not part of family or kind keys. Anything that points outside the open
 level carries its level. Recounted on 2026-09-17 with full Content paths: 8 800 kinds in 75 levels (the title screen
 has no placement),
 6 578 of them in one level only, 83 in thirty levels or more; Mining holds 323, and 382 enemy kinds with a model
@@ -62,13 +63,13 @@ serves it against the open level: *here* (with this level's record to add from) 
 
 **No conflict by construction.** Foreign kinds are read-only cards: they cannot be dragged, and no intent carries
 a record of another level. The day phase C imports a library, the imported records get offsets in the open level
-and are ordinary sources. Evidence seen on other levels shows as "verified on N other levels", apart from this
-level's verdict.
+and are ordinary sources. Showing evidence seen on other levels as "verified on N other levels", apart from this
+level's verdict, remains T006; current foreign cards only show which levels hold the kind.
 
 Built on 2026-09-17: `object-kinds.mjs`, `game-catalogue.mjs`, `edit catalogue`, `GET` and `POST /api/library`,
 the scope switch of the Project pane. The whole catalogue builds in about seven seconds.
 
-**The census** (FR-012) is a reading of the probe and of the launch: the level's own placements that are active
+**The census** (FR-012) is implemented in the research probe; integration into every editor launch remains T002: the level's own placements that are active
 with an actor, at arrival and at each reading; a control boot gives the level's own drift.
 
 ## Technical Context
@@ -107,20 +108,20 @@ never reported as confirmed, and a family still becomes a finding only through t
 1. **Per-level parameters from the snapshot** (`native-params.mjs`, done). `base` is the snapshot's; `anchor`
    is a placement the snapshot saw active with an actor, a still, visible, script-less prop first because that
    is what the tutorial's anchor is (Mining: `MineTrain`). They are derived from the newest snapshot every time,
-   not stored apart, so they cannot drift from it; a snapshot of another version of the level is refused. A level
-   without them refuses with "take a scene snapshot first". A wrong base cannot do harm: the compiled code checks
+   not stored apart, so they cannot drift from it; a snapshot of another version of the level is refused. Phase S supersedes the initial snapshot requirement: an unmeasured level uses the live table.
+   The compiled code guards against mismatched source addresses by checking
    the class pointer, the model and the script of every source before it calls the factory.
-2. **Compact row** (`layout: 'table'`, done, unproven). The request (id, position, source, heading, model,
+2. **Compact row** (`layout: 'table'`, implemented; A2 booted twice, LIKELY). The request (id, position, source, heading, model,
    script) and the two result words make a 40-byte row; one shared 144-byte argument block is zeroed and rebuilt
    from the row before every call, so the factory sees what the proven slot showed it. Measured capacity: 18
    additions with the proven slot, 59 with the table. The hypothesis to prove in A2 is that the factory keeps
    no pointer into the argument block after it returns; the heading check on every instance would show it.
    The tutorial's compiled bytes are pinned by a test against the output recorded before the change.
 3. **Any resident source.** Drop the nine-source whitelist: a source is admissible when its record is resident
-   (placed or template) and has a model; its card shows its family's status. Templates are the natural sources
+   (placed or template), including records without a drawable model under phase S; its card shows its family's status. Templates are the natural sources
    (the game clones them itself), placed records are what the tutorial proved.
 4. **Experiments.** A1: eight sunflower-class additions on Mining with the snapshot's base and anchor (two boots)
-   → SC-001. A2: 32 additions of eight families on Mining (two boots) → SC-002. A3: the campaign of phase V over
+   → SC-001. A2: 32 additions of 32 families on Mining (two boots) → SC-002. A3: the campaign of phase V over
    Mining's templates → SC-003.
 
 ## Phase B — The activation flag as a switch
@@ -163,16 +164,16 @@ The only route to "any enemy anywhere". Staged so that each step either loads or
    capacity), builds one patch, boots twice, and for each instance reads memory (class `0x80481674`, state 1,
    actor present, position and heading within 0.05 of the request) at three moments (arrival, +20 s, +60 s) and
    takes captures with the additions in view. Every check is machine-made; the captures are kept for review.
-2. **Judgement.** A source passes when both boots pass all checks; a family passes when every tested member
-   passed; a level's campaign report lists families passed, failed with the failing check, and untested.
-3. **Findings.** One record per family per level (`level.prop.native-addition.<level>.<family>`), CONFIRMED on two
-   boots; a later failure of any member demotes the family to UNKNOWN with the run kept.
-4. **Cost.** Mining has 153 testable families (108 of them stored templates only, 29 dormant only, 16 with an
-   active member): three batches of 59 with the table layout, six boots, about 20 minutes unattended; nine
-   batches and 18 boots with the proven slot.
-5. **Rule change.** Today a family result never promotes its members ("Family tests do not grant Add
-   automatically"). The proposal: a family is promoted when every tested member passed on two boots and the
-   family shares model and script; the constitution and `AGENTS.md` record it if accepted.
+2. **Judgement.** Runtime reports distinguish attempted creation, returned instances, initial transforms and
+   later survival. AI or animation can move an instance, and a script may remove it after successful creation.
+   Captures require human review; memory results alone do not establish visible behavior.
+3. **Findings.** Reports are grouped per family and level for navigation. They never promote all members or
+   alter source eligibility. Only a reviewed, source-specific recipe can become CONFIRMED after two identical
+   boots, proven consumption and a visible result. The former family-promotion proposal is superseded by
+   constitution 1.2.0 (V02/T011); finding-draft generation remains T010.
+4. **Coverage.** R1 created 152 additions from Mining's families with drawable models on two boots using three
+   live batches. Coverage of remaining model-less families and singletons stays S07/V03; the tutorial campaign
+   stays V04. Counts of families depend on the catalogue/filter used, not on a universal fixed number.
 
 ## Project Structure
 
@@ -186,7 +187,8 @@ The only route to "any enemy anywhere". Staged so that each step either loads or
 
 - Phase C is where the weeks go. C1 is the decisive experiment and costs one boot once the fixup map of a level
   exists; the plan spends nothing on C2 before C1 loads.
-- The Gecko budget is 3 256 bytes and 59 additions is its measured ceiling with this recipe; beyond that, the
-  flag of phase B costs nothing in code and phase C needs no code at all.
+- The Gecko budget is 3 256 bytes and 59 additions is one compact table's ceiling. The live refill
+  exceeds it under editor control; S09 researches an independent table in reserved memory. Phases B and C
+  change files and do not themselves solve runtime storage.
 - Cross-level objects that already exist in the target level (the 25 libraries present in thirty or more levels,
   Chompies in 16 to 19) need no import; the catalogue must say so before anyone waits for phase C.

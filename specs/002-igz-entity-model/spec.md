@@ -1,10 +1,14 @@
 # Feature Specification: IGZ v5 Level Object Model and Entity Duplication
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `002-igz-entity-model`
 
 **Created**: 2026-09-12
 
-**Status**: Draft
+**Status**: Object model and same-size duplication implemented; M3 PASS. Remaining field research and CLI annotation tasks are tracked in tasks.md.
 
 **Input**: User description: "IGZ v5 level object model: parse the nested level.bld object graph of SSA Wii, document entity records and their transforms with evidence, and prove entity duplication (M3) through the existing MCP experiment workflow"
 

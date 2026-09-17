@@ -1,5 +1,9 @@
 # Implementation Plan: IGZ v5 Level Object Model and Entity Duplication
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Branch**: `002-igz-entity-model` | **Date**: 2026-09-12 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `/specs/002-igz-entity-model/spec.md`

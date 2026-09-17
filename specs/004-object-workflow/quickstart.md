@@ -1,5 +1,9 @@
 # Verification
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 1. In Objects, search for a plant then click to reveal and frame it.
 2. Drag an available source onto the scene. Check the ghost, the coordinates and the adjustable fallback altitude. Escape, or a drop outside the scene, cancels.
 3. Choose the object to replace; read the plan and acknowledge every critical rule. No edit before confirmation.

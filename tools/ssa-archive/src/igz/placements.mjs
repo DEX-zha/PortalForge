@@ -1,9 +1,10 @@
-// Placement census (spec 002, level-editor building block). A placement is a type-104 record listed in the
+// Placement census (spec 002, level-editor building block). Type indices below are tutorial examples;
+// classes are detected per file. A placement is a type-104 record in the tutorial, listed in the
 // header table: +0x08 name, +0x24 f32 xyz world position, +0x34 f32 heading (deg), +0xB8 f32 scale (100 = 1),
 // +0xA8 -> type-92 behaviour script, +0xC4 -> type-67 companion, +0xDC -> type-64 model record (its name is the
 // .mdl path), +0xE0 -> type-66 companion. It is embedded in a wrapper (a script instruction or a layer record)
 // and referenced by LAYER records (named type-52 table records such as "Plants", "Loot", "OpeningCS").
-// Pointer fields come from the runtime fixup map; nothing here relies on the heuristic header detector.
+// Pointer fields use the runtime fixup map when present, otherwise structural resolution of the detected classes.
 import { scriptTable } from './script.mjs';
 import { levelContext, detectClasses } from './model-resolve.mjs';
 

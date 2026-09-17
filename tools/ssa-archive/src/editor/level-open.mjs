@@ -18,6 +18,7 @@ import {
   levelEntry,
   capabilitiesOf,
   entryStatusFor,
+  transformStatusFor,
 } from './level-catalog.mjs';
 import { directEntryConfirmed } from './level-entry.mjs';
 import { TUTORIAL_DISC } from './levels.mjs';
@@ -139,6 +140,7 @@ export async function openLevel(query, { catalog = null, fixups = 'auto', game =
       directEntry: (deps.directEntry ?? directEntryConfirmed)(),
       companion: !!entry.companion?.present,
       entryStatus: level.capabilities?.direct_entry?.confidence ?? entryStatusFor(level.archive),
+      transformStatus: level.capabilities?.transform?.confidence ?? transformStatusFor(level.archive),
     }),
   };
   return session;

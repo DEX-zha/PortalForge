@@ -61,7 +61,7 @@ export function readCatalogue(file = catalogueFile) {
 }
 
 // Reads every level that `levels` lists and `open` can open. A level whose digest is already in the stored
-// catalogue is not opened again unless its digest differs; a level that cannot be opened is recorded with the
+// catalogue is opened to check its digest; grouping is reused when unchanged. A level that cannot be opened is recorded with the
 // reason, so a missing workspace is visible rather than silently absent.
 export async function buildCatalogue({
   levels,

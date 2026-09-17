@@ -1,5 +1,9 @@
 # Implementation Plan: Multi-level editing
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Branch**: `feat/006-multi-level-open` | **Date**: 2026-09-17 | **Spec**: [spec.md](spec.md)
 
 ## Summary
@@ -7,7 +11,8 @@
 Open any of the 76 levels by name, from the command line and from the editor, with the extraction and decoding
 done on demand; move objects on any level with the existing boot-proven writer and honest labels; switch levels
 from the header without losing work by accident; keep objects and terrain readable on every level. No new
-capability is promoted: the only new finding is LIKELY and says what it does not prove.
+capability was promoted by the initial offline implementation. Subsequent Mining boots confirmed that
+level’s position edits and redirect entry separately; see [validation](validation.md).
 
 ## Technical Context
 
@@ -25,9 +30,10 @@ capability is promoted: the only new finding is LIKELY and says what it does not
 
 M0..M3 PASS; M4A/M4B/M5 UNKNOWN and untouched. Reading and transforming placements were already permitted
 (FR-016); this feature widens where they can be applied and labels the widened scope LIKELY through a finding of
-its own, never CONFIRMED. No UNKNOWN property becomes editable: duplication still requires a runtime map, native
-additions, the test macro and direct entry stay bound to the tutorial by the same checks as before, now gathered
-in one capability object per level. The game image is read-only; extraction writes under `.local/samples`,
+its own; later Mining transform evidence confirms that level only. No UNKNOWN file property becomes editable:
+duplication still requires a runtime map. The original tutorial-only addition restriction is superseded by 007’s
+experimental additions; direct entry now uses the redirect described in the quickstart. The individual source
+test still uses the tutorial macro. Capabilities state these scopes separately. The game image is read-only; extraction writes under `.local/samples`,
 decoding under `.local/workspaces`. Tests are written before the implementation they cover. The finding record
 and this plan land in the same change.
 
@@ -46,7 +52,7 @@ extent inflation by parked objects and the threshold chosen, and the payload siz
   `openLevel()` (catalogue lookup, runtime map, `openSession`, `session.level`).
 - `src/editor/server.mjs`: a switchable current session; `GET /api/levels`; `POST /api/open` with its refusals.
   The deps gain `levels()` and `open(query)`; `editorDeps(o)` no longer closes over one session.
-- `src/cli/commands/edit.mjs`: `edit levels`, `edit open <level>`; `serve` keeps working on a file and gains the
+- `src/cli/commands/edit.mjs`: `edit levels`, `edit open <level>`; `serve` keeps working on a file without a
   picker.
 - `src/view/framing.mjs`: `levelExtent()` and `PARKED_GAPS`; `scene.mjs`, `preview.mjs` and `meshes.mjs` use it.
 - `src/view/index.html`, `app.mjs`: the picker, the discard dialog, the capability rows, the parked tally.
@@ -68,7 +74,8 @@ Two identical cold boots of one edited non-tutorial level, reached through norma
 it is the first story level after the tutorial, its workspace is decoded, and a runtime map for it would also
 serve step 2. The edit is a visible static prop raised or moved by a distance a screenshot cannot miss; the
 prediction is written before the boot; consumption is proven by the FileMon size line. No boot is started
-without the user's go-ahead, and none was started for this feature.
+without authorization. This was the initial plan; Mining was subsequently tested through the archive redirect
+with lowered lanterns, twice. See [validation](validation.md) for the completed proof.
 
 ## Complexity Tracking
 

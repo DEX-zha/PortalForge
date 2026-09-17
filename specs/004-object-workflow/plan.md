@@ -1,5 +1,9 @@
 # Plan — object workflow
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 2026-09-15. [Spec](spec.md). Three batches documented initially, US1 delivered. Extension requested on 2026-09-16: US3 prioritised for the tutorial, evidence and integration in specs/005-native-object-addition. Import and access to the other levels are still to be done.
 
 ## Context and gates

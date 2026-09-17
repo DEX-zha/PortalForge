@@ -94,8 +94,8 @@ export function catalog(session) {
   for (const entry of entries) counts[entry.addition.status] = (counts[entry.addition.status] ?? 0) + 1;
   return {
     addition_mode: 'native',
-    // `limit` is what one patch holds by measurement; `confirmed` is the count two identical boots proved
-    // (level.prop.native-addition-capacity). Past it a scene is experimental, like its unverified sources.
+    // `limit` is the scene guard, `fits` the compiled capacity, and `confirmed` the count proven for
+    // the exact tutorial recipe (level.prop.native-addition-capacity), not for arbitrary sources.
     addition_capacity: {
       used: session.additions?.length ?? 0,
       // What the editor accepts in a scene. Up to `fits.table` additions are compiled into the patch of a measured

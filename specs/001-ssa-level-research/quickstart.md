@@ -1,5 +1,9 @@
 # Quickstart: SSA Level Research validation
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Runnable scenarios that prove the feature end to end. Commands are given from the repository root on the Windows workstation. Details of outputs are in [contracts/ssa-archive-cli.md](contracts/ssa-archive-cli.md) and [data-model.md](data-model.md).
 
 ## Prerequisites
