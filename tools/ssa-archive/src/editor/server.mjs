@@ -6,7 +6,9 @@
 // check, not after.
 //
 // The API is the contract in specs/003-placement-editor-3d/contracts/editor-api.md. It returns resolved records,
-// never bytes, and it is the only way the view can reach the session.
+// never bytes, and it is the only way the view can reach the session. GET routes read; POST routes change the
+// session only, and `/api/save` is the single place a file is produced. A refusal answers 409 with the rule or
+// reason that caused it.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,6 +27,7 @@ import { meshesPayload } from './meshes.mjs';
 import { catalog, prepareDrop, commitDrop } from './catalog.mjs';
 import { classifyAddition, familyKey } from './addition-compatibility.mjs';
 import { runAdditionProbe, readFamilyReport, reportsDir } from './addition-probe.mjs';
+import { renderAdditionReport } from './addition-report-page.mjs';
 import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { directEntryConfirmed, TUTORIAL } from './level-entry.mjs';
@@ -33,8 +36,13 @@ import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
 const THREE_DIR = path.resolve(here, '../../node_modules/three');
+const EVIDENCE_DIR = path.resolve(reportsDir, '../dolphin-evidence');
 
-const TYPES = {
+const DEFAULT_PORT = 7378;
+const VALIDATION_REPEATS = 2; // a capability needs two identical boots
+const MAX_VALIDATION_SOURCES = 2;
+
+const CONTENT_TYPES = {
   '.png': 'image/png',
   '.html': 'text/html; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -44,11 +52,15 @@ const TYPES = {
   '.map': 'application/json; charset=utf-8',
 };
 
-const json = (res, status, body) => {
-  const b = JSON.stringify(body);
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': Buffer.byteLength(b) });
-  res.end(b);
-};
+function json(res, status, body) {
+  const text = JSON.stringify(body);
+  res.writeHead(status, {
+    'content-type': 'application/json; charset=utf-8',
+    'content-length': Buffer.byteLength(text),
+  });
+  res.end(text);
+}
+
 const notFound = (res, what) => json(res, 404, { error: 'NOT_FOUND', reason: `${what} is not served by this editor` });
 
 // Resolve `rel` under `root` and refuse anything that escapes it or is not a readable file.
@@ -66,15 +78,218 @@ function safeFile(root, rel) {
 function sendFile(res, abs) {
   const body = fs.readFileSync(abs);
   res.writeHead(200, {
-    'content-type': TYPES[path.extname(abs).toLowerCase()] ?? 'application/octet-stream',
+    'content-type': CONTENT_TYPES[path.extname(abs).toLowerCase()] ?? 'application/octet-stream',
     'content-length': body.length,
     'cache-control': 'no-store',
   });
   res.end(body);
 }
 
-export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {} } = {}) {
+// A family report names the batch whose record holds the runs. The batch name becomes a path segment, so it is
+// checked against its exact shape before it is used as one.
+function loadFamilyReport(key) {
+  const report = readFamilyReport(key);
+  if (!report || !/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch)) return null;
+  const record = JSON.parse(fs.readFileSync(path.join(reportsDir, report.batch, 'result.json'), 'utf8'));
+  return { report, record };
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  if (!chunks.length) return {};
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw Object.assign(new Error('the request body is not JSON'), { error: 'BAD_BODY' });
+  }
+}
+
+export function startServer({ session, port = DEFAULT_PORT, host = '127.0.0.1', deps = {} } = {}) {
+  // The addition-validation batch in progress, if any. At most one runs at a time, and it holds the session lock.
   let validation = null;
+
+  // What every mutating route reports back, so the view can refresh its toolbar without a second request.
+  const sessionState = extra => ({
+    dirty: session.dirty,
+    undo_depth: session.edits.length,
+    redo_depth: session.undone.length,
+    locked: session.locked,
+    saved: session.lastSave ? { file: session.lastSave.file, sha256: session.lastSave.sha256 } : null,
+    patched: session.lastPatch ?? null,
+    ...extra,
+  });
+
+  function validationStatus() {
+    if (!validation) return { running: false };
+    const { running, progress, result, error } = validation;
+    return { running, progress, result, error };
+  }
+
+  // Starts a batch and returns at once: two boots outlast every HTTP client's patience, so the view polls.
+  function startValidation(res, body) {
+    if (session.locked || session.lastLaunch?.running || validation?.running) {
+      return json(res, 409, {
+        error: 'SESSION_LOCKED',
+        reason: 'Stop the current editor-owned run before starting a validation batch.',
+      });
+    }
+    const sources = body.sources;
+    const valid =
+      Array.isArray(sources) &&
+      sources.length >= 1 &&
+      sources.length <= MAX_VALIDATION_SOURCES &&
+      sources.every(Number.isInteger);
+    if (!valid) return json(res, 409, { error: 'BAD_BATCH', reason: 'Choose one or two source objects.' });
+
+    const controller = new AbortController();
+    const batch = { controller, running: true, progress: null, result: null, error: null };
+    validation = batch;
+    session.locked = true;
+    Promise.resolve()
+      .then(() =>
+        (deps.probe ?? runAdditionProbe)(session, sources, {
+          repeat: VALIDATION_REPEATS,
+          signal: controller.signal,
+          onProgress: progress => (batch.progress = progress),
+        }),
+      )
+      .then(r => (batch.result = { id: r.id, status: r.status, candidates: r.candidates, error: r.error ?? null }))
+      .catch(e => (batch.error = e.message))
+      .finally(() => {
+        batch.running = false;
+        session.locked = false;
+      });
+    return json(res, 200, { running: true });
+  }
+
+  function placementDetails(res, offset) {
+    const placement = findPlacement(session, offset);
+    if (!placement) {
+      return json(res, 404, {
+        error: 'NO_SUCH_PLACEMENT',
+        reason: `no placement at 0x${offset.toString(16)} in this level`,
+      });
+    }
+    return json(res, 200, {
+      placement,
+      addition: classifyAddition(session, placement, { report: readFamilyReport(familyKey(session, placement)) }),
+      script: placement.native_addition ? null : scriptDiagnostics(session, placement),
+      safety: assessPlacement(placement, { hasRuntimeMap: session.has_runtime_map }),
+      replace_targets: replaceTargets(session, placement),
+    });
+  }
+
+  // The technical report of a family, or one capture of one run. A capture is only served when the recorded
+  // path resolves inside the evidence folder and is a PNG.
+  function additionReport(res, key, runIndex, shotIndex) {
+    const loaded = loadFamilyReport(key);
+    if (!loaded) return notFound(res, 'that test report');
+    const { report, record } = loaded;
+    if (runIndex !== undefined) {
+      const shot = record.runs[Number(runIndex)]?.screenshots?.[Number(shotIndex)];
+      const servable = shot && path.resolve(shot).startsWith(EVIDENCE_DIR + path.sep) && path.extname(shot) === '.png';
+      return servable ? sendFile(res, path.resolve(shot)) : notFound(res, 'that test screenshot');
+    }
+    const screenshots = record.runs.flatMap((run, i) =>
+      (run.screenshots ?? []).map((_, j) => ({ run: i + 1, url: `/api/addition-report/${key}/shot/${i}/${j}` })),
+    );
+    return json(res, 200, { report, record, screenshots });
+  }
+
+  const GET_ROUTES = {
+    '/api/session': res => json(res, 200, sessionSummary(session)),
+    '/api/catalog': res => json(res, 200, catalog(session)),
+    '/api/level-entry': res =>
+      json(res, 200, {
+        supported: session.archive?.toLowerCase() === TUTORIAL && directEntryConfirmed(),
+        preparation:
+          'A checkpoint is prepared once for each compatible disc layout. Changed level bytes are loaded after restoration.',
+      }),
+    '/api/addition-validation': res => json(res, 200, validationStatus()),
+    '/api/placements': res => json(res, 200, { placements: session.placements, layers: session.layers }),
+    // Real geometry, decoded once per session from the two geometry sections and cached (feature 004).
+    '/api/meshes': res => json(res, 200, meshesPayload(session)),
+    // A run is polled, never awaited over HTTP: two boots outlast every client's header timeout.
+    '/api/launch': res => json(res, 200, launchState(session)),
+  };
+
+  function handleGet(res, pathname) {
+    if (Object.hasOwn(GET_ROUTES, pathname)) return GET_ROUTES[pathname](res);
+    const report = /^\/api\/addition-report\/([a-f0-9]{64})(?:\/shot\/(\d+)\/(\d+))?$/.exec(pathname);
+    if (report) return additionReport(res, report[1], report[2], report[3]);
+    const placement = /^\/api\/placement\/(0x[0-9a-fA-F]+|-?\d+)$/.exec(pathname);
+    if (placement) return placementDetails(res, Number(placement[1]));
+    return notFound(res, pathname);
+  }
+
+  const historyStep = (step, error, reason) => res => {
+    const result = step(session);
+    return result ? json(res, 200, sessionState(result)) : json(res, 409, { error, reason });
+  };
+
+  const POST_ROUTES = {
+    '/api/addition-validation': startValidation,
+    '/api/addition-validation/stop': res => {
+      validation?.controller.abort();
+      return json(res, 200, { stopping: !!validation?.running });
+    },
+    '/api/edit': (res, body) => json(res, 200, sessionState(applyEdit(session, body))),
+    '/api/catalog/prepare': (res, body) => json(res, 200, prepareDrop(session, body)),
+    '/api/catalog/commit': (res, body) => json(res, 200, sessionState(commitDrop(session, body))),
+    '/api/undo': historyStep(undo, 'NOTHING_TO_UNDO', 'no edit left to undo'),
+    '/api/redo': historyStep(redo, 'NOTHING_TO_REDO', 'nothing was undone'),
+    '/api/reset': res => json(res, 200, sessionState(resetScene(session))),
+    '/api/plan': res => json(res, 200, { plan: buildSavePlan(session) }),
+    // Prepare a duplication without applying it: the refusal IS the answer, because it carries the rules the
+    // researcher has to read before anything can be confirmed.
+    '/api/duplicate/plan': (res, body) => json(res, 200, planReplace(session, body)),
+    '/api/save': (res, body) => {
+      const r = save(session, { out: body.out ?? null });
+      return json(res, r.written ? 200 : 409, sessionState({ plan: r.plan, written: r.written }));
+    },
+    '/api/patch': res => json(res, 200, sessionState(patch(session, { deps }))),
+    '/api/launch': async (res, body) => json(res, 200, sessionState(await launch(session, { ...body, deps }))),
+    '/api/launch/stop': res => json(res, 200, sessionState(stopLaunch(session))),
+    '/api/observe': (res, body) => json(res, 200, sessionState(observe(session, { ...body, deps }))),
+  };
+
+  async function handlePost(req, res, pathname) {
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      return json(res, 400, { error: e.error ?? 'BAD_BODY', reason: e.message });
+    }
+    if (!Object.hasOwn(POST_ROUTES, pathname)) return notFound(res, pathname);
+    try {
+      return await POST_ROUTES[pathname](res, body);
+    } catch (e) {
+      // A refusal carries an error code and answers 409; anything else is a defect and answers 500.
+      return json(res, e.error ? 409 : 500, {
+        error: e.error ?? 'INTERNAL',
+        reason: e.message.replace(/^[A-Z_]+: /, ''),
+        rules: e.rules ?? [],
+      });
+    }
+  }
+
+  function serveStatic(res, pathname) {
+    if (pathname === '/' || pathname === '/index.html') {
+      const file = safeFile(VIEW_DIR, 'index.html');
+      return file ? sendFile(res, file) : notFound(res, 'the view');
+    }
+    for (const [prefix, root] of [
+      ['/view/', VIEW_DIR],
+      ['/vendor/three/', THREE_DIR],
+    ]) {
+      if (!pathname.startsWith(prefix)) continue;
+      const file = safeFile(root, pathname.slice(prefix.length));
+      return file ? sendFile(res, file) : notFound(res, pathname);
+    }
+    return notFound(res, pathname);
+  }
+
   const server = http.createServer((req, res) => {
     let pathname;
     try {
@@ -86,228 +301,19 @@ export function startServer({ session, port = 7378, host = '127.0.0.1', deps = {
     try {
       const reportPage = /^\/addition-report\/([a-f0-9]{64})$/.exec(pathname);
       if (req.method === 'GET' && reportPage) {
-        const report = readFamilyReport(reportPage[1]);
-        if (!report || !/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch)) return notFound(res, 'that test report');
-        const record = JSON.parse(fs.readFileSync(path.join(reportsDir, report.batch, 'result.json'), 'utf8'));
-        const esc = s =>
-          String(s ?? '').replace(
-            /[&<>"']/g,
-            c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
-          );
-        const body = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Addition test</title><style>body{background:#20242b;color:#eee;font:16px system-ui;max-width:1100px;margin:30px auto;padding:20px}img{max-width:100%;display:block;margin:14px 0}a{color:#9ed4ff}</style><h1>${esc(report.name)}: ${esc(report.runtime)}</h1><p>${esc(report.reason)}</p><p>Visual: ${esc(report.visual)}. Gameplay: ${esc(report.gameplay)}. A technical pass alone does not enable Add.</p>${record.runs
-          .map(
-            (r, i) =>
-              `<h2>Run ${i + 1}: ${esc(r.status)}</h2>${(r.screenshots ?? [])
-                .map((file, j) => ({ file, j }))
-                .filter(x => /tutorial/.test(x.file))
-                .map(
-                  x =>
-                    `<p>${esc(path.basename(x.file))}</p><img loading="lazy" alt="Tutorial capture, run ${i + 1}" src="/api/addition-report/${reportPage[1]}/shot/${i}/${x.j}">`,
-                )
-                .join('')}`,
-          )
-          .join('')}<a href="/api/addition-report/${reportPage[1]}">Technical report</a></html>`;
+        const loaded = loadFamilyReport(reportPage[1]);
+        if (!loaded) return notFound(res, 'that test report');
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-        return res.end(body);
+        return res.end(renderAdditionReport(loaded.report, loaded.record, reportPage[1]));
       }
-      if (pathname.startsWith('/api/')) return route(req, res, pathname, session);
-      if (pathname === '/' || pathname === '/index.html') {
-        const f = safeFile(VIEW_DIR, 'index.html');
-        return f ? sendFile(res, f) : notFound(res, 'the view');
+      if (pathname.startsWith('/api/')) {
+        return req.method === 'GET' ? handleGet(res, pathname) : handlePost(req, res, pathname);
       }
-      if (pathname.startsWith('/view/')) {
-        const f = safeFile(VIEW_DIR, pathname.slice('/view/'.length));
-        return f ? sendFile(res, f) : notFound(res, pathname);
-      }
-      if (pathname.startsWith('/vendor/three/')) {
-        const f = safeFile(THREE_DIR, pathname.slice('/vendor/three/'.length));
-        return f ? sendFile(res, f) : notFound(res, pathname);
-      }
-      return notFound(res, pathname);
+      return serveStatic(res, pathname);
     } catch (e) {
       return json(res, 500, { error: 'INTERNAL', reason: e.message });
     }
   });
-
-  const route = (req, res, pathname, s) =>
-    req.method === 'GET' ? api(req, res, pathname, s) : post(req, res, pathname, s);
-
-  function api(req, res, pathname, s) {
-    if (req.method !== 'GET')
-      return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: `${req.method} is not accepted on ${pathname}` });
-    if (pathname === '/api/session') return json(res, 200, sessionSummary(s));
-    if (pathname === '/api/catalog') return json(res, 200, catalog(s));
-    if (pathname === '/api/level-entry')
-      return json(res, 200, {
-        supported: s.archive?.toLowerCase() === TUTORIAL && directEntryConfirmed(),
-        preparation:
-          'A checkpoint is prepared once for each compatible disc layout. Changed level bytes are loaded after restoration.',
-      });
-    if (pathname === '/api/addition-validation')
-      return json(
-        res,
-        200,
-        validation
-          ? {
-              running: validation.running,
-              progress: validation.progress,
-              result: validation.result,
-              error: validation.error,
-            }
-          : { running: false },
-      );
-    const reportMatch = /^\/api\/addition-report\/([a-f0-9]{64})(?:\/shot\/(\d+)\/(\d+))?$/.exec(pathname);
-    if (reportMatch) {
-      const report = readFamilyReport(reportMatch[1]);
-      if (!report || !/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch)) return notFound(res, 'that test report');
-      const record = JSON.parse(fs.readFileSync(path.join(reportsDir, report.batch, 'result.json'), 'utf8'));
-      if (reportMatch[2] !== undefined) {
-        const shot = record.runs[Number(reportMatch[2])]?.screenshots?.[Number(reportMatch[3])],
-          root = path.resolve(reportsDir, '../dolphin-evidence');
-        if (!shot || !path.resolve(shot).startsWith(root + path.sep) || path.extname(shot) !== '.png')
-          return notFound(res, 'that test screenshot');
-        return sendFile(res, path.resolve(shot));
-      }
-      return json(res, 200, {
-        report,
-        record,
-        screenshots: record.runs.flatMap((r, i) =>
-          (r.screenshots ?? []).map((_, j) => ({
-            run: i + 1,
-            url: `/api/addition-report/${reportMatch[1]}/shot/${i}/${j}`,
-          })),
-        ),
-      });
-    }
-    if (pathname === '/api/placements') return json(res, 200, { placements: s.placements, layers: s.layers });
-    // Real geometry, decoded once per session from the two geometry sections and cached (feature 004).
-    if (pathname === '/api/meshes') return json(res, 200, meshesPayload(s));
-    // A run is polled, never awaited over HTTP: two boots outlast every client's header timeout.
-    if (pathname === '/api/launch') return json(res, 200, launchState(s));
-    const m = /^\/api\/placement\/(0x[0-9a-fA-F]+|-?\d+)$/.exec(pathname);
-    if (m) {
-      const offset = Number(m[1]);
-      const placement = findPlacement(s, offset);
-      if (!placement)
-        return json(res, 404, {
-          error: 'NO_SUCH_PLACEMENT',
-          reason: `no placement at 0x${offset.toString(16)} in this level`,
-        });
-      return json(res, 200, {
-        placement,
-        addition: classifyAddition(s, placement, { report: readFamilyReport(familyKey(s, placement)) }),
-        script: placement.native_addition ? null : scriptDiagnostics(s, placement),
-        safety: assessPlacement(placement, { hasRuntimeMap: s.has_runtime_map }),
-        replace_targets: replaceTargets(s, placement),
-      });
-    }
-    return notFound(res, pathname);
-  }
-
-  // POST routes (feature 003 T029). Every one of them changes the session only; `/api/save` is the single
-  // place a file is produced, and a refusal answers 409 with the rule or reason that caused it.
-  async function readJson(req) {
-    const chunks = [];
-    for await (const c of req) chunks.push(c);
-    if (!chunks.length) return {};
-    try {
-      return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    } catch (e) {
-      const err = new Error('the request body is not JSON');
-      err.error = 'BAD_BODY';
-      throw err;
-    }
-  }
-
-  async function post(req, res, pathname, s) {
-    let body;
-    try {
-      body = await readJson(req);
-    } catch (e) {
-      return json(res, 400, { error: e.error ?? 'BAD_BODY', reason: e.message });
-    }
-    const state = extra => ({
-      dirty: s.dirty,
-      undo_depth: s.edits.length,
-      redo_depth: s.undone.length,
-      locked: s.locked,
-      saved: s.lastSave ? { file: s.lastSave.file, sha256: s.lastSave.sha256 } : null,
-      patched: s.lastPatch ?? null,
-      ...extra,
-    });
-    try {
-      if (pathname === '/api/addition-validation/stop') {
-        validation?.controller.abort();
-        return json(res, 200, { stopping: !!validation?.running });
-      }
-      if (pathname === '/api/addition-validation') {
-        if (s.locked || s.lastLaunch?.running || validation?.running)
-          return json(res, 409, {
-            error: 'SESSION_LOCKED',
-            reason: 'Stop the current editor-owned run before starting a validation batch.',
-          });
-        const sources = body.sources;
-        if (!Array.isArray(sources) || !sources.length || sources.length > 2 || sources.some(o => !Number.isInteger(o)))
-          return json(res, 409, { error: 'BAD_BATCH', reason: 'Choose one or two source objects.' });
-        const controller = new AbortController();
-        validation = { controller, running: true, progress: null, result: null, error: null };
-        const current = validation;
-        s.locked = true;
-        Promise.resolve()
-          .then(() =>
-            (deps.probe ?? runAdditionProbe)(s, sources, {
-              repeat: 2,
-              signal: controller.signal,
-              onProgress: p => (current.progress = p),
-            }),
-          )
-          .then(
-            r => (current.result = { id: r.id, status: r.status, candidates: r.candidates, error: r.error ?? null }),
-          )
-          .catch(e => (current.error = e.message))
-          .finally(() => {
-            current.running = false;
-            s.locked = false;
-          });
-        return json(res, 200, { running: true });
-      }
-      if (pathname === '/api/edit') return json(res, 200, state(applyEdit(s, body)));
-      if (pathname === '/api/catalog/prepare') return json(res, 200, prepareDrop(s, body));
-      if (pathname === '/api/catalog/commit') return json(res, 200, state(commitDrop(s, body)));
-      if (pathname === '/api/undo') {
-        const r = undo(s);
-        return r
-          ? json(res, 200, state(r))
-          : json(res, 409, { error: 'NOTHING_TO_UNDO', reason: 'no edit left to undo' });
-      }
-      if (pathname === '/api/redo') {
-        const r = redo(s);
-        return r
-          ? json(res, 200, state(r))
-          : json(res, 409, { error: 'NOTHING_TO_REDO', reason: 'nothing was undone' });
-      }
-      if (pathname === '/api/reset') return json(res, 200, state(resetScene(s)));
-      if (pathname === '/api/plan') return json(res, 200, { plan: buildSavePlan(s) });
-      // Prepare a duplication without applying it: the refusal IS the answer, because it carries the rules the
-      // researcher has to read before anything can be confirmed.
-      if (pathname === '/api/duplicate/plan') return json(res, 200, planReplace(s, body));
-      if (pathname === '/api/save') {
-        const r = save(s, { out: body.out ?? null });
-        return json(res, r.written ? 200 : 409, state({ plan: r.plan, written: r.written }));
-      }
-      if (pathname === '/api/patch') return json(res, 200, state(patch(s, { deps })));
-      if (pathname === '/api/launch') return json(res, 200, state(await launch(s, { ...body, deps })));
-      if (pathname === '/api/launch/stop') return json(res, 200, state(stopLaunch(s)));
-      if (pathname === '/api/observe') return json(res, 200, state(observe(s, { ...body, deps })));
-      return notFound(res, pathname);
-    } catch (e) {
-      return json(res, e.error ? 409 : 500, {
-        error: e.error ?? 'INTERNAL',
-        reason: e.message.replace(/^[A-Z_]+: /, ''),
-        rules: e.rules ?? [],
-      });
-    }
-  }
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
