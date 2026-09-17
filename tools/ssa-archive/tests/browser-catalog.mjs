@@ -6,7 +6,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { openSession } from '../src/editor/session.mjs';
 import { startServer } from '../src/editor/server.mjs';
 import { save, patch } from '../src/editor/save.mjs';
-import { editorDeps } from '../src/cli-commands.mjs';
+import { editorDeps } from '../src/cli/commands/edit.mjs';
 import { directEntryConfirmed } from '../src/editor/level-entry.mjs';
 const out = path.resolve('.local/object-workflow/browser-' + Date.now());
 fs.mkdirSync(out, { recursive: true });

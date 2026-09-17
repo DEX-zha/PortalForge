@@ -11,7 +11,7 @@ const tracked = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .filter(f => !f.includes('node_modules/'));
 const trackedSet = new Set(tracked);
 
-// Paths resolved in code: tools/ssa-archive/src/experiments/run-game.mjs (gateStatus), src/cli-commands.mjs
+// Paths resolved in code: tools/ssa-archive/src/experiments/run-game.mjs (gateStatus), src/cli/commands/findings.mjs
 // (gates), tools/dolphin-mcp/server.mjs (M0 status), src/research/findings.mjs (findings directory).
 const CODE_PATHS = [
   'docs/m0-status.json',
