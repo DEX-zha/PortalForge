@@ -11,11 +11,9 @@
 // references the spawn owner is the header table, so registering a clone means inserting a table entry,
 // which shifts every later byte of section 1: all pointer words known from the fixup map are rebased.
 import fs from 'node:fs';
-import path from 'node:path';
 import { buildGraph, validateGraph } from './graph.mjs';
 import { scriptTable } from './script.mjs';
-import { schemaValidator, contracts002 } from '../workspace/manifest.mjs';
-import * as Findings from '../research/findings.mjs';
+import { applyEdits, checkPlanSchema, graphSummary, requireConfirmedFinding } from './plan-common.mjs';
 
 export function loadFixups(file) {
   const fx = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -87,12 +85,6 @@ export function insertBytes(buf, graph, { pointerWords, idWords = [] }, at, byte
 // pointers that stay inside the copy, apply size-preserving edits, then register the copy in the header
 // table (one new entry, which shifts the whole object area by 4 bytes). Total growth is padded to the
 // section alignment so the later sections keep their alignment.
-const TYPES = {
-  f32be: [4, (b, o, v) => b.writeFloatBE(v, o)],
-  u32be: [4, (b, o, v) => b.writeUInt32BE(v >>> 0, o)],
-  u16be: [2, (b, o, v) => b.writeUInt16BE(v, o)],
-  u8: [1, (b, o, v) => b.writeUInt8(v, o)],
-};
 
 // Registration inserts one table entry (4 bytes) and, right after the header block, enough zero padding
 // for the whole object area to move by `registerShift` bytes (default: the section alignment, 32), so
@@ -121,12 +113,7 @@ export function planReachableClone(
   },
 ) {
   if (replaceEntry !== null) register = false;
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`);
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const sec = graph.sections[graph.object_section];
   if (fixups.section_offset !== sec.offset)
@@ -208,19 +195,15 @@ export function planReachableClone(
       });
       nextId++;
     }
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error(`unsupported edit type ${ed.type}`);
-    if (ed.offset + width > blockLen) throw new Error(`edit +0x${ed.offset.toString(16)} outside the cloned block`);
-    const old_hex = copy.subarray(prePad + ed.offset, prePad + ed.offset + width).toString('hex');
-    write(copy, prePad + ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: copy.subarray(prePad + ed.offset, prePad + ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(
+    ...applyEdits(
+      copy,
+      prePad,
+      blockLen,
+      edits,
+      edit => `edit +0x${edit.offset.toString(16)} outside the cloned block`,
+    ),
+  );
   // 1. append the copy
   // Every word that holds a section-1 offset: object fields, header table, and (when the map was built
   // with region dumps) the words of the other sections that point into section 1.
@@ -435,33 +418,11 @@ export function planReachableClone(
     findings: [findingId, ...extraFindings],
     method: 'reachable-clone (fixup-map relocation, header table registration)',
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const {
-    source: { block_end, block_bytes, ...src },
-    updates_total,
-    new_ids,
-    inserted_bytes,
-    register: _r,
-    register_shift,
-    replace_entry,
-    insert_before,
-    pre_pad,
-    end_pad,
-    refcounts,
-    fresh_ids,
-    table_entry,
-    pointers,
-    findings,
-    method,
-    ...rest
-  } = plan;
-  const strict = { ...rest, source: src };
-  plan.schema_valid = v(strict);
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
 }
 
@@ -493,12 +454,7 @@ export function planOverwriteClone(
   fixups,
   { start, end, target, findingId, edits = [], bumpRefcounts = true, findingsOpts = {}, extraFindings = [] },
 ) {
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`);
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const sec = graph.sections[graph.object_section];
   if (fixups.section_offset !== sec.offset)
@@ -551,19 +507,9 @@ export function planOverwriteClone(
   const leftover = blobEnd - (target + blockLen);
   out.fill(0, target + blockLen, blobEnd);
   // edits on the clone (offsets relative to the block start)
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error(`unsupported edit type ${ed.type}`);
-    if (ed.offset + width > blockLen) throw new Error(`edit +0x${ed.offset.toString(16)} outside the block`);
-    const old_hex = out.subarray(target + ed.offset, target + ed.offset + width).toString('hex');
-    write(out, target + ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: out.subarray(target + ed.offset, target + ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(
+    ...applyEdits(out, target, blockLen, edits, edit => `edit +0x${edit.offset.toString(16)} outside the block`),
+  );
   // refcounts: only INCREMENT the shared externals the clone points at (one owning reference added). The
   // sacrificed record's outgoing references are left counted: an over-count merely delays a free, whereas
   // decrementing risks dropping a still-live object to 0 (dangling). Targets inside the zeroed leftover
@@ -640,23 +586,11 @@ export function planOverwriteClone(
     method:
       'in-place registration (overwrite a same-type table record; no table growth, no shift, file length unchanged)',
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const {
-    source: { block_end, block_bytes, ...src },
-    mode,
-    target: _t,
-    pointers,
-    refcounts,
-    findings,
-    method,
-    ...rest
-  } = plan;
-  plan.schema_valid = v({ ...rest, source: src });
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
 }
 
@@ -671,12 +605,7 @@ export function planLinkClone(
   fixups,
   { source, linkField, findingId, insertBefore, edits = [], findingsOpts = {}, extraFindings = [] },
 ) {
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED');
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const sec = graph.sections[graph.object_section];
   const P = graph.objects.find(o => o.offset === source);
@@ -704,19 +633,7 @@ export function planLinkClone(
   buf.copy(copy, 0, P.offset, P.offset + P.size);
   copy.writeUInt32BE(1, 4);
   copy.writeUInt32BE(newNextRel >>> 0, linkField);
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error('unsupported edit type ' + ed.type);
-    if (ed.offset + width > P.size) throw new Error('edit outside the record');
-    const old_hex = copy.subarray(ed.offset, ed.offset + width).toString('hex');
-    write(copy, ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: copy.subarray(ed.offset, ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(...applyEdits(copy, 0, P.size, edits, () => 'edit outside the record'));
   const words = {
     pointerWords: fixups.pointer_words.concat(fixups.head_pointer_words, fixups.cross_pointer_words ?? []),
     idWords: fixups.id_words,
@@ -802,25 +719,11 @@ export function planLinkClone(
     findings: [findingId, ...extraFindings],
     method: 'linked-chain duplication (copy inserted before the tail, predecessor link redirected; no table change)',
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const {
-    source: { block_end, block_bytes, ...src },
-    mode,
-    link_field,
-    old_next,
-    moved_records,
-    inserted_bytes,
-    refcounts,
-    findings,
-    method,
-    ...rest
-  } = plan;
-  plan.schema_valid = v({ ...rest, source: src });
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
 }
 
@@ -834,12 +737,7 @@ export function planReplaceNode(
   fixups,
   { source, victim = null, linkField = 0x64, findingId, edits = [], findingsOpts = {}, extraFindings = [] },
 ) {
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED');
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const sec = graph.sections[graph.object_section];
   const P = graph.objects.find(o => o.offset === source);
@@ -870,19 +768,7 @@ export function planReplaceNode(
   buf.copy(out, V, P.offset, P.offset + P.size);
   out.writeUInt32BE(1, V + 4);
   out.writeUInt32BE(vNext, V + linkField);
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error('unsupported edit type ' + ed.type);
-    if (ed.offset + width > P.size) throw new Error('edit outside the record');
-    const old_hex = out.subarray(V + ed.offset, V + ed.offset + width).toString('hex');
-    write(out, V + ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: out.subarray(V + ed.offset, V + ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(...applyEdits(out, V, P.size, edits, () => 'edit outside the record'));
   if (out.length !== buf.length) failures.push({ stage: 'validation', reason: 'file length changed' });
   for (let p = 0; p + 4 <= buf.length; p += 4) {
     if (p >= V && p < V + P.size) continue;
@@ -924,14 +810,11 @@ export function planReplaceNode(
     findings: [findingId, ...extraFindings],
     method: 'zero-shift duplication: source copied over a same-size same-type chain node; only that block changes',
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { mode, victim: _v, victim_type_name, victim_old_next, link_field, findings, method, ...rest } = plan;
-  plan.schema_valid = v(rest);
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
 }
 
@@ -959,12 +842,7 @@ export function planReplaceRecord(
   },
 ) {
   const warnings = [];
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error('Finding ' + findingId + ' is ' + finding.confidence + '; duplication needs CONFIRMED');
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const sec = graph.sections[graph.object_section];
   const S = resolve ? resolve(buf, source) : graph.objects.find(o => o.offset === source),
@@ -1008,19 +886,7 @@ export function planReplaceRecord(
     }
   }
   // the victim's own pointer fields that are NOT kept and were pointers lose their referent: no decrement (safe over-count)
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error('unsupported edit type ' + ed.type);
-    if (ed.offset + width > S.size) throw new Error('edit outside the record');
-    const old_hex = out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex');
-    write(out, V.offset + ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: out.subarray(V.offset + ed.offset, V.offset + ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(...applyEdits(out, V.offset, S.size, edits, () => 'edit outside the record'));
   // Pointers from OUTSIDE that land in the MIDDLE of the victim blob keep pointing at those bytes after the copy.
   // That is fine when the byte at that offset keeps the same role (the proven wrapper recipe: a layer points at the
   // embedded type-104 placement at +0x48 of both source and victim). It is NOT fine when the victim has a header-table
@@ -1166,42 +1032,13 @@ export function planReplaceRecord(
     findings: [findingId, ...extraFindings],
     method: 'same-size same-type record replacement inside a script; victim companions and name kept',
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const {
-    mode,
-    victim: _v,
-    victim_type_name,
-    kept_fields,
-    pointers,
-    refcounts,
-    findings,
-    method,
-    inbound_midblob,
-    shared_records,
-    recipe,
-    placement_source,
-    placement_victim,
-    ...rest
-  } = plan;
   plan.inbound_midblob = midblob;
   plan.shared_records = shared;
   if (warnings.length) plan.validation.warnings = [...(plan.validation.warnings ?? []), ...warnings];
-  plan.schema_valid = v(rest);
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
-}
-
-export function writeReachablePlan(result, { outFile, planFile }) {
-  fs.mkdirSync(path.dirname(outFile), { recursive: true });
-  fs.writeFileSync(outFile, result.buffer);
-  if (planFile)
-    fs.writeFileSync(
-      planFile,
-      JSON.stringify({ ...result.plan, output: path.resolve(outFile), graph_after: result.graph_after }, null, 2),
-    );
-  return { outFile: path.resolve(outFile), planFile: planFile ? path.resolve(planFile) : null };
 }

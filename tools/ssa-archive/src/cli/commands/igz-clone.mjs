@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { EXIT, need } from '../errors.mjs';
+import { writePlanFiles } from '../../igz/plan-common.mjs';
 import { firstFixup, parseHexList, parseSetEdits, readJsonFile } from '../args.mjs';
 
 const hex = value => '0x' + value.toString(16);
@@ -28,7 +29,7 @@ export async function clone({ buf, pos, o }) {
     edits: parseSetEdits(o.set),
     appendToList: !!o['append-to-list'],
   });
-  const written = C.writePlan(r, outputTargets(o));
+  const written = writePlanFiles(r, outputTargets(o));
   const p = r.plan;
   return {
     result: { ...p, ...written, graph_after: r.graph_after },
@@ -124,7 +125,7 @@ export async function cloneEntity({ buf, pos, o }) {
   };
   const mode = CLONE_MODES.find(m => m.when(o));
   const r = mode.plan(R, buf, fixups, common, pos, o);
-  const written = R.writeReachablePlan(r, outputTargets(o));
+  const written = writePlanFiles(r, outputTargets(o));
   const p = r.plan;
   return {
     result: { ...p, ...written, graph_after: r.graph_after },

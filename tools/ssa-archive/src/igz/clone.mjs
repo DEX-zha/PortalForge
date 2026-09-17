@@ -8,28 +8,13 @@
 //   5. the result is re-parsed: object count +1, sections end at EOF, the clone's references resolve.
 // Anything the plan cannot prove is recorded in validation.failures; a plan is VALID only when the
 // rebuilt graph checks pass. Whether the game honours the clone is decided by the M3 experiment.
-import fs from 'node:fs';
-import path from 'node:path';
 import { buildGraph, validateGraph } from './graph.mjs';
 import { makeResolver } from './refs.mjs';
-import { schemaValidator, contracts002 } from '../workspace/manifest.mjs';
-import * as Findings from '../research/findings.mjs';
-
-const TYPES = {
-  f32be: [4, (b, o, v) => b.writeFloatBE(v, o)],
-  u32be: [4, (b, o, v) => b.writeUInt32BE(v >>> 0, o)],
-  u16be: [2, (b, o, v) => b.writeUInt16BE(v, o)],
-  u8: [1, (b, o, v) => b.writeUInt8(v, o)],
-};
+import { applyEdits, checkPlanSchema, graphSummary, requireConfirmedFinding } from './plan-common.mjs';
 
 export function planClone(buf, { objectOffset, findingId, edits = [], appendToList = false, findingsOpts = {} }) {
   const failures = [];
-  const finding = Findings.load(findingId, findingsOpts);
-  if (finding.confidence !== 'CONFIRMED') {
-    const e = new Error(`Finding ${findingId} is ${finding.confidence}; duplication needs CONFIRMED`);
-    e.exitCode = 1;
-    throw e;
-  }
+  requireConfirmedFinding(findingId, findingsOpts);
   const graph = buildGraph(buf, { fields: false });
   const source = graph.objects.find(o => o.offset === objectOffset);
   if (!source) {
@@ -42,19 +27,15 @@ export function planClone(buf, { objectOffset, findingId, edits = [], appendToLi
   const insertAt = objSec.offset + objSec.size; // end of the object section
   const cloneBytes = Buffer.from(buf.subarray(source.offset, source.offset + source.size));
   const changes = [];
-  for (const ed of edits) {
-    const [width, write] = TYPES[ed.type] ?? [];
-    if (!write) throw new Error(`unsupported edit type ${ed.type}`);
-    if (ed.offset + width > cloneBytes.length) throw new Error(`edit +0x${ed.offset.toString(16)} outside the object`);
-    const old_hex = cloneBytes.subarray(ed.offset, ed.offset + width).toString('hex');
-    write(cloneBytes, ed.offset, ed.value);
-    changes.push({
-      field: '+0x' + ed.offset.toString(16),
-      type: ed.type,
-      old_hex,
-      new_hex: cloneBytes.subarray(ed.offset, ed.offset + width).toString('hex'),
-    });
-  }
+  changes.push(
+    ...applyEdits(
+      cloneBytes,
+      0,
+      cloneBytes.length,
+      edits,
+      edit => `edit +0x${edit.offset.toString(16)} outside the object`,
+    ),
+  );
   const maxId = Math.max(...graph.objects.map(o => o.id));
   const newId = maxId + 1;
   cloneBytes.writeUInt32BE(newId >>> 0, 8);
@@ -153,24 +134,10 @@ export function planClone(buf, { objectOffset, findingId, edits = [], appendToLi
     append_to_list: appendToList,
     list_update: listUpdate,
   };
-  const v = schemaValidator('duplication-plan.schema.json', contracts002);
-  const { inserted_bytes, append_to_list, list_update, ...strict } = plan;
-  plan.schema_valid = v(strict);
-  plan.schema_errors = v.errors ?? null;
+  checkPlanSchema(plan);
   return {
     plan,
     buffer: out,
-    graph_after: after ? { objects: after.objects.length, accounting: after.accounting } : null,
+    graph_after: graphSummary(after),
   };
-}
-
-export function writePlan(result, { outFile, planFile }) {
-  fs.mkdirSync(path.dirname(outFile), { recursive: true });
-  fs.writeFileSync(outFile, result.buffer);
-  if (planFile)
-    fs.writeFileSync(
-      planFile,
-      JSON.stringify({ ...result.plan, output: path.resolve(outFile), graph_after: result.graph_after }, null, 2),
-    );
-  return { outFile: path.resolve(outFile), planFile: planFile ? path.resolve(planFile) : null };
 }
