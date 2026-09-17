@@ -24,6 +24,7 @@ import { watchAdditions } from '../src/editor/native-watch.mjs';
 import { latestSnapshot } from '../src/editor/scene-snapshot.mjs';
 import { nativeParamsFor } from '../src/editor/native-params.mjs';
 import { GECKO_AREA } from '../src/editor/native-layout.mjs';
+import { catalog } from '../src/editor/catalog.mjs';
 
 // Feature 007, additions on every level. A level that was never measured gets a patch whose routine carries no
 // addition; the launch measures the level when it reaches it and writes the table into the running game. These
@@ -177,6 +178,8 @@ test('a level never measured patches the live routine, and its launch measures i
   const { s, dir } = unmeasuredLevel(t);
   const [crate, barrel] = s.placements;
   applyEdit(s, { kind: 'add', source: crate.offset, position: [4, 5, 6] });
+  // The Project pane counts against what the live routine holds, not against nothing.
+  assert.deepEqual(catalog(s).addition_capacity, { used: 1, limit: 59, confirmed: 8, fits: { slot: 18, table: 59 } });
   assert.ok(save(s, { out: path.join(dir, 'edited.decoded') }).written);
   patch(s, { deps: { build: () => ({ dir, replacements: [] }) } });
   const native = s.lastPatch.native_additions;

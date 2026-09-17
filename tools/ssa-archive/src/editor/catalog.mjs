@@ -77,6 +77,8 @@ function catalogEntry(session, placement, inactiveOffsets) {
 }
 
 let measured = null;
+let liveRows = null;
+const liveCapacity = () => (liveRows ??= nativeCapacity({ layout: 'live' }));
 const measuredCapacity = () =>
   (measured ??= {
     slot: nativeCapacity({}, { scripted: true }),
@@ -94,7 +96,8 @@ export function catalog(session) {
     // (level.prop.native-addition-capacity). Past it a scene is experimental, like its unverified sources.
     addition_capacity: {
       used: session.additions?.length ?? 0,
-      limit: nativeParamsFor(session).available ? measuredCapacity().table : 0,
+      // A level never measured patches the live routine, which holds as many rows as the table.
+      limit: nativeParamsFor(session).available ? measuredCapacity().table : liveCapacity(),
       confirmed: NATIVE_LIMIT,
       fits: measuredCapacity(),
     },
