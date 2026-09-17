@@ -3,24 +3,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { GameSession, gameFromConfig, defaultScript, readScript, local } from '../experiments/run-game.mjs';
+import { GameSession, gameFromConfig, defaultScript, readScript } from '../experiments/run-game.mjs';
 import { defaultFigure } from './dolphin-run.mjs';
 import { compileNativeProbe } from './native-patch.mjs';
-import {
-  installNativePatch,
-  verifyNativeFactory,
-  verifyNativeInstances,
-  readNativeBytes,
-  locateAdditionRows,
-} from './native-run.mjs';
+import { installNativePatch, verifyNativeFactory, inspectAdditions } from './native-run.mjs';
 import { classifyAddition, PROBE_VERSION } from './addition-compatibility.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
-import { ATTEMPT_CREATED, GECKO_AREA, HEAP, INSTANCE, INSTANCE_BYTES, readVector } from './native-layout.mjs';
+import { reportsDir } from './addition-reports.mjs';
 import { ORIGINAL_TUTORIAL_SHA256, isTutorial } from './levels.mjs';
-export const reportsDir = path.join(local, 'addition-validation');
-
-// The probe keeps a margin below the end of MEM1 when it accepts a pointer the factory returned.
-const MAX_INSTANCE_POINTER = 0x817fff00;
+export { reportsDir };
 export function readFamilyReport(family) {
   if (!/^[a-f0-9]{64}$/.test(family ?? '')) return null;
   try {
@@ -29,50 +20,8 @@ export function readFamilyReport(family) {
     return null;
   }
 }
-export async function inspectProbe(additions, read = readNativeBytes, options = {}) {
-  const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
-    located = locateAdditionRows(memory, additions, options),
-    results = [];
-  for (const [index, a] of additions.entries()) {
-    const row = { source: a.source, id: a.id, runtime: 'failed', visual: 'pending', gameplay: 'pending' };
-    const found = located[index][0];
-    if (!found) {
-      results.push({ ...row, reason: 'Probe payload was not consumed.' });
-      continue;
-    }
-    row.attempt = found.attempt;
-    row.pointer = found.pointer;
-    if (row.attempt !== ATTEMPT_CREATED || row.pointer < HEAP.start || row.pointer > MAX_INSTANCE_POINTER) {
-      results.push({
-        ...row,
-        reason: row.attempt ? 'Native factory returned no valid instance.' : 'Source guards have not passed yet.',
-      });
-      continue;
-    }
-    const b = await read(row.pointer, INSTANCE_BYTES);
-    row.bytes_hex = b.toString('hex');
-    row.state = b.readUInt32BE(INSTANCE.state);
-    row.actor = b.readUInt32BE(INSTANCE.actor);
-    row.position = readVector(b, INSTANCE.position);
-    row.heading = b.readFloatBE(INSTANCE.heading);
-    row.parent = b.readUInt32BE(INSTANCE.parent);
-    row.model = b.readUInt32BE(INSTANCE.model);
-    row.script = b.readUInt32BE(INSTANCE.script);
-    try {
-      row.creation = await verifyNativeInstances([a], read, options);
-      row.runtime = 'passed';
-    } catch (e) {
-      row.runtime = 'inconclusive';
-      row.verification_error = e.message;
-    }
-    row.reason =
-      row.runtime === 'passed'
-        ? 'Distinct native instance and actor observed; visual and behavior checks pending.'
-        : 'No matching live actor remains at capture time. The script may have transformed or destroyed the object; this does not prove incompatibility.';
-    results.push(row);
-  }
-  return results;
-}
+// Kept under its first name for the tutorial probe; the launcher and the campaigns use it as inspectAdditions.
+export const inspectProbe = inspectAdditions;
 export async function runAdditionProbe(
   s,
   sources,

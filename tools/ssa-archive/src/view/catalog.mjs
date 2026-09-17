@@ -45,7 +45,7 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     $('object-count').textContent =
       `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families` +
       (capacity
-        ? ` · ${capacity.used}/${capacity.limit} added${capacity.fits ? ` (up to ${capacity.fits.table} fit, unproven)` : ''}`
+        ? ` · ${capacity.used}/${capacity.limit} added${capacity.confirmed ? ` (${capacity.confirmed} confirmed by boots)` : ''}`
         : '');
     const fragment = document.createDocumentFragment();
     if (!rows.length) {

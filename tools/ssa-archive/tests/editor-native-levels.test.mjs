@@ -318,10 +318,11 @@ test('level parameters come from the newest scene snapshot, and from nothing els
   });
   assert.equal(params.anchor.name, 'Barrel_01');
   assert.equal(params.snapshot.run, 'test-run');
-  // With parameters the level's objects become candidates for a test, not additions one can make.
+  // With parameters the level's objects can be added, as experimental additions the next launch verifies.
   const verdict = classifyAddition(s, crate);
   assert.equal(verdict.testable, true);
-  assert.equal(verdict.available, false);
+  assert.equal(verdict.available, true);
+  assert.equal(verdict.experimental, true);
   assert.equal(verdict.status, 'needs_test');
 
   // A snapshot of another version of the level, or one where nothing is active, gives no parameters.
@@ -354,7 +355,16 @@ test('a batch lays its sources on a grid, goes through save, patch and the redir
     dir: s.snapshots_dir,
   });
 
-  assert.throws(() => batchAdditions(s, [camera.offset], { origin: [0, 0, 0] }), /visible model/);
+  // A camera has nothing to draw: it is a source like any other, with a zero model word.
+  const [invisible] = batchAdditions(s, [camera.offset], { origin: [0, 0, 0] });
+  assert.equal(invisible.model, null);
+  assert.equal(invisible.experimental, true);
+  const compiledInvisible = compileNativePatch([invisible], {
+    base: 0x80d00000,
+    anchor: 0x80d00100,
+    context: 'activation',
+  });
+  assert.equal(compiledInvisible.hooks[0].words[(compiledInvisible.records_offset + 0x84) / 4], 0);
   assert.throws(() => batchAdditions(s, [crate.offset, crate.offset], { origin: [0, 0, 0] }), /distinct/);
   assert.throws(() => batchAdditions(s, [crate.offset], { origin: [0, NaN, 0] }), /origin/);
   const additions = batchAdditions(s, [crate.offset, barrel.offset], { origin: [5, 1, -2], spacing: 2, columns: 1 });
@@ -367,7 +377,7 @@ test('a batch lays its sources on a grid, goes through save, patch and the redir
   );
   assert.equal(additions[0].heading, 90);
   // Crate_01 appears twice with the same model: one family, its nearest member first.
-  assert.deepEqual(campaignSources(s, { origin: [29, 0, 7], count: 8 }), [s.placements[3].offset]);
+  assert.deepEqual(campaignSources(s, { origin: [29, 0, 7], count: 8 }), [s.placements[3].offset, camera.offset]);
 
   const runs = [];
   const deps = {
@@ -396,7 +406,13 @@ test('a batch lays its sources on a grid, goes through save, patch and the redir
     },
   };
   const before = fs.readFileSync(s.file);
-  const result = await runLevelBatch(s, { sources: [crate.offset, barrel.offset], origin: [5, 1, -2], deps });
+  const places = { outDir: path.join(dir, 'campaigns'), reports: path.join(dir, 'launch-reports') };
+  const result = await runLevelBatch(s, {
+    sources: [crate.offset, barrel.offset],
+    origin: [5, 1, -2],
+    deps,
+    ...places,
+  });
   assert.ok(fs.readFileSync(s.file).equals(before), 'the opened level is never written');
   const run = runs[0];
   assert.equal(run.mode, 'direct-test');
@@ -441,7 +457,7 @@ test('a batch lays its sources on a grid, goes through save, patch and the redir
 
   // An edited scene is not a batch: the campaign measures sources, not the user's work.
   s.edits.push({ kind: 'transform' });
-  await assert.rejects(runLevelBatch(s, { sources: [crate.offset], origin: [0, 0, 0], deps }), /unedited/);
+  await assert.rejects(runLevelBatch(s, { sources: [crate.offset], origin: [0, 0, 0], deps, ...places }), /unedited/);
 });
 
 test('a source seen alive at a capture but gone at the end is observed, not passed', () => {

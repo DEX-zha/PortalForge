@@ -2,13 +2,17 @@
 // replacing any existing object and without inserting a byte into the level.
 //
 // An addition lives in the session and in a sidecar next to the saved level (<level>.portalforge.json). The
-// level bytes never change for it; the patch carries a Gecko companion compiled by native-patch.mjs. A source
-// may only be added when its recipe and the finding behind it are CONFIRMED and editable.
+// level bytes never change for it; the patch carries a Gecko companion compiled by native-patch.mjs.
+//
+// Any resident object of the level can be a source (feature 007, constitution 1.2.0). A source with a confirmed
+// recipe is a confirmed addition; any other is an experimental addition: marked as such in the session, the
+// sidecar and the patch, created from the activation manager, and verified from memory by every launch that
+// carries it. The proof follows the addition instead of gating it.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { NATIVE_LIMIT, compileNativePatch } from './native-patch.mjs';
+import { compileNativePatch, nativeCapacity } from './native-patch.mjs';
 import { nativeParamsFor } from './native-params.mjs';
 import { sha256 } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
@@ -67,49 +71,78 @@ function recipeFor(placement, offset) {
   });
 }
 
-// Whether the placement at `offset` can be added, and the reason when it cannot. The checks run from the most
-// general to the most specific, and the first that fails is the reason reported.
+// Whether the placement at `offset` can be added, the reason when it cannot, and what stands behind it:
+// `confirmed` when an exact recipe and its finding are CONFIRMED, `experimental` otherwise. The checks run from
+// the most general to the most specific, and the first that fails is the reason reported.
 export function additionSource(session, offset) {
   const placement = placementAt(session, offset);
   const recipe = recipeFor(placement, offset);
+  const params = placement ? nativeParamsFor(session) : null;
   const checks = [
+    [!!placement, 'This object no longer exists.'],
     [findingConfirmed(), 'Native additions are still being validated.'],
-    [
-      session.has_runtime_map && isTutorial(session.archive),
-      'Native additions currently support the tutorial with its runtime map.',
-    ],
-    [recipe && findingConfirmed(recipe.finding), 'This object has not been validated for native addition yet.'],
+    [!placement?.native_addition, 'Add from the original object rather than from one of its copies.'],
+    [params?.available, params?.reason],
     [placement?.scale === ORIGINAL_SCALE, 'The source must keep its original 100% scale for native addition.'],
   ];
   const reason = checks.find(([passes]) => !passes)?.[1] ?? null;
-  return { placement, recipe, available: !reason, reason };
+  const confirmed = !reason && !!recipe && findingConfirmed(recipe.finding) && isTutorial(session.archive);
+  return {
+    placement,
+    recipe,
+    available: !reason,
+    reason,
+    evidence: reason ? null : confirmed ? 'confirmed' : 'experimental',
+  };
 }
 
-// Every addition must still match its confirmed source, and the whole set must compile into the Gecko budget.
+// How the patch of a scene is compiled: the level's own parameters, and the layout that holds the count. The
+// proven slot layout is used for as long as it fits; past it the compact table takes over, which the launch
+// verifies like everything else.
+export function additionCompileOptions(session, additions) {
+  const params = nativeParamsFor(session);
+  if (!params.available) throw Error(params.reason);
+  const count = additions.length;
+  const attempt = layout => {
+    try {
+      compileNativePatch(additions, { ...params.options, layout, limit: Math.max(count, 1) });
+      return true;
+    } catch (e) {
+      if (/capacity/.test(e.message)) return false;
+      throw e;
+    }
+  };
+  if (!count || attempt('slot')) return { ...params.options, layout: 'slot', limit: Math.max(count, 1) };
+  if (attempt('table')) return { ...params.options, layout: 'table', limit: count };
+  throw Error(
+    `This patch holds at most ${nativeCapacity({ ...params.options, layout: 'table' }, { scripted: true })} added objects.`,
+  );
+}
+
+// Every addition must still match its source, and the whole set must compile into the Gecko budget.
 function validateAdditions(session, additions) {
-  if (!Array.isArray(additions) || additions.length > NATIVE_LIMIT) {
-    fail('BAD_ADDITIONS', `At most ${NATIVE_LIMIT} native additions are supported.`);
-  }
+  if (!Array.isArray(additions)) fail('BAD_ADDITIONS', 'Additions must be a list.');
   for (const addition of additions) {
     if (!addition || typeof addition !== 'object') {
       fail('BAD_ADDITIONS', 'Each addition must contain a source and a transform.');
     }
     const source = additionSource(session, addition.source);
     if (!source.available) fail('ADDITION_SOURCE_UNAVAILABLE', source.reason);
-    if (addition.model !== source.placement.model.offset) {
+    if ((addition.model ?? null) !== (source.placement.model?.offset ?? null)) {
       fail('ADDITION_SOURCE_CHANGED', 'An addition source changed its model. Undo that change before exporting.');
     }
-    if ((addition.script ?? null) !== (source.recipe.script?.offset ?? null)) {
-      fail('ADDITION_SOURCE_CHANGED', 'An addition script does not match its confirmed source.');
+    if ((addition.script ?? null) !== (source.placement.behavior?.offset ?? null)) {
+      fail('ADDITION_SOURCE_CHANGED', 'An addition script does not match its source.');
+    }
+    if (!!addition.experimental !== (source.evidence === 'experimental')) {
+      fail('ADDITION_SOURCE_CHANGED', 'The evidence behind an addition changed. Add it again.');
     }
   }
   if (!additions.length) return;
   try {
-    const params = nativeParamsFor(session);
-    if (!params.available) throw Error(params.reason);
-    compileNativePatch(additions, params.options);
+    additionCompileOptions(session, additions);
   } catch (e) {
-    fail('BAD_ADDITIONS', e.message);
+    fail(/holds at most/.test(e.message) ? 'ADDITION_LIMIT' : 'BAD_ADDITIONS', e.message);
   }
 }
 
@@ -135,9 +168,12 @@ export function refreshAdditions(session) {
     copy.scale = addition.scale;
     copy.native_addition = { id: addition.id, source: addition.source };
     copy.shared_state = null;
+    const recipe = additionSource(session, addition.source).recipe;
     copy.evidence = {
       ...copy.evidence,
-      layout: `${additionSource(session, addition.source).recipe.finding} (CONFIRMED)`,
+      layout: addition.experimental
+        ? 'experimental addition: verified from memory by every launch'
+        : `${recipe.finding} (CONFIRMED)`,
     };
     session.placements.push(copy);
   }
@@ -154,20 +190,17 @@ export function applyAddition(session, intent) {
   if (hasUnknownField(intent, ADD_FIELDS)) fail('BAD_ADDITION', 'An addition takes a source and a position.');
   const source = additionSource(session, intent.source);
   if (!source.available) fail('ADDITION_SOURCE_UNAVAILABLE', source.reason);
-  if (additionsOf(session).length >= NATIVE_LIMIT) {
-    fail('ADDITION_LIMIT', `This patch supports at most ${NATIVE_LIMIT} added objects.`);
-  }
-
   const { placement } = source;
   const addition = {
     id: session.next_addition_id ?? -1,
     source: placement.offset,
-    model: placement.model.offset,
+    model: placement.model?.offset ?? null,
     position: intent.position,
     heading: placement.rotation.heading,
     scale: placement.scale,
   };
-  if (source.recipe.script) addition.script = source.recipe.script.offset;
+  if (placement.behavior) addition.script = placement.behavior.offset;
+  if (source.evidence === 'experimental') addition.experimental = true;
   validateAdditions(session, [...additionsOf(session), addition]);
   toStoredPrecision(addition);
 

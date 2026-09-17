@@ -166,14 +166,14 @@ export async function verifyNativeInstances(additions, read = readNativeBytes, o
     // activation context the source may be a stored template, which never has an actor: it is identified by
     // its class and its script instead.
     const sourceValid =
-      a.script == null && context === 'validated'
+      a.script == null && context === 'validated' && !a.experimental
         ? valid(source.readUInt32BE(INSTANCE.actor))
         : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS && source.readUInt32BE(INSTANCE.script) === script;
     if (
       b.readUInt32BE(INSTANCE.class) !== PLACEMENT_CLASS ||
       b.readUInt32BE(INSTANCE.state) !== STATE_ACTIVE ||
       b.readUInt32BE(INSTANCE.parent) !== base + a.source ||
-      b.readUInt32BE(INSTANCE.model) !== base + a.model ||
+      b.readUInt32BE(INSTANCE.model) !== (a.model == null ? 0 : base + a.model) ||
       !valid(b.readUInt32BE(INSTANCE.actor)) ||
       !sourceValid ||
       b.readUInt32BE(INSTANCE.actor) === source.readUInt32BE(INSTANCE.actor) ||
@@ -228,4 +228,53 @@ export async function verifyNativeLifecycle(additions, observations, verify = ve
     if (statics.length) await verify(statics, undefined, options);
     return { ...earlier, lifecycle: 'changed_after_creation', final_verified: false, final_error: error.message };
   }
+}
+
+// One row per addition, whatever happened to it: a campaign and a launch judge many sources at once, and a source
+// that failed is a result to show, not a reason to stop. `verifyNativeInstances` stays the strict check of one
+// addition; this wraps it and adds what the game left in the row and in the instance.
+const MAX_INSTANCE_POINTER = 0x817fff00; // a margin below the end of MEM1 for a pointer the factory returned
+export async function inspectAdditions(additions, read = readNativeBytes, options = {}) {
+  const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
+    located = locateAdditionRows(memory, additions, options),
+    results = [];
+  for (const [index, a] of additions.entries()) {
+    const row = { source: a.source, id: a.id, runtime: 'failed', visual: 'pending', gameplay: 'pending' };
+    const found = located[index][0];
+    if (!found) {
+      results.push({ ...row, reason: 'Probe payload was not consumed.' });
+      continue;
+    }
+    row.attempt = found.attempt;
+    row.pointer = found.pointer;
+    if (row.attempt !== ATTEMPT_CREATED || row.pointer < HEAP.start || row.pointer > MAX_INSTANCE_POINTER) {
+      results.push({
+        ...row,
+        reason: row.attempt ? 'Native factory returned no valid instance.' : 'Source guards have not passed yet.',
+      });
+      continue;
+    }
+    const b = await read(row.pointer, INSTANCE_BYTES);
+    row.bytes_hex = b.toString('hex');
+    row.state = b.readUInt32BE(INSTANCE.state);
+    row.actor = b.readUInt32BE(INSTANCE.actor);
+    row.position = readVector(b, INSTANCE.position);
+    row.heading = b.readFloatBE(INSTANCE.heading);
+    row.parent = b.readUInt32BE(INSTANCE.parent);
+    row.model = b.readUInt32BE(INSTANCE.model);
+    row.script = b.readUInt32BE(INSTANCE.script);
+    try {
+      row.creation = await verifyNativeInstances([a], read, options);
+      row.runtime = 'passed';
+    } catch (e) {
+      row.runtime = 'inconclusive';
+      row.verification_error = e.message;
+    }
+    row.reason =
+      row.runtime === 'passed'
+        ? 'Distinct native instance and actor observed; visual and behavior checks pending.'
+        : 'No matching live actor remains at capture time. The script may have transformed or destroyed the object; this does not prove incompatibility.';
+    results.push(row);
+  }
+  return results;
 }

@@ -9,6 +9,7 @@ import {
   verifyNativeFactory,
   verifyNativeInstances,
   verifyNativeLifecycle,
+  inspectAdditions,
 } from './native-run.mjs';
 import {
   ensureLevelEntry,
@@ -20,6 +21,10 @@ import {
 } from './level-entry.mjs';
 import { setting } from '../../../dolphin-mcp/config.mjs';
 import { isTutorial } from './levels.mjs';
+
+// In play, the additions are looked at every fifth poll (about fifteen seconds), forty times at most.
+const PLAY_LOOK_EVERY = 5;
+const PLAY_LOOKS = 40;
 
 export function defaultFigure() {
   const configured = setting('figure');
@@ -44,6 +49,9 @@ export async function runEditorGame({
   pollMs = 3000,
   entryServices = { confirmed: directEntryConfirmed, prepare: ensureLevelEntry, restore: restoreLevelEntry },
   redirect = null,
+  // Installing the Gecko companion, checking the game's code fingerprints and reading the additions back:
+  // everything that touches the research profile or the live game, so that tests can stand in for it.
+  nativeServices = {},
   // A campaign's view of its additions, one row each, taken at every capture of the level and at the end. With
   // it a source that fails is a result, not a failed run: the batch carries many sources and judges each.
   nativeInspect = null,
@@ -91,11 +99,37 @@ export async function runEditorGame({
   // An abort can arrive while launch is still returning its PID. Do not cache a no-op
   // stop: finally must close the owned process once launch has finished assigning it.
   const stop = () => (game.pid ? (stopped ??= game.stop()) : Promise.resolve(null));
+  // Every run that carries additions inspects each of them, row by row (feature 007): the result is filed per
+  // family by the caller. A run whose additions are all confirmed recipes still fails when one is missing; a run
+  // with experimental additions records the failure and goes on, because the player came to play.
+  const native = patch.native_additions ?? null;
+  const services = {
+    install: installNativePatch,
+    fingerprint: verifyNativeFactory,
+    inspect: inspectAdditions,
+    verify: verifyNativeInstances,
+    ...nativeServices,
+  };
+  const inspectRows = nativeInspect ?? (native ? (rows, opts) => services.inspect(rows, undefined, opts) : null);
+  const tolerant =
+    !!nativeInspect || !!native?.additions.some(a => a.experimental) || native?.options?.layout === 'table';
+  const sample = async capture => {
+    if (!native || !inspectRows) return null;
+    record.native_samples ??= [];
+    try {
+      const rows = await inspectRows(native.additions, native.options ?? {});
+      record.native_samples.push({ capture, rows });
+      return rows;
+    } catch (e) {
+      record.native_samples.push({ capture, rows: [], error: e.message });
+      return null;
+    }
+  };
   const read = async capture => {
     if (!inspect) return;
     record.inspections ??= [];
     try {
-      record.inspections.push({ capture, result: await inspect() });
+      record.inspections.push({ capture, result: await inspect(capture) });
     } catch (e) {
       record.inspections.push({ capture, error: e.message });
     }
@@ -128,7 +162,7 @@ export async function runEditorGame({
     }
     if (patch.native_additions) {
       stage = 'native-install';
-      restoreNative = await installNativePatch(patch.native_additions);
+      restoreNative = await services.install(patch.native_additions);
     }
     stage = 'dolphin-launch';
     onProgress({ phase: 'booting' });
@@ -136,7 +170,7 @@ export async function runEditorGame({
     record.pid = game.pid;
     if (patch.native_additions) {
       stage = 'native-fingerprint';
-      await verifyNativeFactory();
+      await services.fingerprint();
     }
     if (direct) {
       stage = 'entry-restore';
@@ -144,7 +178,7 @@ export async function runEditorGame({
       const restored = await entryServices.restore(game, entry, figure);
       restoreEntry = restored.restore;
       record.entry = restored.proof;
-      if (patch.native_additions) await verifyNativeFactory();
+      if (patch.native_additions) await services.fingerprint();
     }
     stage = testing || direct ? 'macro' : 'playing';
     if (testing || direct) {
@@ -159,21 +193,14 @@ export async function runEditorGame({
           if (/tutorial|arrived/.test(f)) await read(f);
           // Scripted additions may transform or destroy themselves, and additions on another level are judged
           // at every capture once the level is reached: both keep a timeline, not only the final state.
-          const native = patch.native_additions;
           const timeline = native?.additions.some(a => a.script != null) || native?.options?.context === 'activation';
-          if (nativeInspect && native && /tutorial|arrived/.test(f)) {
-            record.native_samples ??= [];
-            record.native_samples.push({
-              capture: f,
-              rows: await nativeInspect(native.additions, native.options ?? {}),
-            });
-          }
+          if (/tutorial|arrived/.test(f)) await sample(f);
           if (timeline && /tutorial|arrived/.test(f)) {
             record.native_observations ??= [];
             try {
               record.native_observations.push({
                 capture: f,
-                ...(await verifyNativeInstances(native.additions, undefined, native.options ?? {})),
+                ...(await services.verify(native.additions, undefined, native.options ?? {})),
               });
             } catch (e) {
               record.native_observations.push({ capture: f, verified: false, reason: e.message });
@@ -189,17 +216,13 @@ export async function runEditorGame({
       await read(null);
       if (!record.consumption.verified)
         throw new Error('The file monitor did not prove that Dolphin consumed this rebuilt archive');
-      if (patch.native_additions && nativeInspect) {
-        record.native_samples ??= [];
-        record.native_samples.push({
-          capture: null,
-          rows: await nativeInspect(patch.native_additions.additions, patch.native_additions.options ?? {}),
-        });
+      if (native) await sample(null);
+      if (native && tolerant) {
         try {
           record.native_additions = await verifyNativeLifecycle(
             patch.native_additions.additions,
             record.native_observations ?? [],
-            undefined,
+            services.verify,
             patch.native_additions.options ?? {},
           );
         } catch (e) {
@@ -209,7 +232,7 @@ export async function runEditorGame({
         record.native_additions = await verifyNativeLifecycle(
           patch.native_additions.additions,
           record.native_observations ?? [],
-          undefined,
+          services.verify,
           patch.native_additions.options ?? {},
         );
       record.status = 'MACRO_COMPLETED';
@@ -217,11 +240,22 @@ export async function runEditorGame({
     if (!testing) {
       if (!direct) await game.loadFigure(figure, 1);
       onProgress({ phase: 'playing', pid: game.pid });
+      // While the player plays, look at the additions now and then until each has been seen alive: in classic
+      // play the level is reached by hand, and a pickup may be collected long before the game closes.
+      let polls = 0,
+        looks = 0,
+        settled = !native;
       for (;;) {
         signal?.throwIfAborted();
         if (!(await game.json('dolphin_status')).pid) break;
         consumption();
         onProgress({ phase: 'playing', pid: game.pid, consumption: record.consumption });
+        if (!settled && ++polls % PLAY_LOOK_EVERY === 0 && looks < PLAY_LOOKS) {
+          looks++;
+          const rows = await sample('playing');
+          const seen = id => record.native_samples.some(s => s.rows.some(r => r.id === id && r.runtime === 'passed'));
+          settled = !!rows && native.additions.every(a => seen(a.id));
+        }
         await sleep(pollMs, undefined, { signal });
       }
       record.status = 'CLOSED';

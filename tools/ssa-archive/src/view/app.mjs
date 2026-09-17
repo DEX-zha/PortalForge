@@ -772,6 +772,7 @@ async function pollLaunch() {
               ? 'Macro completed, Dolphin closed.'
               : 'Game closed.') +
             (b.launch?.consumption?.verified ? ' Patch consumption confirmed.' : '') +
+            addedObjectsNote(b.launch?.additions) +
             (b.launch?.screenshots?.length
               ? ` ${b.launch.screenshots.length} screenshots saved in .local/dolphin-evidence/.`
               : ''),
@@ -779,6 +780,21 @@ async function pollLaunch() {
     refreshSaveState();
   };
   tick();
+}
+
+// What the run read back about the added objects (feature 007): how many the game created, and the first one it
+// did not, with the reason. The same verdicts are filed per family and shown on the cards.
+function addedObjectsNote(additions) {
+  if (!additions?.length) return '';
+  const created = additions.filter(a => a.runtime === 'passed').length;
+  const gone = additions.filter(a => a.runtime === 'observed').length;
+  const failed = additions.filter(a => a.runtime === 'failed');
+  return (
+    ` Added objects: ${created} of ${additions.length} verified in game` +
+    (gone ? `, ${gone} created then removed by their script` : '') +
+    (failed.length ? `, ${failed.length} not created (${failed[0].reason})` : '') +
+    '.'
+  );
 }
 
 // ---------------------------------------------------------------------------------------------------------

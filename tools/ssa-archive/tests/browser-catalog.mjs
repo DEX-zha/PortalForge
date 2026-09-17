@@ -106,7 +106,11 @@ try {
   const capacity = await evaluate(
     `(async()=>{const b=await(await fetch('/api/catalog')).json();return {capacity:b.addition_capacity,available:b.entries.filter(e=>e.addition.available).length};})()`,
   );
-  assert.deepEqual(capacity, { capacity: { used: 0, limit: 8, fits: { slot: 18, table: 59 } }, available: 9 });
+  // Feature 007: every object of the level can be added; eight is what two boots confirmed, 59 what a patch holds.
+  assert.deepEqual(capacity, {
+    capacity: { used: 0, limit: 59, confirmed: 8, fits: { slot: 18, table: 59 } },
+    available: 673,
+  });
   assert.equal(await evaluate(`document.getElementById('skip-intro').checked`), false, 'opening is kept by default');
   await evaluate(`document.getElementById('skip-intro').click()`);
   await send('Page.reload');
@@ -373,14 +377,17 @@ try {
     for (let count = 3; count <= 8; count++) {
       await drop({ x: 0.35 + (count % 3) * 0.12, y: 0.5 + (count % 2) * 0.18 });
       await waitFor(
-        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/8 added')`,
+        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/59 added')`,
       );
       assert.equal(session.additions.length, count);
     }
-    const full = structuredClone(session.additions);
+    // Eight is no longer a wall: a ninth addition is accepted, and undone here to keep the proven scene.
     await drop();
-    await waitFor("document.getElementById('status-tip').textContent.includes('at most 8')");
-    assert.deepEqual(session.additions, full);
+    await waitFor('document.querySelector(\'[data-hierarchy="-9"]\')');
+    assert.equal(session.additions.length, 9);
+    await evaluate("document.getElementById('undo').click()");
+    await waitFor('!document.querySelector(\'[data-hierarchy="-9"]\')');
+    const full = structuredClone(session.additions);
     await evaluate("document.getElementById('undo').click()");
     await waitFor('!document.querySelector(\'[data-hierarchy="-8"]\')');
     assert.equal(session.additions.length, 7);

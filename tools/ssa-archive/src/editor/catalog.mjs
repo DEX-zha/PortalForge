@@ -9,6 +9,7 @@ import { interchangeable, planReplace, applyEdit } from './session.mjs';
 import { classifyAddition, groupCandidates } from './addition-compatibility.mjs';
 import { readFamilyReport } from './addition-probe.mjs';
 import { NATIVE_LIMIT, nativeCapacity } from './native-patch.mjs';
+import { nativeParamsFor } from './native-params.mjs';
 
 const TOKEN_BYTES = 24;
 
@@ -89,9 +90,14 @@ export function catalog(session) {
   for (const entry of entries) counts[entry.addition.status] = (counts[entry.addition.status] ?? 0) + 1;
   return {
     addition_mode: 'native',
-    // `limit` is what two identical boots confirmed (level.prop.native-addition-capacity); `fits` is what the
-    // Gecko budget holds by measurement, waiting for its own boots (feature 007).
-    addition_capacity: { used: session.additions?.length ?? 0, limit: NATIVE_LIMIT, fits: measuredCapacity() },
+    // `limit` is what one patch holds by measurement; `confirmed` is the count two identical boots proved
+    // (level.prop.native-addition-capacity). Past it a scene is experimental, like its unverified sources.
+    addition_capacity: {
+      used: session.additions?.length ?? 0,
+      limit: nativeParamsFor(session).available ? measuredCapacity().table : 0,
+      confirmed: NATIVE_LIMIT,
+      fits: measuredCapacity(),
+    },
     entries,
     compatibility: { counts, families: groupCandidates(session) },
   };

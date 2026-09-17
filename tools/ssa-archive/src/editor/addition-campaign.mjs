@@ -8,14 +8,16 @@
 // end (addition-probe.mjs `inspectProbe`): class, state, actor, parent, model, script and the transform that was
 // asked for.
 //
-// A batch result never makes anything editable. It writes one report per family, which the catalogue shows as
-// "Visual check pending", and findings stay a human decision on two identical boots.
+// A batch confirms nothing by itself. It writes one report per family, which the catalogue shows next to Add as
+// "verified in game"; findings stay a human decision on two identical boots.
 import fs from 'node:fs';
 import path from 'node:path';
 import { classifyAddition, groupCandidates, PROBE_VERSION } from './addition-compatibility.mjs';
+import { additionSource } from './native-additions.mjs';
 import { compileNativeProbe, nativeCapacity } from './native-patch.mjs';
 import { nativeParamsFor } from './native-params.mjs';
-import { inspectProbe, reportsDir } from './addition-probe.mjs';
+import { inspectAdditions } from './native-run.mjs';
+import { judgeRun, fileLaunchReports, reportsDir } from './addition-reports.mjs';
 import { redirectFor } from './save.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
@@ -31,19 +33,24 @@ const levelSlug = archive =>
 
 // One representative per testable family, nearest to `origin` first: a source the player is close to is active
 // (or its template is resident) when the additions are created, and the batch stands where the captures look.
-export function campaignSources(session, { origin, count, exclude = [] } = {}) {
+export function campaignSources(session, { origin, count, exclude = [], visibleOnly = false } = {}) {
   const distance = p => Math.hypot(p.position[0] - origin[0], p.position[2] - origin[2]);
   const byOffset = new Map(session.placements.map(p => [p.offset, p]));
   const skip = new Set(exclude);
-  return groupCandidates(session)
-    .filter(family => !skip.has(family.family))
-    .map(family => {
-      const members = family.members.map(o => byOffset.get(o)).sort((a, b) => distance(a) - distance(b));
-      return { family: family.family, placement: members[0], distance: distance(members[0]) };
-    })
-    .sort((a, b) => a.distance - b.distance || a.placement.offset - b.placement.offset)
-    .slice(0, count)
-    .map(row => row.placement.offset);
+  return (
+    groupCandidates(session)
+      .filter(family => !skip.has(family.family))
+      // Objects with nothing to draw include a level's singletons (its master script, its cutscene directors):
+      // a capacity experiment leaves them out, a level campaign takes them with a savestate at hand.
+      .filter(family => !visibleOnly || (family.model && !/inviso\.mdl$/i.test(family.model)))
+      .map(family => {
+        const members = family.members.map(o => byOffset.get(o)).sort((a, b) => distance(a) - distance(b));
+        return { family: family.family, placement: members[0], distance: distance(members[0]) };
+      })
+      .sort((a, b) => a.distance - b.distance || a.placement.offset - b.placement.offset)
+      .slice(0, count)
+      .map(row => row.placement.offset)
+  );
 }
 
 // The additions of a batch: each source copied onto a grid that starts at `origin` and grows along x then z,
@@ -61,8 +68,10 @@ export function batchAdditions(session, sources, { origin, spacing = 2.5, column
     return {
       id: -i - 1,
       source: placement.offset,
-      model: placement.model.offset,
+      model: placement.model?.offset ?? null,
       script: placement.behavior?.offset ?? null,
+      // Anything without its own confirmed recipe is created from the activation manager (native-patch.mjs).
+      ...(additionSource(session, placement.offset).evidence === 'confirmed' ? {} : { experimental: true }),
       position: [
         Math.fround(origin[0] + (i % columns) * spacing),
         Math.fround(origin[1]),
@@ -74,31 +83,24 @@ export function batchAdditions(session, sources, { origin, spacing = 2.5, column
   });
 }
 
-// What one boot says about each source: `passed` when the final inspection found a live, distinct instance that
-// matches the request; `observed` when an earlier capture did but the end did not (a script may have transformed
-// or destroyed it); `failed` otherwise, with the reason of the last inspection.
-export function judgeRun(additions, samples = []) {
-  const last = samples.at(-1)?.rows ?? [];
-  return additions.map(addition => {
-    const final = last.find(row => row.id === addition.id) ?? null;
-    const seen = samples.some(sample => sample.rows.some(row => row.id === addition.id && row.runtime === 'passed'));
-    const runtime = final?.runtime === 'passed' ? 'passed' : seen ? 'observed' : 'failed';
-    return {
-      id: addition.id,
-      source: addition.source,
-      runtime,
-      reason: final?.reason ?? 'The batch was never inspected.',
-      verification_error: final?.verification_error ?? null,
-      state: final?.state ?? null,
-      actor: final?.actor ?? null,
-      position: final?.position ?? null,
-    };
-  });
-}
+export { judgeRun };
 
 export async function runLevelBatch(
   session,
-  { sources, origin, spacing, columns, layout = 'slot', mode = null, deps, prediction = '', log = () => {} } = {},
+  {
+    sources,
+    origin,
+    spacing,
+    columns,
+    layout = 'slot',
+    mode = null,
+    deps,
+    prediction = '',
+    log = () => {},
+    reports = reportsDir,
+    outDir = campaignsDir,
+    inspect = null,
+  } = {},
 ) {
   if (session.dirty || session.edits.length || hash(session.buffer) !== session.original_sha256)
     throw Error('A batch runs on the unedited level: reset the scene before testing sources.');
@@ -116,7 +118,7 @@ export async function runLevelBatch(
   const tutorial = isTutorial(session.archive);
   mode ??= tutorial ? 'test' : 'direct-test';
   const slug = levelSlug(session.archive);
-  const dir = path.join(campaignsDir, slug);
+  const dir = path.join(outDir, slug);
   fs.mkdirSync(dir, { recursive: true });
   const unedited = path.join(dir, `${slug}.batch.decoded`);
   fs.writeFileSync(unedited, session.buffer);
@@ -153,7 +155,9 @@ export async function runLevelBatch(
       prediction:
         prediction ||
         `${additions.length} added objects stand on a grid from ${origin.map(n => n.toFixed(1)).join(', ')}, created by the game itself.`,
-      nativeInspect: (rows, opts) => inspectProbe(rows, undefined, opts),
+      nativeInspect: (rows, opts) => inspectAdditions(rows, undefined, opts),
+      // A probe's own reading next to the rows: what a spawner left behind, for one.
+      ...(inspect ? { inspect: capture => inspect({ params, additions, capture }) } : {}),
     });
   } catch (e) {
     error = e.message;
@@ -177,11 +181,15 @@ export async function runLevelBatch(
     params: { base: params.base, anchor: params.anchor, snapshot: params.snapshot ?? null },
     options: recipe.options,
     bytes: recipe.bytes,
+    recipe_sha256: hash(recipe.ini),
     origin,
     additions,
     results,
     whole_batch: record?.native_additions ?? null,
+    inspections: record?.inspections ?? null,
   };
+  // The cards of these families show what this boot saw, like after any launch.
+  if (record?.native_samples?.length) fileLaunchReports(session, results, { run: record.id, dir: reports });
   const out = path.join(dir, `batch-${started.replace(/[:.]/g, '-')}.json`);
   fs.writeFileSync(out, JSON.stringify(batch, null, 2));
   return { ...batch, file: out };

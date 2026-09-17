@@ -10,9 +10,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { authorisedWords } from './session.mjs';
 import { FIELDS } from '../igz/model-resolve.mjs';
-import { currentAdditionRecipe, additionsDigest, saveAdditionSidecar } from './native-additions.mjs';
+import {
+  currentAdditionRecipe,
+  additionsDigest,
+  saveAdditionSidecar,
+  additionCompileOptions,
+} from './native-additions.mjs';
 import { compileNativePatch } from './native-patch.mjs';
-import { nativeParamsFor } from './native-params.mjs';
+import { judgeRun, fileLaunchReports } from './addition-reports.mjs';
 import { validateSkipIntro } from './level-entry.mjs';
 import { isTutorial } from './levels.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
@@ -252,9 +257,13 @@ export function patch(session, { deps = {} } = {}) {
   if (session.lastSave.additions?.length) {
     // The level's own base and anchor; the tutorial's are the compiler's defaults. The options are kept with the
     // patch so that the installer recompiles the very same bytes.
-    const params = (deps.nativeParams ?? nativeParamsFor)(session);
-    if (!params.available) fail('NO_NATIVE_PARAMETERS', params.reason);
-    const recipe = compileNativePatch(session.lastSave.additions, params.options),
+    let options;
+    try {
+      options = additionCompileOptions(session, session.lastSave.additions);
+    } catch (e) {
+      fail('NO_NATIVE_PARAMETERS', e.message);
+    }
+    const recipe = compileNativePatch(session.lastSave.additions, options),
       file = path.join(result.dir, 'portalforge-additions.ini');
     fs.writeFileSync(file, recipe.ini);
     native_additions = {
@@ -398,6 +407,26 @@ export async function launch(
       current.status = record?.status ?? null;
       current.consumption = record?.consumption ?? null;
       current.screenshots = record?.screenshots ?? [];
+      // What the game said about each added object, shown with the launch and filed under its family: this is
+      // how an experimental addition earns its evidence (feature 007).
+      const carried = runPatch.native_additions;
+      if (carried && record?.native_samples?.some(sample => sample.rows?.length)) {
+        const results = judgeRun(carried.additions, record.native_samples);
+        current.additions = results.map(({ id, source, runtime, reason, verification_error }) => ({
+          id,
+          source,
+          runtime,
+          reason: verification_error ?? reason,
+        }));
+        try {
+          fileLaunchReports(session, results, {
+            run: record.id,
+            ...(deps.reportsDir ? { dir: deps.reportsDir } : {}),
+          });
+        } catch (e) {
+          current.additions_report_error = e.message;
+        }
+      }
       return record;
     })
     .catch(e => {

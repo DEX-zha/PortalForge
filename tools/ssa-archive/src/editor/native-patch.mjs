@@ -132,14 +132,17 @@ export function nativeOptions(options = {}) {
 export function compileNativePatch(additions, options = {}) {
   const settings = nativeOptions(options);
   const everything = settings.context === 'activation';
-  const scripted = Array.isArray(additions) && additions.some(a => a?.script != null);
+  // Scripted sources and experimental ones (any source without its own confirmed recipe, a stored template for
+  // one) are created from the activation manager; a confirmed script-less source keeps its validated hook.
+  const viaActivation = a => a?.script != null || a?.experimental === true;
+  const scripted = Array.isArray(additions) && additions.some(viaActivation);
   // Validate the whole request before partitioning: IDs and capacity are global.
   const result = compile(additions, { ...options, ...settings, probe: everything || scripted });
-  if (everything || !scripted || additions.every(a => a.script != null)) return { ...result, options: settings };
+  if (everything || !scripted || additions.every(viaActivation)) return { ...result, options: settings };
   // Keep each recipe's independently validated call context in mixed batches.
   const parts = [false, true].map(probe =>
     compile(
-      additions.filter(a => (a.script != null) === probe),
+      additions.filter(a => viaActivation(a) === probe),
       { ...options, ...settings, probe },
     ),
   );
@@ -208,7 +211,8 @@ function compile(
     if (!a || !Number.isInteger(a.id) || a.id < -2147483648 || a.id >= 0 || ids.has(a.id))
       throw Error('Addition identities must be distinct negative int32 integers');
     ids.add(a.id);
-    for (const k of ['source', 'model'])
+    // A source with nothing to draw (a trigger, a spawner) has no model record: its model word is zero.
+    for (const k of a.model == null ? ['source'] : ['source', 'model'])
       if (!Number.isInteger(a[k]) || a[k] < 0 || base + a[k] + 0xf8 >= MEM1_END || a[k] % 4)
         throw Error('Invalid resident source/model offset');
     if (
@@ -415,7 +419,7 @@ function compile(
       a.position.forEach((v, i) => (words[TABLE.position / 4 + i] = floatWord(v)));
       words[TABLE.source / 4] = base + a.source;
       words[TABLE.heading / 4] = floatWord(a.heading);
-      words[TABLE.model / 4] = base + a.model;
+      words[TABLE.model / 4] = a.model == null ? 0 : base + a.model;
       words[TABLE.script / 4] = script;
     } else {
       words[0] = NATIVE_MAGIC;
@@ -424,7 +428,7 @@ function compile(
       words[0x2c / 4] = base + a.source;
       words[0x70 / 4] = floatWord(a.heading);
       for (const o of [0x78, 0x7c, 0x80]) words[o / 4] = floatWord(a.scale);
-      words[0x84 / 4] = base + a.model;
+      words[0x84 / 4] = a.model == null ? 0 : base + a.model;
       if (probe) words[0x88 / 4] = script;
     }
     words.forEach(w => p.emit(w));

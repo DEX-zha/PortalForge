@@ -15,22 +15,31 @@ and every boot waits for the user's go-ahead. Paths are relative to the reposito
 - [x] A03 Any resident source as a test candidate: a level with snapshot parameters classifies its objects as
       "Needs test" instead of "Blocked" (Mining: 153 testable families); Add stays reserved to confirmed
       recipes. The one-source probe of the tutorial refuses other levels and names the batch probe.
-- [ ] A04 Experiment A1, two boots: eight additions on Mining with the snapshot's base and anchor, four from active
-      placements and four from stored templates, one of them script-less (prepared, dry run clean):
-      `node research-probes/native-level-probe.mjs --level Level_000_Mining --origin 75,10.8,-46 --columns 4
-      --sources "Lantern_01,gem_emerald(2),MiningWall_1(3),amethyst,Rock_Breakable_Half,Food_Pizza,Helmet,Key Pickup"`.
-- [ ] A05 Experiment A2, two boots: 32 additions across eight families on Mining, all verified in memory.
-- [ ] A06 Findings `level.prop.native-addition.<level>` per level booted; the tutorial keeps its own.
+- [x] A04 Experiment A1, two boots on 2026-09-17: eight additions on Mining with the snapshot's base and anchor,
+      four from active placements and four from stored templates, one of them script-less. 8 of 8 created on both
+      boots, the same compiled recipe ([validation](validation.md)).
+- [x] A05 Experiment A2, two boots on 2026-09-17: 32 additions of 32 families with the table layout. 32 of 32
+      created on both boots, each with its own heading; the same ten removed afterwards by their own scripts.
+- [x] A06 Findings `level.prop.native-addition-other-levels` and `level.prop.native-addition-table-layout`, both
+      LIKELY: memory proves creation, nobody has looked at the screen yet. CONFIRMED needs that look (a direct-play
+      launch) and, for other levels, their own boots.
 
 ## Phase S — Add anything, verify fast, hold more ([study](study-add-anything.md))
 
-- [ ] S01 Constitution amendment, `AGENTS.md` and this plan's check: experimental additions (allowed, labelled,
-      verified by every launch, CONFIRMED only after two passing launches); storage reserved through the OS arena.
-- [ ] S02 Any resident record addable: the recipe lookup stops gating; model-less sources (model word zero) and
-      sources at another scale; an addition of an addition resolves to its source. Cards show evidence, not a
-      verdict: verified n times, not verified yet, failed with the reason.
-- [ ] S03 Every launch inspects its additions row by row and files the family reports; a failed source is a
-      result on its card, not a failed run.
+- [x] S01 Constitution 1.2.0 and `AGENTS.md`: the experimental addition (allowed, marked, verified by every run
+      that carries it, never called confirmed). Storage reserved through the OS arena waits for S08.
+- [x] S02 Any resident record addable (`native-additions.mjs`, `addition-compatibility.mjs`): the recipe lookup no
+      longer gates; a source without its own confirmed recipe gives an addition marked `experimental`, created from
+      the activation manager; objects with nothing to draw carry a zero model word; an addition of an addition is
+      refused with the reason; past 18 additions the scene compiles as the table layout. Cards say Add with the
+      evidence: confirmed, verified in game, related source tested, failed in game, not verified. Only a level
+      without a scene snapshot, or a source at another scale, is blocked.
+- [x] S03 Every run inspects its additions row by row at the captures of the level, during play and at the end
+      (`inspectAdditions`), a run with experimental additions goes on when one is missing, and the launch files the
+      verdict per family with its launches (`addition-reports.mjs`); the launch note says how many were verified.
+- [x] S03a First use on enemies: four model-less enemy set-ups of Mining (`Intro_Elemental_Swarmer(1)`,
+      `Intro_Elemental_Near(6)`, `Intro_Elemental_Heavy(1)`, `Intro_Enemy_Thief(1)`) were created, 4 of 4, then
+      removed themselves once their script had run; what they leave behind is read by `--scan`.
 - [ ] S04 Generic routine: count, anchor and table address read from the header; an empty table is inert.
       The tutorial's compiled recipe stays available unchanged.
 - [ ] S05 Live table: the launcher locates the level at arrival, picks the anchor from what is active, writes the

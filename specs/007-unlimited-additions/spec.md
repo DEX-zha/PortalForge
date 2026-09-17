@@ -5,8 +5,10 @@
 
 **Created**: 2026-09-17
 
-**Status**: Phase A implemented and tested without a boot (2026-09-17); every capability below stays UNKNOWN
-until its experiments run. See [tasks](tasks.md).
+**Status**: Phase A booted and S01 to S03 implemented (2026-09-17): additions work on Mining from placed objects
+and stored templates (8 of 8, two boots), 32 fit in one patch (32 of 32, two boots), and every object of a level
+with a scene snapshot can be added, verified by each launch. Rendering has not been looked at yet. See
+[validation](validation.md) and [tasks](tasks.md).
 
 **Input**: User request (translated from French): "Analyse the project and everything we did. We still cannot add
 as many objects as we want, and we cannot add objects from other levels, which is limiting. Make that possible:

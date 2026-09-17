@@ -50,9 +50,9 @@ builds on the compact table.
 M0..M3 PASS. Phase A widens a CONFIRMED recipe to other levels and to more sources: each level and each family is
 promoted by its own boots, none by analogy. Phase B makes a new property editable only after its own two-boot
 confirmations. Phase C is M4A research: no import is exposed as editable before a level has loaded with it twice.
-The validation engine changes one rule and says so: a family is promoted by a batch in which every tested member
-was verified, instead of one exact source per pair of boots; that amendment is proposed to the constitution below
-and needs the user's decision. No IGZ insertion is attempted outside phase C's experiments, which run on copies.
+Constitution 1.2.0 (2026-09-17, the user's decision) defines the experimental addition: any source may be added
+with the confirmed recipe, marked as experimental and verified from memory by every run that carries it; it is
+never reported as confirmed, and a family still becomes a finding only through two identical boots and review. No IGZ insertion is attempted outside phase C's experiments, which run on copies.
 
 ## Phase A — Native additions on every level, without the cap of eight
 
