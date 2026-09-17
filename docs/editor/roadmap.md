@@ -18,8 +18,8 @@ does. Gates: M0–M3 PASS, M4A/M4B/M5 UNKNOWN.
 
 | Item | Finding | Cost | Recommendation |
 |---|---|---|---|
-| "The view shows the level before its opening" | Measured false on Mining: 3 of 617 objects move at start-up, 313 are dormant until approached, the stored positions are the game's | done | show the runtime state per object (active, dormant, template, finished) from one probe boot per level |
-| Missing clones at puzzles | the script layer keys on the tutorial's class indices, so no script is read on other levels | 1 to 2 days | detect the script class structurally per file and generalise the clone-at-controller previews |
+| "The view shows the level before its opening" | Measured false on Mining: 3 of 617 objects move at start-up, 313 are dormant until approached, the stored positions are the game's | **delivered**: the As in game layer draws a snapshot read from Dolphin (`level.runtime.scene-snapshot`) | capture a snapshot per level from the editor while it plays |
+| Missing clones at puzzles | the objects a script creates (cannon, push-block art, fan blades, pick, key) are placement instances the game allocates at run time | **delivered in the snapshot**: created instances are found by their class pointer and drawn with their template's model | the script layer per file (class indices are the tutorial's) remains the way to show them without a boot |
 | Textures | section 4 is CMPR, 224 images on Mining, UVs already parsed but not emitted, no image header layout yet | 2 to 3 days, read-only | after the two above; re-tile CMPR to DXT1 for the browser's S3TC path |
 | Lights | one directional light and ambient per level | half a day | with textures |
 | VFX | 4 500 particle definitions on Mining, no static appearance | not worth rendering | an emitter marker |

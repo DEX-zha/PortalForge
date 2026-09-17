@@ -1,18 +1,15 @@
-// Runtime probe of placement instances on a level reached through the archive redirect (feature 006).
+// Runtime probe of placement records on a level reached through the archive redirect (feature 006).
 //
-// Boots the level in direct play through the editor's own path, and once the game is playing reads the
-// constructed placement records in MEM1: the class word, the +0x54 state, the stored and current positions.
-// The point is to check, in the running game, which stored records are templates or inactive objects (bit 0 of
-// +0x54 in the file, scene-roles.mjs) and which are placed: a template must not be constructed at its storage
-// coordinates. One Dolphin boot; the game is stopped as soon as the reads are done.
+// Boots the level in direct play through the editor's own path and, once the game is playing, takes a scene
+// snapshot with src/editor/scene-snapshot.mjs: every record's runtime state (active, dormant, finished,
+// template), its actor and where it stands against where the file stores it. The snapshot lands under
+// .local/dolphin-evidence/scene-snapshots/<level>/ where the editor's "As in game" layer reads it. One Dolphin
+// boot; the game is stopped as soon as the read is done. research-probes/actor-probe.mjs goes further and
+// enumerates the live actors.
 //
-//   node research-probes/instance-probe.mjs [--level Level_000_Mining] [--names "A,B,C"] [--anchor MineTrain] [--all]
+//   node research-probes/instance-probe.mjs [--level Level_000_Mining] [--names "A,B,C"]
 //
-// --all reads every placement of the level instead of the named ones and reports which objects the game moved
-// between its stored position and the first playable frame (the opening cutscene included).
-//
-// The resident copy of section 1 is located by searching MEM1 for the anchor's stored position triple (floats
-// are not rewritten by the loader, pointers are), then checked on a second placement before anything is read.
+// --names prints the named records in detail after the summary.
 import fs from 'node:fs';
 import path from 'node:path';
 import { openLevel } from '../src/editor/level-open.mjs';
@@ -20,37 +17,30 @@ import { applyEdit } from '../src/editor/session.mjs';
 import { save, patch, launch } from '../src/editor/save.mjs';
 import { editorDeps } from '../src/cli/commands/edit.mjs';
 import { local } from '../src/experiments/run-game.mjs';
-import { bridgeCall } from '../../dolphin-mcp/runtime.mjs';
-import { INSTANCE } from '../src/editor/native-layout.mjs';
+import { readNativeBytes } from '../src/editor/native-run.mjs';
+import { captureSceneSnapshot, saveSnapshot } from '../src/editor/scene-snapshot.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : fallback;
 };
 const level = arg('--level', 'Level_000_Mining');
-const anchorName = arg('--anchor', 'MineTrain');
-const all = process.argv.includes('--all');
-const names = arg(
-  '--names',
-  'MineTrain,Lantern_01,MiningWall_1(3),Rock_Breakable_Half,Rock_Breakable_Quarter,Rock_Breakable_Full,Switch_90_Art_Template,Mine_Train_Template,Rock_Bit_1,OilCan_Icon,Elemental_Gate_Template,Automaton_Head,Spring,01_loot - gem_emerald',
-).split(',');
+const names = arg('--names', '')
+  .split(',')
+  .map(n => n.trim())
+  .filter(Boolean);
 const log = line => console.error(new Date().toISOString().slice(11, 19) + ' ' + line);
 
 const s = await openLevel(level, { log });
-const byName = name => s.placements.find(p => p.name === name.trim());
-const anchor = byName(anchorName);
-if (!anchor) throw new Error(`no placement named ${anchorName}`);
-const check = s.placements.find(p => p.name === 'Lantern_01') ?? s.placements.find(p => p !== anchor && p.model?.path);
-const sec = s.graph.sections[s.graph.object_section];
-const fileWord = (p, at) => s.buffer.readUInt32BE(p.offset + at);
-const fileState = p => fileWord(p, 0x54);
+if (!s.level.capabilities.direct_entry.available)
+  throw new Error('direct entry is not offered on this level: ' + s.level.capabilities.direct_entry.why);
 
 // The same harmless edit as the redirect proofs, so the patch and its checkpoint are reused.
-const emerald = byName('01_loot - gem_emerald') ?? s.placements.find(p => p.model?.path && !p.behavior);
+const prop = s.placements.find(p => p.name === '01_loot - gem_emerald') ?? s.placements.find(p => p.model?.path);
 applyEdit(s, {
   kind: 'transform',
-  target: emerald.offset,
-  position: [emerald.position[0], emerald.position[1] + 8, emerald.position[2]],
+  target: prop.offset,
+  position: [prop.position[0], prop.position[1] + 8, prop.position[2]],
 });
 const outDir = path.join(local, 'level-check');
 fs.mkdirSync(outDir, { recursive: true });
@@ -60,138 +50,40 @@ const deps = editorDeps({});
 patch(s, { deps });
 if (!s.lastPatch.redirect) throw new Error('the patch carries no redirect descriptor');
 
-const readBytes = async (address, n) => Buffer.from(await bridgeCall('memory.read_bytes', [address, n]), 'hex');
-// The stored position triple, taken from the FILE bytes so no rounding enters the pattern.
-const triple = p => s.buffer.subarray(p.offset + 0x24, p.offset + 0x30);
-
-async function locateBase() {
-  const pattern = triple(anchor);
-  const MEM1 = [0x80000000, 0x81800000];
-  const CHUNK = 0x10000;
-  for (let at = MEM1[0]; at < MEM1[1]; at += CHUNK - 16) {
-    const n = Math.min(CHUNK, MEM1[1] - at);
-    let buf;
-    try {
-      buf = await readBytes(at, n);
-    } catch (e) {
-      log(`read ${at.toString(16)} failed: ${e.message}`);
-      continue;
-    }
-    let i = buf.indexOf(pattern);
-    while (i >= 0) {
-      const base = at + i - (anchor.offset + 0x24);
-      const probe = await readBytes(base + check.offset + 0x24, 12);
-      if (probe.equals(triple(check))) return base;
-      i = buf.indexOf(pattern, i + 1);
-    }
-  }
-  return null;
-}
-
-const result = { level, anchor: anchorName, base: null, instances: [], started: new Date().toISOString() };
 const controller = new AbortController();
 let probing = false;
+let result = null;
 async function probe() {
   probing = true;
   try {
-    log('locating the resident section in MEM1');
-    const base = await locateBase();
-    if (base === null) throw new Error('the anchor position was not found in MEM1');
-    result.base = '0x' + base.toString(16);
-    log(`section base 0x${base.toString(16)} (file section offset 0x${sec.offset.toString(16)})`);
-    if (all) {
-      // Every placement of the level: the resident section is read once, contiguously, then each record is
-      // compared with the file. What the game moved at start-up shows as a current position away from the
-      // stored one; what it never instantiated shows as state 5 without an actor.
-      const size = sec.offset + sec.size;
-      const resident = Buffer.alloc(size);
-      const CHUNK = 0x10000;
-      for (let at = 0; at < size; at += CHUNK) {
-        const n = Math.min(CHUNK, size - at);
-        (await readBytes(base + at, n)).copy(resident, at);
-      }
-      log(`resident section read: ${size} bytes`);
-      const rows = [];
-      for (const p of s.placements) {
-        if (p.native_addition || p.offset < 0 || p.offset + 0x100 > size) continue;
-        const head = resident.subarray(p.offset, p.offset + 0x100);
-        const pos = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.position + k));
-        const cur = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.current_position + k));
-        const moved = Math.hypot(cur[0] - pos[0], cur[1] - pos[1], cur[2] - pos[2]);
-        const stored = [0, 4, 8].map(k => s.buffer.readFloatBE(p.offset + 0x24 + k));
-        const written = Math.hypot(pos[0] - stored[0], pos[1] - stored[1], pos[2] - stored[2]);
-        rows.push({
-          name: p.name,
-          offset: p.offset,
-          file_state: fileState(p),
-          ram_state: head.readUInt32BE(INSTANCE.state),
-          actor: head.readUInt32BE(INSTANCE.actor) !== 0,
-          stored_position: pos.map(v => Math.round(v * 1000) / 1000),
-          current_position: cur.map(v => Math.round(v * 1000) / 1000),
-          moved: Math.round(moved * 1000) / 1000,
-          rewritten: Math.round(written * 1000) / 1000,
-          script: p.behavior?.path?.replace(/^.*\//, '') ?? null,
-          layers: p.layers,
-        });
-      }
-      result.all = rows;
-      const states = {};
-      for (const r of rows) {
-        const k = `file${r.file_state}->ram${r.ram_state}${r.actor ? '+actor' : ''}`;
-        states[k] = (states[k] ?? 0) + 1;
-      }
-      result.summary = {
-        placements: rows.length,
-        states,
-        moved_over_0_5: rows.filter(r => r.moved > 0.5).length,
-        moved_over_5: rows.filter(r => r.moved > 5).length,
-        rewritten_over_0_01: rows.filter(r => r.rewritten > 0.01).length,
-      };
-      log(`summary ${JSON.stringify(result.summary)}`);
-      for (const r of rows
-        .filter(r => r.moved > 0.5)
-        .sort((a, b) => b.moved - a.moved)
-        .slice(0, 40))
-        log(
-          `moved ${String(r.moved).padStart(8)}  ${r.name.padEnd(32)} state ${r.file_state}->${r.ram_state}${r.actor ? '+actor' : ''} ${r.stored_position.join(',')} -> ${r.current_position.join(',')} ${r.script ?? ''}`,
-        );
-    }
-    for (const name of all ? [] : names) {
-      const p = byName(name);
-      if (!p) {
-        result.instances.push({ name, missing: true });
-        continue;
-      }
-      const at = base + p.offset;
-      const head = await readBytes(at, 0x100);
-      const pos = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.position + k));
-      const cur = [0, 4, 8].map(k => head.readFloatBE(INSTANCE.current_position + k));
-      const row = {
-        name,
-        offset: p.offset,
-        address: '0x' + at.toString(16),
-        file_state: fileState(p),
-        ram_class: '0x' + head.readUInt32BE(0).toString(16),
-        ram_state: head.readUInt32BE(INSTANCE.state),
-        stored_position: pos.map(v => Math.round(v * 1000) / 1000),
-        current_position: cur.map(v => Math.round(v * 1000) / 1000),
-        file_position: p.position,
-        script: '0x' + head.readUInt32BE(INSTANCE.script).toString(16),
-        model: '0x' + head.readUInt32BE(INSTANCE.model).toString(16),
-        actor: '0x' + head.readUInt32BE(INSTANCE.actor).toString(16),
-        layers: p.layers,
-      };
-      result.instances.push(row);
+    log('snapshot: locating the level and reading every placement');
+    const snapshot = await captureSceneSnapshot(s, {
+      readBytes: readNativeBytes,
+      run: s.lastPatch.experiment_id,
+      moment: 'first playable frame',
+    });
+    const file = saveSnapshot(snapshot);
+    result = { file, counts: snapshot.counts, moved: snapshot.moved, base: '0x' + snapshot.base.toString(16) };
+    log(`snapshot ${JSON.stringify(snapshot.counts)} moved ${snapshot.moved} base ${result.base} -> ${file}`);
+    for (const r of snapshot.placements
+      .filter(r => r.moved > 0.5)
+      .sort((a, b) => b.moved - a.moved)
+      .slice(0, 20))
       log(
-        `${name.padEnd(28)} file +0x54=${row.file_state} ram class ${row.ram_class} state ${row.ram_state} stored ${row.stored_position.join(',')} current ${row.current_position.join(',')} actor ${row.actor}`,
+        `moved ${String(r.moved).padStart(8)}  ${r.name.padEnd(32)} ${r.label} ${r.position.join(',')} -> ${r.current.join(',')}`,
+      );
+    for (const name of names) {
+      const r = snapshot.placements.find(x => x.name === name);
+      log(
+        r
+          ? `${name.padEnd(30)} ${r.label} state ${r.state} actor ${r.actor ? 'yes' : 'no'} at ${r.current.join(',')}`
+          : `${name}: no such placement`,
       );
     }
   } catch (e) {
-    result.error = e.message;
+    result = { error: e.message };
     log('probe failed: ' + e.message);
   } finally {
-    result.finished = new Date().toISOString();
-    fs.writeFileSync(path.join(outDir, `instance-probe-${Date.now()}.json`), JSON.stringify(result, null, 2));
     controller.abort();
   }
 }
@@ -199,8 +91,7 @@ async function probe() {
 log('launch direct-play through the redirect; the probe runs once the game is playing');
 await launch(s, {
   mode: 'direct-play',
-  prediction:
-    'Placement instances of ' + level + ' read in MEM1: templates and inactive objects not constructed as placed',
+  prediction: 'Placement records of ' + level + ' read in MEM1 at the first playable frame',
   deps: {
     ...deps,
     run: args =>
@@ -215,11 +106,4 @@ await launch(s, {
   },
   wait: true,
 });
-const { promise, controller: c, ...launched } = s.lastLaunch;
-console.log(
-  JSON.stringify(
-    { ...result, launch: { id: launched.experiment_id, status: launched.status, error: launched.error } },
-    null,
-    2,
-  ),
-);
+console.log(JSON.stringify({ level, ...result, launch: s.lastLaunch?.experiment_id ?? null }, null, 2));

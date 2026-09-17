@@ -142,6 +142,28 @@ try {
   step('mining-drawn', { diag });
   await shot('01-mining');
 
+  // The game-time view: the capture button waits for a run, the layer draws the newest snapshot when one exists.
+  assert.equal(await evaluate(`document.getElementById('snapshot-capture').disabled`), true, 'no run, no capture');
+  const snapshot = await evaluate(`fetch('/api/snapshot').then(r => r.json())`);
+  const box = await evaluate(
+    `(() => { const b = document.getElementById('snapshot-visible'); return { disabled: b.disabled, count: document.getElementById('snapshot-count').textContent, info: document.getElementById('snapshot-info').textContent }; })()`,
+  );
+  assert.equal(box.disabled, !snapshot.snapshot, 'the layer is offered exactly when a snapshot exists');
+  if (snapshot.snapshot) {
+    assert.equal(box.count, String(snapshot.snapshot.counts.active ?? 0));
+    assert.match(box.info, /active/);
+    await evaluate(
+      `(() => { const b = document.getElementById('snapshot-visible'); b.checked = true; b.dispatchEvent(new Event('change')); })()`,
+    );
+    await sleep(500);
+    const inGame = await evaluate(`document.getElementById('diag').textContent`);
+    step('snapshot-layer', { count: box.count, info: box.info, diag: inGame });
+    await shot('01c-as-in-game');
+    await evaluate(
+      `(() => { const b = document.getElementById('snapshot-visible'); b.checked = false; b.dispatchEvent(new Event('change')); })()`,
+    );
+  } else step('snapshot-layer', { none: true });
+
   // The Level tab: one card per level, the current one marked, the search narrowing the cards.
   await evaluate(`document.getElementById('tab-level').click()`);
   await waitFor(

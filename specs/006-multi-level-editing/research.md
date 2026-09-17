@@ -177,6 +177,34 @@ of any scripted placement, which lands on a script record; the instruction kinds
 strings ("clone||at|facing||cloned") rather than by index. Doing so unlocks the clone previews the tutorial has
 for its cannons on every level.
 
+## The game-time view: reading the scene from Dolphin
+
+The editor cannot run the scripts, so the scene at a moment of play is read, not computed: `scene-snapshot.mjs`
+finds the resident object section in MEM1 by searching for a placed record's stored position triple (floats are
+not rewritten by the loader) and checking a second one, reads the section whole, and reports every record's
+runtime state, actor and current position. Created instances, the clones scripts make and the native additions,
+carry the same class pointer as the file's records (`0x80481674`) but live outside the resident section: a scan
+of MEM1 for that word finds them, and their model and script pointers, both inside the section, name the record
+they were cloned from. The result is saved under `.local/dolphin-evidence/scene-snapshots/<level>/` and served
+by `GET /api/snapshot`; `POST /api/snapshot` takes one while an editor-owned run is playing.
+
+What a live actor looks like, learned on Mining from eight active placements (`actor-probe.mjs`, run
+`editor-direct-play-1789656426276-e7ac74ec`): every actor of a placed object has the class pointer `0x80481fb0`,
+points back at its placement record at `+0x50`, and keeps its current position in a structure reached through
+the pointer at `+0x28`, at `+0x30` of that structure (seven of eight agree; the eighth, `Level Master`, has no
+position at all). Scanning MEM1 for the back-pointer finds the 60 active actors but also every other structure
+holding a placement pointer at that distance, so actors are not the way to enumerate what the game created;
+created placement instances are.
+
+Created instances, second run (`editor-direct-play-1789656804713-9183b09e`): 276 words equal the placement
+class pointer outside the resident section; keeping a sane state (1, 2, 3 or 5) and either a template pairing
+or a live actor away from the origin leaves 42, and 11 pair with a template through their model and script.
+Those 11 are the objects the user missed: the cannon's top and bottom on the push block the game moved to
+(-25.9, 0.1, -79.2), the stone art of two push blocks at their controllers, the fan blades on `Fan_Template(1)`,
+the mining pick beside its spawner, the key at the key spawner, a button, two mining helmets and the food dummy.
+A clone's `+0x5C` points back at its template, not at whatever created it, so the creator is not claimed.
+Finding `level.runtime.scene-snapshot`, LIKELY.
+
 ## A more faithful view: what the archive holds for textures, lights and effects
 
 Asked whether textures and VFX in the editor would be a good idea, the inventory of Mining's level entry (the

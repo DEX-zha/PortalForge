@@ -184,6 +184,11 @@ async function main() {
   $('large-surfaces-solid').addEventListener('change', () =>
     state.scene.setLargeSurfacesSolid($('large-surfaces-solid').checked),
   );
+  // The game-time view (feature 006): the newest snapshot read from Dolphin for this level, if any.
+  state.meshes = meshes;
+  await loadSnapshot();
+  $('snapshot-visible').addEventListener('change', applySnapshot);
+  $('snapshot-capture').addEventListener('click', captureSnapshot);
   $('mesh-coverage').textContent = meshStats
     ? `${meshStats.draw_units}/${meshStats.descriptors} geometry blocks decoded · ${meshStats.assigned_unique ?? '?'} in models · ${meshStats.scenery ?? 0} scenery · ${meshStats.unresolved ?? meshStats.world ?? 0} unresolved` +
       (meshStats.stop ? ` · Incomplete: ${meshStats.stop.why}` : '')
@@ -441,6 +446,7 @@ async function onPick(ev) {
         hasRuntimeMap: state.hasRuntimeMap,
         script: b.script,
       }) +
+      runtimeNote(next.offset) +
       (next.total > 1
         ? `<div class="ev" style="padding:0 12px 12px">${next.index + 1} of ${next.total} under the cursor; click again to reach the next</div>`
         : '');
@@ -611,11 +617,12 @@ async function reselect() {
   if (!state.selection) return;
   state.catalog?.highlight(state.selection.offset);
   const b = await api('/api/placement/' + state.selection.offset);
-  $('inspector').innerHTML = renderPlacement(b.placement, b.safety, b.replace_targets, {
-    hasRuntimeMap: state.hasRuntimeMap,
-    script: b.script,
-    addition: b.addition,
-  });
+  $('inspector').innerHTML =
+    renderPlacement(b.placement, b.safety, b.replace_targets, {
+      hasRuntimeMap: state.hasRuntimeMap,
+      script: b.script,
+      addition: b.addition,
+    }) + runtimeNote(state.selection.offset);
 }
 
 const note = msg => {
@@ -638,6 +645,7 @@ function refreshSaveState() {
   $('redo').disabled = busy || !state.redoDepth;
   $('reset-scene').disabled = !!busy;
   state.levels?.lock(!!busy);
+  $('snapshot-capture').disabled = !state.capturable || state.busy;
   $('save-state').textContent = state.dirty
     ? 'unsaved changes'
     : state.running
@@ -731,6 +739,7 @@ async function pollLaunch() {
     }
     state.running = !!b.launch?.running;
     state.locked = b.locked;
+    state.capturable = !!b.launch?.running && b.launch?.progress?.phase === 'playing';
     refreshSaveState();
     if (b.launch?.running) {
       const p = b.launch.progress ?? {};
@@ -753,6 +762,7 @@ async function pollLaunch() {
       );
       return setTimeout(tick, 5000);
     }
+    state.capturable = false;
     note(
       b.launch?.error
         ? 'Launch failed: ' + b.launch.error
@@ -769,6 +779,75 @@ async function pollLaunch() {
     refreshSaveState();
   };
   tick();
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// The game-time view (feature 006). A snapshot is what the running game held at one moment: it is read from
+// Dolphin while an editor-owned run is playing, kept as evidence under .local, and drawn as an overlay. It is
+// never a property of the file: nothing here is saved or patched.
+
+async function loadSnapshot() {
+  let b;
+  try {
+    b = await api('/api/snapshot');
+  } catch (e) {
+    return note('snapshot unavailable: ' + e.message);
+  }
+  state.snapshot = b.snapshot;
+  state.capturable = !!b.capturable;
+  const box = $('snapshot-visible');
+  box.disabled = !state.snapshot;
+  if (!state.snapshot) {
+    $('snapshot-count').textContent = '';
+    return;
+  }
+  const c = state.snapshot.counts ?? {};
+  $('snapshot-count').textContent = String(c.active ?? 0);
+  $('snapshot-info').textContent =
+    `Taken ${new Date(state.snapshot.taken).toLocaleString()} (${state.snapshot.moment ?? 'during play'}): ` +
+    `${c.active ?? 0} active, ${c.dormant ?? 0} dormant, ${c.template ?? 0} templates, ${c.finished ?? 0} finished, ` +
+    `${state.snapshot.moved ?? 0} moved` +
+    (state.snapshot.actors ? `, ${state.snapshot.actors.length} live actors` : '') +
+    (state.snapshot.same_bytes === false ? '. Taken on other level bytes.' : '.');
+  state.scene.setSnapshotActors(state.snapshot.actors ?? [], state.meshes ?? new Map());
+  if (box.checked) applySnapshot();
+}
+
+function applySnapshot() {
+  const on = $('snapshot-visible').checked && !!state.snapshot;
+  state.scene.setRuntimeStates(on ? state.snapshot.states : null);
+  apply();
+}
+
+async function captureSnapshot() {
+  if (!state.capturable || state.busy) return;
+  state.busy = true;
+  refreshSaveState();
+  try {
+    note('Reading the scene from Dolphin…');
+    const b = await api('/api/snapshot', { moment: $('prediction').value.trim() || 'during play' });
+    state.snapshot = b.snapshot;
+    await loadSnapshot();
+    $('snapshot-visible').checked = true;
+    applySnapshot();
+    note(`Scene captured: ${b.snapshot.counts?.active ?? 0} active objects, ${b.snapshot.moved ?? 0} moved.`);
+  } catch (e) {
+    note('capture refused: ' + e.message);
+  } finally {
+    state.busy = false;
+    refreshSaveState();
+  }
+}
+
+// What the snapshot says about one object, for the inspector.
+function runtimeNote(offset) {
+  const r = state.snapshot?.states?.[offset];
+  if (!r) return '';
+  const where =
+    r.moved > 0.5
+      ? ` · in game at ${r.current.map(v => Math.round(v * 100) / 100).join(', ')} (${r.moved} units away)`
+      : '';
+  return `<div class="row"><span class="k">in game</span><span class="v ${r.label === 'active' ? 'proven' : 'withheld'}" title="snapshot read from Dolphin, LIKELY">${r.label}${r.actor ? ' · has an actor' : ''}${where}</span></div>`;
 }
 
 main();

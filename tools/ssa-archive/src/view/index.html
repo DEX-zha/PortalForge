@@ -144,6 +144,11 @@
     <span id="scenery-count" class="c">0</span>
   </label>
   <div id="mesh-coverage" class="ev" style="padding:6px 12px 12px"></div>
+  <label id="snapshot-layer" class="layer" title="The level as the running game held it when the snapshot was taken: active objects solid, dormant ones dimmed, templates and finished initialisers hidden, moved objects and script clones at their in-game position. Read from Dolphin, LIKELY; never written to the file.">
+    <input id="snapshot-visible" type="checkbox" disabled><span class="n">As in game <span class="dim">· snapshot</span></span><span id="snapshot-count" class="c"></span>
+  </label>
+  <div id="snapshot-info" class="ev" style="padding:0 12px 6px">No snapshot yet: launch the level from this editor, then capture its scene while the game is playing.</div>
+  <div style="padding:0 12px 10px"><button id="snapshot-capture" disabled title="Read the scene from the running game: every object's state and position, and the actors the scripts created">Capture the scene from Dolphin</button></div>
   <label id="scripted-layer" class="layer" hidden title="Bridges and cannons at their initial position. Click a preview to select its generator. Animations and destruction are not simulated.">
     <input id="scripted-visible" type="checkbox" checked><span class="n">Bridges and cannons · preview</span>
   </label>

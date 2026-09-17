@@ -87,6 +87,9 @@ export function createScene(canvas) {
     largeSurfacesSolid: false,
     wireframe: false,
     fly: { held: new Set(), fast: false, slow: false },
+    grades: new Map(),
+    // The game-time view (feature 006): runtime states by offset from a snapshot read in Dolphin, or null.
+    runtime: null,
   };
 
   // Measure the wrapper, not the canvas: the canvas is absolutely positioned inside it, so its own box can be
@@ -194,6 +197,7 @@ export function createScene(canvas) {
     state.meshBounds = new Map();
     state.placements = placements;
     state.byOffset = new Map(placements.map(p => [p.offset, p]));
+    state.grades = grades;
 
     const hasMesh = p => p.model && p.model.offset !== null && meshes.has(p.model.offset);
     const withMesh = placements.filter(hasMesh);
@@ -338,12 +342,89 @@ export function createScene(canvas) {
     obj.updateMatrix();
   }
 
+  // The game-time view: a placement is drawn where the snapshot saw it, and only if the game had it then.
+  // Active and dormant objects stand; templates and finished initialisers are collapsed; a moved object stands
+  // at its in-game position. Nothing here changes the record the session holds.
+  const runtimeOf = offset => state.runtime?.states?.[offset] ?? null;
+  const shownInRuntime = offset => {
+    const r = runtimeOf(offset);
+    return !state.runtime || !r || r.label === 'active' || r.label === 'dormant';
+  };
+  const viewPlacement = p => {
+    const r = runtimeOf(p.offset);
+    if (!r?.current) return p;
+    return {
+      ...p,
+      position: r.current,
+      rotation: { heading: Number.isFinite(r.heading) && r.heading !== 0 ? r.heading : p.rotation.heading },
+    };
+  };
+  const DORMANT = new THREE.Color(0x3d444d),
+    LIVE = new THREE.Color(0xffffff);
+  function recolour() {
+    const colour = new THREE.Color();
+    for (const e of state.entries) {
+      const proxy = e.mesh === state.boxes || e.mesh === state.markers;
+      const base = proxy
+        ? e.mesh === state.markers
+          ? MARKER_COLOUR
+          : (GRADE_COLOUR[state.grades.get(e.offset)] ?? GRADE_COLOUR.info)
+        : LIVE.getHex();
+      const dormant = state.runtime && runtimeOf(e.offset)?.label === 'dormant';
+      colour.setHex(base);
+      if (dormant) colour.lerp(DORMANT, 0.7);
+      e.mesh.setColorAt(e.index, colour);
+    }
+    for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)])
+      if (m?.instanceColor) m.instanceColor.needsUpdate = true;
+  }
+  function setRuntimeStates(states) {
+    state.runtime = states ? { states } : null;
+    snapshotGroup.visible = !!state.runtime;
+    recolour();
+    setVisible(state.visibleOffsets ?? new Set(state.placements.map(p => p.offset)));
+  }
+
+  // Live actors a snapshot enumerated, drawn with the model of the record they were created from, at the
+  // position the game held them: this is how a script's clones appear in the editor. Read-only, LIKELY.
+  const snapshotGroup = new THREE.Group();
+  snapshotGroup.visible = false;
+  scene.add(snapshotGroup);
+  function setSnapshotActors(actors, meshes) {
+    for (const child of [...snapshotGroup.children]) {
+      snapshotGroup.remove(child);
+      child.geometry.dispose();
+      child.material.dispose();
+    }
+    for (const a of actors ?? []) {
+      const resource = state.byOffset.get(a.resource_offset);
+      if (!a.position || !resource?.model || resource.model.offset === null) continue;
+      const data = meshes.get(resource.model.offset);
+      if (!data) continue;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(data.positions), 3));
+      geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(data.indices), 1));
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshLambertMaterial({ color: 0x9fc4d8, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }),
+      );
+      mesh.userData.actor = a;
+      setMatrix(mesh, { position: a.position, rotation: { heading: a.heading ?? 0 }, scale: resource.scale }, true);
+      snapshotGroup.add(mesh);
+    }
+  }
+
   // Redraw one proxy from the record the session returned, after an edit.
   function refresh(offset) {
     const p = state.byOffset.get(offset);
     const e = state.entries.find(x => x.offset === offset);
     if (!p || !e) return;
-    setMatrix(dummy, p, !state.visibleOffsets || state.visibleOffsets.has(offset));
+    setMatrix(
+      dummy,
+      viewPlacement(p),
+      (!state.visibleOffsets || state.visibleOffsets.has(offset)) && shownInRuntime(offset),
+    );
     e.mesh.setMatrixAt(e.index, dummy.matrix);
     e.mesh.instanceMatrix.needsUpdate = true;
     e.mesh.boundingSphere = null;
@@ -359,7 +440,7 @@ export function createScene(canvas) {
     for (const child of scriptedGroup.children) child.visible = offsets.has(child.userData.owner);
     for (const e of state.entries) {
       const p = state.byOffset.get(e.offset);
-      setMatrix(dummy, p, offsets.has(e.offset));
+      setMatrix(dummy, viewPlacement(p), offsets.has(e.offset) && shownInRuntime(e.offset));
       e.mesh.setMatrixAt(e.index, dummy.matrix);
     }
     for (const m of [state.boxes, state.markers, ...state.models.map(x => x.mesh)])
@@ -695,6 +776,8 @@ export function createScene(canvas) {
     setSceneryVisible,
     setScriptedPreviews,
     setScriptedVisible,
+    setRuntimeStates,
+    setSnapshotActors,
     setLargeSurfacesSolid,
     refresh,
     hitsAt,

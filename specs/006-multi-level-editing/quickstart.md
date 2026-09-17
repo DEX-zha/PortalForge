@@ -49,6 +49,19 @@ the run ids to promote a level. Nothing about the tutorial's own direct entry ch
 through the editor's own path (open, edit, save, patch, launch) and prints the run record; run it twice for the
 two-boot rule.
 
+## The view as the game has it
+
+The editor draws the file: every object that can exist. The game, at a moment of play, holds only part of it
+(objects activate by distance and trigger) and creates more by script. To see the game's view, launch the level
+from the editor (Direct level play), wait until the game is playing, then press **Capture the scene from Dolphin**
+in the Layers pane. The editor reads every placement record in MEM1 and the live actors, keeps the snapshot under
+`.local/dolphin-evidence/scene-snapshots/<level>/`, and the **As in game · snapshot** layer draws it: active
+objects solid, dormant ones dimmed, templates and finished initialisers hidden, moved objects at their in-game
+position, and the actors a script created drawn in blue with the model of the record they were cloned from. The
+inspector adds an "in game" row per object. A snapshot is evidence about one moment of one run (LIKELY), never a
+property of the file: nothing about it is saved or patched. `research-probes/actor-probe.mjs` takes the same
+snapshot from the command line, one boot.
+
 ## Proving an edit on another level
 
 1. Open the level, move a static prop (no behaviour script) by a distance a screenshot cannot miss; write the

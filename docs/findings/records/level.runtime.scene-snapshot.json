@@ -1,0 +1,30 @@
+{
+  "id": "level.runtime.scene-snapshot",
+  "updated": "2026-09-17",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "the level as the running game holds it, read from MEM1: every placement record's state (+0x54), actor (+0xF4) and current position (+0x3C), and the placement instances the game created at run time, found by their class pointer 0x80481674 outside the resident section and paired with their template by model (+0xDC) and script (+0xA8)",
+  "structure": "The resident object section is found by searching MEM1 for a placed record's stored position triple (floats are not rewritten by the loader) and checking a second placement (Mining at 0x80DC6F48, the tutorial at 0x80DBC020). In it, at the first playable frame of Mining: 60 records active with an actor, 313 dormant (state 2, no actor yet), 8 finished initialisers (state 3), 236 templates (state 5); 3 records moved by more than half a unit, none rewritten. Outside it, 276 words equal the placement class pointer; keeping the sane states and either a template pairing or a live actor away from the origin leaves 42 created instances, 11 of them paired with a template: two mining helmets on Molekins, the key at the key spawner, the stone art of two push blocks at their controllers, the cannon top and bottom at Push_Block_Template(13)'s position (-25.9, 0.1, -79.2), a button, the food dummy at the cannon barrel marker, the mining pick at its spawner, the fan blades on the fan. A clone's +0x5C points at its template again, not at its creator.",
+  "location": {
+    "file_pattern": "MEM1 while an editor-owned run is playing; .local/dolphin-evidence/scene-snapshots/<level>/*.json",
+    "offset": "resident section base found at run time; instances at +0x00 class, +0x24 position, +0x3C current position, +0x4C heading, +0x54 state, +0xA8 script, +0xDC model, +0xF4 actor",
+    "length": 248
+  },
+  "meaning": "This is how the editor shows the game's own view without running the scripts: a snapshot taken from Dolphin says which objects exist at that moment, where they stand, and which objects a script created and from which template. The objects the user saw missing on Mining (cannon, push-block art, fan blades, pick, key) are those created instances; the objects that looked absent in game are dormant records the game activates by distance. A snapshot is evidence about one moment of one run, LIKELY, and never a property of the file: the view draws it as an overlay (active solid, dormant dimmed, templates and finished hidden, moved records and clones at their in-game position) and nothing about it is saved or patched. Not covered: the creator of a clone (unknown pointer), actors without a model (the Skylander, cameras), and moments other than the one captured; CONFIRMED needs the same reads on a second boot and a second level.",
+  "evidence": [
+    {
+      "experiment_id": "editor-direct-play-1789654775395-b54788b7",
+      "summary": "Mining through the archive redirect, 2026-09-17 14:19: all 617 records read at the first playable frame, states 60/313/8/236, 3 moved (two push blocks on their tracks, a treasure raised 1.8), 0 stored positions rewritten (research-probes/instance-probe.mjs)."
+    },
+    {
+      "experiment_id": "editor-direct-play-1789656426276-e7ac74ec",
+      "summary": "Actor layout learned on eight active placements: class 0x80481FB0, the placement pointer at +0x50, the current position through the pointer at +0x28 then +0x30 of its target (7 of 8 agree; Level Master has no position). Scanning MEM1 for that back-pointer returns every structure holding a placement pointer at that distance, so it is not the way to enumerate what the game created."
+    },
+    {
+      "experiment_id": "editor-direct-play-1789656804713-9183b09e",
+      "summary": "Created instances enumerated by the class pointer outside the resident section, 14:55: 276 hits, 42 kept, 11 paired with a template and standing where the level assembles them (cannon at -25.908, 0.12, -79.248 on the moved push block; mining pick at 81.127, 12.725, -52.234 next to its spawner at 81.1, 10.7, -52.2; fan blades at 84.355, 15.625, -87.86 on Fan_Template(1)). Snapshot .local/dolphin-evidence/scene-snapshots/level_000_mining/2026-09-17T14-55-36-999Z.json; the editor's As in game layer draws it (tests/browser-multilevel.mjs, run browser-1789657067417)."
+    }
+  ]
+}

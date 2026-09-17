@@ -34,6 +34,8 @@ import { directEntryConfirmed, TUTORIAL } from './level-entry.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
 import { capabilitiesOf, levelKey } from './level-catalog.mjs';
 import { isTutorial } from './levels.mjs';
+import { captureSceneSnapshot, saveSnapshot, latestSnapshot, snapshotSummary } from './scene-snapshot.mjs';
+import { readNativeBytes } from './native-run.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const VIEW_DIR = path.resolve(here, '../view');
@@ -263,9 +265,35 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     return json(res, 200, { opened: sessionSummary(session) });
   }
 
+  // The level as the running game holds it (feature 006): the newest snapshot read from Dolphin for this level,
+  // and whether one can be taken now, which needs an editor-owned run that has reached play.
+  const playing = () => !!session.lastLaunch?.running && session.lastLaunch?.progress?.phase === 'playing';
+  const snapshotOptions = deps.snapshotDir ? { dir: deps.snapshotDir } : {};
+  function snapshotState(res) {
+    return json(res, 200, {
+      snapshot: snapshotSummary(latestSnapshot(session.archive, snapshotOptions), session),
+      capturable: playing(),
+    });
+  }
+  async function captureSnapshot(res, body) {
+    if (!playing())
+      return json(res, 409, {
+        error: 'NOT_PLAYING',
+        reason: 'launch the level from this editor and wait until the game is playing before capturing its scene',
+      });
+    const snapshot = await (deps.capture ?? captureSceneSnapshot)(session, {
+      readBytes: deps.readBytes ?? readNativeBytes,
+      run: session.lastLaunch.experiment_id ?? session.lastPatch?.experiment_id ?? null,
+      moment: typeof body.moment === 'string' && body.moment.trim() ? body.moment.trim() : 'during play',
+    });
+    const file = saveSnapshot(snapshot, snapshotOptions);
+    return json(res, 200, { snapshot: snapshotSummary({ file, ...snapshot }, session), capturable: true });
+  }
+
   const GET_ROUTES = {
     '/api/session': res => json(res, 200, sessionSummary(session)),
     '/api/levels': levelList,
+    '/api/snapshot': snapshotState,
     '/api/catalog': res => json(res, 200, catalog(session)),
     '/api/level-entry': res => {
       const tutorial = session.archive?.toLowerCase() === TUTORIAL,
@@ -321,6 +349,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
 
   const POST_ROUTES = {
     '/api/open': openLevel,
+    '/api/snapshot': captureSnapshot,
     '/api/addition-validation': startValidation,
     '/api/addition-validation/stop': res => {
       validation?.controller.abort();

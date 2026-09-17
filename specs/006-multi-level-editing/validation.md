@@ -88,6 +88,20 @@ tutorial, LIKELY on the levels not booted with an edit yet (SC-004 done). The di
   `src/igz/script.mjs`), so `igz scripts` sees zero scripts on Mining and the clone catalogue is empty on every
   other level. Recorded in the roadmap as the next step for the view's readability.
 
+## The game-time view — 2026-09-17
+
+- `src/editor/scene-snapshot.mjs`, `GET`/`POST /api/snapshot`, the **As in game · snapshot** layer and the
+  **Capture the scene from Dolphin** button; `tests/editor-scene-snapshot.test.mjs` (6 tests on a fake MEM1:
+  locating, reading, states, a created clone paired with its template, save and newest, the routes' refusal
+  and capture).
+- Two probe boots on Mining: `editor-direct-play-1789656426276-e7ac74ec` (actor layout learned on eight actors)
+  and `editor-direct-play-1789656804713-9183b09e` (created instances: 276 class-pointer hits, 42 kept, 11 paired
+  with a template, all standing where the level assembles them). Snapshot
+  `.local/dolphin-evidence/scene-snapshots/level_000_mining/2026-09-17T14-55-36-999Z.json`.
+- Real browser (`browser-1789657067417`, PASS): the layer is offered because the snapshot exists, its count is the
+  60 active objects, toggling it redraws the scene, and the capture button stays disabled without a run.
+- Suites **337/337 SSA**, 6/6 MCP. Finding `level.runtime.scene-snapshot` LIKELY.
+
 ## Limits
 
 - The game has not been booted on any edited non-tutorial level. The only in-game transform proofs are the
