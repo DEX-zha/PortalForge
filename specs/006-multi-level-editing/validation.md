@@ -26,6 +26,19 @@ editable.
   Haunted Castle framed at 31 299 units with 284-unit proxies; after it 1 175 units, 10.7-unit proxies, 3 objects
   reported as parked. Troll hub: 495 units, 3 parked. The tutorial: 489 units, 0 parked, unchanged.
 
+## Archive redirect — 2026-09-17, offline only
+
+- Added after the user's second message ("choosing the level is the point, and Patch must load that level in
+  game"). `tests/editor-redirect.test.mjs`, 7 tests: the voice pack in the catalogue and extracted on open, the
+  redirect macro, the second descriptor with both files under the tutorial names and the same rebuilt archive,
+  launch selection (direct modes run the redirect, normal play the plain patch, `NO_REDIRECT_PATCH` without a
+  voice pack), and a redirected run preparing the checkpoint, replaying the redirect macro and proving
+  consumption of the tutorial-named archive at the level's size.
+- Suites: **326/326 SSA**, 6/6 MCP. Finding `level.entry.archive-redirect` UNKNOWN; `docs/level-entry-status.json`
+  names the strategy for Mining and the other families.
+- **No boot**. The first screening boot (direct-test on Mining, about 6 minutes with the checkpoint preparation)
+  waits for the user's go-ahead, then two identical boots for SC-006.
+
 ## Limits
 
 - The game has not been booted on any edited non-tutorial level. The only in-game transform proofs are the

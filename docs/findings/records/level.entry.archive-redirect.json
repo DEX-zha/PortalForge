@@ -1,0 +1,26 @@
+{
+  "id": "level.entry.archive-redirect",
+  "updated": "2026-09-17",
+  "editable": false,
+  "category": "gameplay-logic",
+  "confidence": "UNKNOWN",
+  "endian": "unknown",
+  "type": "launch strategy: another level's archive (.bld) and voice pack (.arc) served under level/Level_027_Tutorial.bld and level/Level_027_Tutorial.arc, entered through the confirmed tutorial pre-load checkpoint",
+  "structure": "Every level of SSPP52 Rev1 ships as a pair, level/<name>.bld (level graph and six language packs) and level/<name>.arc (voices: the tutorial's holds 477 encoded wav files in six languages). The tutorial checkpoint (level.entry.preload-checkpoint) restores the game at the slot screen and presses A; the game then reads level/Level_027_Tutorial.bld and, after the opening, level/Level_027_Tutorial.arc. The redirect patch is a second Riivolution descriptor next to the plain one, with both files of the chosen level under the tutorial's names, prepared and restored by the same checkpoint code; the binding hashes the replacement layout, so each level gets its own checkpoint.",
+  "location": {
+    "file_pattern": "level/Level_027_Tutorial.bld and level/Level_027_Tutorial.arc on the Riivolution virtual disc; tools/ssa-archive/src/editor/level-entry.mjs (redirectSteps), patch-build.mjs, save.mjs (redirectFor)",
+    "offset": "descriptor",
+    "length": 1
+  },
+  "meaning": "Hypothesis: the game names the level to load from the save slot, opens the two files by name, and everything level-specific it needs is inside them, so serving another level's pair under the tutorial's names loads that level. What would refute it: code outside the archives that expects tutorial-only content (the opening controller script 027_OpeningCS_Controller.ai, tutorial flags set by the engine, assets in Title.arc or global.arc keyed by level id), a hang on loading, a black screen, or the tutorial loading anyway. No boot has been made. The editor offers the mode as experimental on every level whose voice pack is on disk; the macro only proves that the tutorial-named archive was read at the redirected size and takes four captures. Two identical boots showing the chosen level playable promote this to LIKELY; the CONFIRMED rule then needs the placement edit visible in that level as well.",
+  "evidence": [
+    {
+      "probe": "ssa-archive list on .local/samples/DATA/files/level/Level_027_Tutorial.arc; .local/disc/filelist.txt",
+      "summary": "The tutorial .arc is an uncompressed IGA holding 477 voice files; all 76 levels have a .bld and a .arc under level/. Mining's .bld is 12 617 834 bytes against the tutorial's 15 241 322."
+    },
+    {
+      "probe": "tests/editor-redirect.test.mjs (2026-09-17)",
+      "summary": "Offline only: the redirect descriptor carries both files under the tutorial names with the same rebuilt archive as the plain patch; direct launch on another level runs it with the tutorial archive monitored and refuses without a voice pack; the run prepares the checkpoint with the redirect and replays the redirect macro. Nothing here says what the game does."
+    }
+  ]
+}

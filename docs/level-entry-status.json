@@ -21,12 +21,16 @@
       "level": "Mining",
       "archive": "level/Level_000_Mining.bld",
       "status": "UNKNOWN",
-      "reason": "No pre-load transition and repeatable current-patch proof validated yet"
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "reason": "Offered as experimental since 2026-09-17: the level's .bld and .arc are served under the tutorial's names through the confirmed tutorial checkpoint. No boot yet."
     },
     {
       "level": "Other level families",
       "status": "UNKNOWN",
-      "reason": "Each family requires its own transition, identity and current-patch proof"
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "reason": "Same experiment as Mining, offered on every level whose voice pack is extracted; each level needs its own two boots"
     }
   ],
   "fallback": "Explicit normal play selection; no silent direct-entry fallback",

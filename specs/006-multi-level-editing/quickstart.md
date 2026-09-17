@@ -26,14 +26,29 @@ In the editor:
 4. Move, rotate, scale, Save and Patch work as on the tutorial. Launch offers **Normal play** only: navigate to the
    level yourself, look, then record what you saw.
 
+## Landing in the chosen level (experimental)
+
+Open the level by name with the game image configured: its voice pack `level/<name>.arc` is extracted once. After
+**Save → Patch**, the launch mode defaults to **Direct level play via the tutorial slot (experimental)**. The
+patch carries a second descriptor in which the level's `.bld` and `.arc` are served under the tutorial's file
+names, so the confirmed tutorial checkpoint (slot screen, press A) makes the game load them. The first launch on a
+level prepares a checkpoint for that layout (about 2.5 minutes); later launches restore it. The macro presses A,
+waits for `level/Level_027_Tutorial.bld` to be read at the level's size, and takes four captures. **Direct level
+test** closes Dolphin afterwards; **Direct level play** leaves you at the controls.
+
+This is an experiment, `level.entry.archive-redirect`, UNKNOWN until boots say otherwise: the game may load the
+level, load the tutorial anyway, or hang. Nothing about the tutorial's own direct entry changes. A level opened
+with `edit serve` on a file has no voice pack and no redirect; Normal play stays available everywhere.
+
 ## Proving an edit on another level
 
 1. Open the level, move a static prop (no behaviour script) by a distance a screenshot cannot miss; write the
    prediction in the Playtest settings.
-2. Save, Patch, Launch in Normal play; reach the level; take a screenshot at the spot.
+2. Save, Patch, Launch: through the redirect when it works, otherwise in Normal play, reaching the level
+   yourself; take a screenshot at the spot.
 3. Stop, then do it again from a cold boot with the same patch. Two identical observations, with the FileMon size
    line proving the rebuilt archive was read, promote `level.transform.other-levels` to CONFIRMED through
-   `findings promote`.
+   `findings promote`; two boots landing in the chosen level promote `level.entry.archive-redirect` to LIKELY.
 
 ## Runtime maps for other levels (roadmap step 2)
 

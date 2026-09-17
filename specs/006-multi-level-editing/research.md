@@ -83,6 +83,27 @@ level and is not changed here.
 A switch is one request and one page reload; the browser scenario switches three times in under a minute on the
 reference machine, including thumbnails.
 
+## Landing in the chosen level: why the archive redirect
+
+Three routes were weighed for "Patch loads the chosen level":
+
+- **A pre-load checkpoint per level**, the tutorial's own method: needs, per level, a save where the level is
+  unlocked, a navigation macro from the hub to the level gate, and a checkpoint taken just before the transition
+  input. Expensive per level and dependent on the user's save.
+- **Forcing the level from memory**: find the "next level" field the slot screen holds and poke it before the
+  transition. Unknown addresses; a research task with no cheap experiment.
+- **The archive redirect**: the game asks for `level/Level_027_Tutorial.bld` and `.arc` after the confirmed
+  checkpoint; serve the chosen level's pair under those names. Reuses the confirmed checkpoint code unchanged,
+  costs one screening boot, and is generic over the 76 levels. Its risk is code outside the archives expecting
+  tutorial content (the opening controller script, engine flags, assets keyed by level id in `Title.arc` or
+  `global.arc`).
+
+The redirect was implemented as an experimental launch mode. The tutorial `.arc` was inspected: an uncompressed
+IGA of 477 voice files in six languages, which is why the pack is redirected with the archive rather than left
+in place. The checkpoint binding hashes `[disc path, size]` of every replacement, so a redirect layout gets its
+own checkpoint folder; whether the rebuilt `.bld` size is stable across edits of one level decides whether that
+preparation happens once per level or once per patch (see validation).
+
 ## What is not established
 
 The game has never been booted with an edited non-tutorial level. The finding `level.transform.other-levels` is

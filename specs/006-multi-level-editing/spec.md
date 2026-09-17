@@ -101,10 +101,37 @@ Dark Forest show the objects on their terrain; Haunted Castle's extent is about 
 3. **Given** a non-tutorial level, **When** the scene is built, **Then** the tutorial-only previews (bridges,
    cannons, disabled templates) are absent rather than wrong, and the Project browser reports zero Add sources.
 
+### User Story 5 - Patch, then land in the chosen level (Priority: P1, added 2026-09-17)
+
+The user's second message: choosing the level in the editor is the point, and pressing Patch must load that
+level in game, not the tutorial. No input macro reaches another level, and every direct-entry proof is the
+tutorial's. The route taken is the **archive redirect**: the chosen level's `.bld` and `.arc` are served under
+the tutorial's file names, so the confirmed tutorial checkpoint (slot screen, press A) makes the game load them.
+The editor offers it as an experimental direct mode on every level whose voice pack is on disk.
+
+**Independent Test**: open Mining by name with the game image configured (its `.arc` is extracted once), move a
+prop, Save, Patch; the launch mode defaults to **Direct level play via the tutorial slot (experimental)**;
+Launch prepares a checkpoint for that layout, restores it, presses A, and the file monitor shows
+`level/Level_027_Tutorial.bld` read at Mining's size. What the screen shows next is the experiment.
+
+**Acceptance Scenarios**:
+
+1. **Given** a non-tutorial level opened by name with its voice pack on disk, **When** Patch runs, **Then** the
+   patch carries a second descriptor with both files under the tutorial's names, next to the plain one.
+2. **Given** that patch, **When** a direct mode is launched, **Then** the run uses the redirect descriptor,
+   monitors the tutorial's archive name, replays the redirect macro and records which level was served.
+3. **Given** a non-tutorial level without its voice pack, **When** a direct mode is requested, **Then** the
+   launch is refused as `NO_REDIRECT_PATCH` with the way to fix it; normal play still works.
+4. **Given** the tutorial, **When** anything above runs, **Then** nothing changes: no redirect is ever built.
+5. **Given** any of this, **When** the capability is read, **Then** it says UNKNOWN and experimental, citing
+   `level.entry.archive-redirect`, until two boots say otherwise.
+
 ### Edge Cases
 
 - `Title.bld` has zero placements: opening it is refused as `OPEN_REFUSED` with the session's reason, and the
   picker shows it with `0` so nobody is surprised.
+- The redirect checkpoint is bound to the replacement layout (file names and sizes): each level, and each
+  distinct rebuilt size, gets its own preparation of about 2.5 minutes, once.
 - A workspace whose manifest exists but whose level entry was never decoded is decoded on open.
 - An uncompressed level entry is its own decoded form; it is materialised once under the decoded name.
 - A configured runtime map whose file is missing is skipped silently; the level opens without a map.
@@ -132,6 +159,11 @@ Dark Forest show the objects on their terrain; Haunted Castle's extent is about 
   framing extent and counted; they remain drawn, selectable and editable.
 - **FR-008**: Transforms on non-tutorial levels are labelled LIKELY and cite `level.transform.other-levels`; no
   capability is promoted without its own finding.
+- **FR-009**: Opening a level by name with a game image configured extracts its voice pack (`level/<name>.arc`)
+  under `.local/samples`; a patch of a non-tutorial level with its voice pack on disk carries a redirect
+  descriptor (`level/Level_027_Tutorial.bld` and `.arc` served from the level's files); direct modes on that
+  level run the redirect descriptor and the redirect macro; the capability is UNKNOWN and experimental
+  (`level.entry.archive-redirect`).
 
 ### Key Entities
 
@@ -149,7 +181,9 @@ Dark Forest show the objects on their terrain; Haunted Castle's extent is about 
   capabilities.
 - **SC-004**: Two identical cold boots of an edited non-tutorial level show the predicted effect (pending; this
   promotes `level.transform.other-levels` to CONFIRMED).
-- **SC-005**: The full test suites pass (319 SSA, 6 MCP) and lint and formatting are clean.
+- **SC-005**: The full test suites pass (326 SSA, 6 MCP) and lint and formatting are clean.
+- **SC-006**: Two identical cold boots through the redirect show the chosen level playable (pending; promotes
+  `level.entry.archive-redirect` to LIKELY), and the edited placement visible in it (CONFIRMED).
 
 ## Out of scope
 

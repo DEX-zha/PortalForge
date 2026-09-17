@@ -42,12 +42,25 @@ it runs only on the user's go-ahead.
 
 ## Phase 6 — Proof and delivery
 
-- [ ] T012 Two identical cold boots of an edited non-tutorial level through normal play (SC-004). Promotes the
-      finding to CONFIRMED. Waits for the user's go-ahead; not started.
+- [ ] T012 Two identical cold boots of an edited non-tutorial level (SC-004). Promotes the finding to CONFIRMED.
+      Waits for the user's go-ahead; not started. With T014 the boots go through the redirect instead of
+      normal play.
 - [x] T013 Roadmap rewritten (`docs/editor/roadmap.md`), AGENTS.md and README updated, validation.md written;
       suites, lint and formatting clean; pull request opened.
+
+## Phase 7 — Patch lands in the chosen level (US5, added 2026-09-17)
+
+- [x] T014 Tests for the archive redirect — `tests/editor-redirect.test.mjs`: voice pack in the catalogue and
+      extracted on open, redirect macro, second descriptor with both tutorial names, launch selection and
+      refusal, redirected run. Implement: `levels.mjs` (companion), `level-catalog.mjs`, `level-open.mjs`,
+      `level-entry.mjs` (binding, `redirectSteps`), `patch-build.mjs`, `save.mjs` (`redirectFor`, launch),
+      `dolphin-run.mjs`, `server.mjs` (`/api/level-entry`), the view's launch modes.
+- [x] T015 Finding `level.entry.archive-redirect` (UNKNOWN), `docs/level-entry-status.json`, spec and roadmap
+      updated.
+- [ ] T016 First screening boot: direct-test on Mining through the redirect (one boot, about 6 minutes with the
+      checkpoint preparation). Then two identical boots for SC-006. Waits for the user's go-ahead.
 
 ## Dependencies
 
 T001 → T002/T003 → T004/T005 → T006/T007 → T008/T009; T010 and T011 depend only on T001; T012 depends on T005;
-T013 closes.
+T014 depends on T005 and T007; T015 on T014; T016 on T014; T013 closes.
