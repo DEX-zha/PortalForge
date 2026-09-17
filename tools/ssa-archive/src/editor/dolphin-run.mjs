@@ -18,10 +18,10 @@ import {
   validateSkipIntro,
   directEntryConfirmed,
 } from './level-entry.mjs';
+import { setting } from '../../../dolphin-mcp/config.mjs';
 
 export function defaultFigure() {
-  const config = path.join(local, 'dolphin-config.json');
-  const configured = fs.existsSync(config) ? JSON.parse(fs.readFileSync(config, 'utf8')).figure : null;
+  const configured = setting('figure');
   const proof = path.join(local, 'dolphin-evidence/m0-proof.json');
   const known = fs.existsSync(proof) ? JSON.parse(fs.readFileSync(proof, 'utf8')).patched?.figure?.copy?.source : null;
   return [configured, known].find(f => f && fs.existsSync(f)) ?? null;

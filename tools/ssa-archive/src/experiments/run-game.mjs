@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { requireSetting } from '../../../dolphin-mcp/config.mjs';
 
 export const here = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(here, '../../../..');
@@ -15,7 +16,7 @@ export const evidence = path.join(local, 'dolphin-evidence');
 export const experimentsDir = path.join(evidence, 'experiments');
 const mcpDir = path.join(root, 'tools', 'dolphin-mcp');
 export const profileLog = path.join(local, 'dolphin-user', 'Logs', 'dolphin.log');
-export const gameFromConfig = () => JSON.parse(fs.readFileSync(path.join(local, 'dolphin-config.json'), 'utf8')).game;
+export const gameFromConfig = () => requireSetting('game');
 export const gateStatus = name => {
   try {
     return JSON.parse(fs.readFileSync(path.join(root, 'docs', `${name.toLowerCase()}-status.json`), 'utf8'));
@@ -23,7 +24,17 @@ export const gateStatus = name => {
     return { status: 'UNKNOWN' };
   }
 };
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Timing of a run. The bridge answers once per emulated frame, so every wait is bounded by how long the game
+// may legitimately stop producing frames: a heavy disc load freezes them for more than a minute.
+const BOOT_POLL_ATTEMPTS = 40;
+const BOOT_POLL_MS = 1500;
+const WAIT_CHUNK_FRAMES = 120; // frame_advance is bounded to 15 s upstream; 120 frames stays well inside it
+const STALL_RETRY_MS = 3000;
+const STALL_LIMIT = 8; // consecutive silent waits before the run is declared hung
+const FIGURE_RETRY_MS = 6000;
+const GAME_ID_ADDRESS = 0x80000000;
 
 export class GameSession {
   constructor(log = console.log) {
@@ -92,18 +103,19 @@ export class GameSession {
     this.startedAt = new Date().toISOString();
     if (!launched.args.includes(path.resolve(target))) throw new Error(`${label}: launch did not use ${target}`);
     let connected = false;
-    for (let i = 0; i < 40 && !connected; i++) {
+    for (let i = 0; i < BOOT_POLL_ATTEMPTS && !connected; i++) {
       this.signal?.throwIfAborted();
-      await sleep(1500);
+      await sleep(BOOT_POLL_MS);
       try {
         await this.call('dolphin_ping');
         connected = true;
       } catch {
-        this.signal?.throwIfAborted(); /* booting */
+        // Still booting: the bridge only answers once the game produces frames.
+        this.signal?.throwIfAborted();
       }
     }
     if (!connected) throw new Error(`${label}: live bridge did not respond after launch`);
-    const id = this.text(await this.call('dolphin_read_range', { address: 0x80000000, length: 6 }))[0];
+    const id = this.text(await this.call('dolphin_read_range', { address: GAME_ID_ADDRESS, length: 6 }))[0];
     if (!/SSPP52/.test(id) && !/53 53 50 50 35 32|535350503532/i.test(id))
       throw new Error(`${label}: unexpected game identity ${id}`);
     this.log(`${label}: pid ${this.pid}, bridge up`);
@@ -135,32 +147,32 @@ export class GameSession {
   static isTimeout(e) {
     return /timed out|bridge timeout/i.test(e.message ?? '');
   }
-  async waitSeconds(seconds, { stallLimit = 8 } = {}) {
+  async waitSeconds(seconds, { stallLimit = STALL_LIMIT } = {}) {
     const deadline = Date.now() + seconds * 1000;
     let stalls = 0;
     while (Date.now() < deadline) {
       try {
-        await this.call('dolphin_frame_advance', { frames: 120 });
+        await this.call('dolphin_frame_advance', { frames: WAIT_CHUNK_FRAMES });
         stalls = 0;
       } catch (e) {
         if (!GameSession.isTimeout(e)) throw e;
         if (++stalls >= stallLimit) {
           throw new Error(`emulation silent for ${stalls} consecutive waits: ${e.message}`, { cause: e });
         }
-        await sleep(3000);
+        await sleep(STALL_RETRY_MS);
       }
     }
   }
   // Same stall tolerance as waitSeconds: the 500 MB permanent/global.arc load freezes frames for
   // well over a minute right after the Activision logo.
-  async callWithRetry(name, args, attempts = 8) {
+  async callWithRetry(name, args, attempts = STALL_LIMIT) {
     for (let i = 1; ; i++) {
       try {
         return await this.call(name, args);
       } catch (e) {
         if (!GameSession.isTimeout(e) || i >= attempts) throw e;
         this.log(`  ${name}: emulation stalled (${i}/${attempts}), retrying`);
-        await sleep(3000);
+        await sleep(STALL_RETRY_MS);
       }
     }
   }
@@ -207,7 +219,7 @@ export class GameSession {
         this.signal?.throwIfAborted();
         if (i >= attempts) throw e;
         this.log(`figure load attempt ${i} failed: ${e.message.split('\n')[0]}; retrying`);
-        await sleep(6000);
+        await sleep(FIGURE_RETRY_MS);
       }
     }
   }
@@ -259,7 +271,6 @@ export class GameSession {
   // Wraps runScript so a failure still exposes the steps completed so far (e.trace).
   async runScriptSafe(steps, options) {
     const trace = [];
-    const original = this.log;
     try {
       return await this.runScript(steps, {
         ...options,
@@ -271,8 +282,6 @@ export class GameSession {
     } catch (e) {
       e.trace = trace;
       throw e;
-    } finally {
-      this.log = original;
     }
   }
 }

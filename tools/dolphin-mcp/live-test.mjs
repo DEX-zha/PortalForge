@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { here, local, evidence, delay } from './runtime.mjs';
+import { requireSetting } from './config.mjs';
 const c = new Client({ name: 'portalforge-live-test', version: '0.1.0' });
 const report = { started: new Date().toISOString(), checks: [] };
 async function call(name, args = {}) {
@@ -15,7 +16,7 @@ try {
   await c.connect(
     new StdioClientTransport({ command: process.execPath, args: [path.join(here, 'server.mjs')], stderr: 'inherit' }),
   );
-  let { game } = JSON.parse(fs.readFileSync(path.join(local, 'dolphin-config.json'), 'utf8'));
+  let game = requireSetting('game');
   if (process.argv.includes('--patch')) {
     const patch = await call('dolphin_build_patch_launch', {
       game,

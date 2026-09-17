@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { local, buildDescriptor } from './runtime.mjs';
+import { requireSetting } from './config.mjs';
 const source = path.join(local, 'riivolution-smoke/files/DATA/files/hbm/config.txt');
 const bytes = fs.readFileSync(source);
 const targetSize = 61447; // logs as "61 kB"; the original 35 bytes log as "0 kB"
@@ -26,7 +27,7 @@ fs.writeFileSync(
 </wiidisc>
 `,
 );
-const { game } = JSON.parse(fs.readFileSync(path.join(local, 'dolphin-config.json'), 'utf8'));
+const game = requireSetting('game');
 const descriptor = buildDescriptor(game, xml, directory, [{ 'option-id': 'm0-proof', choice: 1 }]);
 fs.writeFileSync(path.join(directory, 'launch.json'), JSON.stringify(descriptor, null, 2));
 const manifest = {

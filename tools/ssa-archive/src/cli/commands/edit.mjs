@@ -10,25 +10,18 @@ import { CliError, EXIT, need } from '../errors.mjs';
 import { firstFixup, parseHexList, parseNumberList, readFixups } from '../args.mjs';
 import { pickSubcommand } from '../dispatch.mjs';
 import { localDir, sampleOf } from '../paths.mjs';
+import { setting } from '../../../../dolphin-mcp/config.mjs';
 
 const DEFAULT_PORT = 7378;
 const hex = value => '0x' + value.toString(16);
 const planExit = plan => (plan.validation.status === 'VALID' ? EXIT.OK : EXIT.FAILED);
-
-function gameFromConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(localDir, 'dolphin-config.json'), 'utf8')).game;
-  } catch {
-    return null; // no configuration yet: the caller reports it with the way to fix it
-  }
-}
 
 // What the editor server needs from the outside world: a patch builder and a game runner. They are the same
 // ones the command line uses, so an editor run leaves the same evidence trail as a command-line one.
 export function editorDeps(session, o) {
   return {
     build: ({ experimentId, replacements }) => {
-      const game = o.game ?? gameFromConfig();
+      const game = o.game ?? setting('game');
       if (!game) {
         throw Object.assign(new Error('no game image configured: set .local/dolphin-config.json or pass --game'), {
           error: 'NO_GAME',
