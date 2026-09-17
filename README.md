@@ -38,9 +38,9 @@ It is three things in one repository:
 
 - **A format toolkit** — readers, writers and diffing for the game's `IGA v4` archives and the `IGZ v5` object
   graphs inside them, including the LZMA chunking, the placement records, the scripts and the GX mesh geometry.
-- **A 3D editor** — a local server plus a browser view (Three.js, no bundler) that shows a level's real geometry
-  and its 673 placements, lets you move, rotate, duplicate and **add** objects, and compiles the result back into
-  a Riivolution patch.
+- **A 3D editor** — a local server plus a browser view (Three.js, no bundler) that opens any of the game's 76
+  levels with its real geometry and placements, lets you move, rotate, duplicate and **add** objects, and compiles
+  the result back into a Riivolution patch.
 - **An experiment harness** — a dedicated Dolphin instance driven over MCP, with input macros, memory reads,
   screenshots and machine-checked experiment records, so that every claim about the game can be reproduced.
 
@@ -90,6 +90,7 @@ scope stating what the run does **not** prove.
 | Translate a scripted prop together with its private trajectory | **CONFIRMED** | [`docs/editor/scripted-movement.md`](docs/editor/scripted-movement.md) |
 | **Add** up to eight extra objects with no victim, from nine exact sources | **CONFIRMED** (tutorial, SSPP52 Rev1) | [`specs/005-native-object-addition/validation.md`](specs/005-native-object-addition/validation.md) |
 | Boot straight into the edited tutorial, skipping the menus | **CONFIRMED** (tutorial only) | [`docs/editor/direct-entry.md`](docs/editor/direct-entry.md) |
+| Open any of the 76 levels by name and move its objects | **LIKELY** — same record layout on every level; in-game effect confirmed on the tutorial only | [`specs/006-multi-level-editing/`](specs/006-multi-level-editing/) |
 | Cross-level import, new geometry, new collision, gameplay scripting | **UNKNOWN** — gates M4A / M4B / M5 | [`docs/editor/roadmap.md`](docs/editor/roadmap.md) |
 
 `node tools/ssa-archive/cli.mjs gates` prints the current state of every gate with its evidence.
@@ -162,14 +163,19 @@ cd ../ssa-archive      ; npm ci --ignore-scripts ; npm test
 #    .local/dolphin-config.json  ->  { "game": "D:/path/to/SSA.wbfs" }
 node cli.mjs identify --game "D:/path/to/SSA.wbfs"
 
-# 3. extract a level and decode its entries
+# 3. open the 3D editor on a level; extraction and decoding happen on first use, under .local/
+node cli.mjs edit levels
+node cli.mjs edit open Level_027_Tutorial --port 7400 --open
+
+# or serve one decoded file explicitly (no level picker in that mode)
 node cli.mjs disc-extract --game "D:/path/to/SSA.wbfs" --path level/Level_027_Tutorial.bld --out .local/samples
 node cli.mjs extract .local/samples/DATA/files/level/Level_027_Tutorial.bld --out .local/workspaces/tutorial-bld --decode
-
-# 4. open the 3D editor
 node cli.mjs edit serve .local/workspaces/tutorial-bld/entries/3-level.bld.decoded \
   --archive level/Level_027_Tutorial.bld --entry 3 --port 7400 --open
 ```
+
+The header of the editor lists every level of the disc; **Open** switches to another one, and the Level
+information panel says what the editor can do there and on which evidence.
 
 Then edit in the browser and press **Save → Patch → Launch**. The launcher owns its own Dolphin instance in
 `.local/dolphin-user/`; your personal Dolphin installation is never driven, and the WBFS is never written to.
@@ -201,7 +207,7 @@ docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
 - **Editor** — [roadmap](docs/editor/roadmap.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
 - **Runtime** — [Dolphin MCP, gate M0](docs/mcp/dolphin-mcp.md) · [how experiments are judged](docs/experiments/README.md)
 - **Findings** — [index](docs/findings/) with one JSON record per claim, rendered to Markdown by `cli.mjs findings render`
-- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/)
+- **Specs** — [001 level research](specs/001-ssa-level-research/) · [002 entity model](specs/002-igz-entity-model/) · [003 3D editor](specs/003-placement-editor-3d/) · [004 object workflow](specs/004-object-workflow/) · [005 native addition](specs/005-native-object-addition/) · [006 multi-level editing](specs/006-multi-level-editing/)
 
 ## How the project is developed
 

@@ -1,0 +1,30 @@
+{
+  "id": "level.transform.other-levels",
+  "updated": "2026-09-17",
+  "editable": false,
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "endian": "be",
+  "type": "in-place transform edit (+0x24 position, +0x34 heading, +0xB8 scale) of a placement record in a level other than the tutorial",
+  "structure": "The placement class is detected structurally per file (igz.types.per-file-indices) and carries the same fields on all 76 level archives (igz.placement.type104-record: 43 258 placements, 100% schema-valid). The editor writes the same three attributes at the same offsets on every level; a save changes exactly the authorised words and nothing else.",
+  "location": {
+    "file_pattern": "level/*.bld:level.bld (decoded), every level except Level_027_Tutorial",
+    "offset": "placement record +0x24 (xyz), +0x34 (heading), +0xB8 (scale)",
+    "length": 20
+  },
+  "meaning": "What is established: the record layout generalises, the editor opens all 76 levels by disc path, and a transform on Mining saves as three changed words, with the structural and the runtime-mapped resolution producing byte-identical edits on the tutorial. What is NOT established: that the game reads the edited position on a level other than the tutorial. The tutorial proofs (m3-level_027_tutorial-e3-1789304824550, m2-level_027_tutorial-e3-o3296360-1789307182968) are the only in-game observations of a transform. CONFIRMED requires two identical cold boots of an edited non-tutorial level showing the predicted, visible effect, reached through normal play because no input macro enters those levels. Until then the editor labels transforms on other levels LIKELY and says so before an edit is trusted.",
+  "evidence": [
+    {
+      "probe": "ssa-archive corpus over all 76 level archives (docs/reports/placement-corpus-all-levels.json)",
+      "summary": "43 258 placements across every level of the disc; position, heading and scale validate against the frozen placement-v1 contract in 100% of cases; zero ambiguous model resolutions anywhere."
+    },
+    {
+      "probe": "tests/editor-multilevel.test.mjs on Level_000_Mining (617 placements, class 98)",
+      "summary": "A transform on a level the editor was never built against saves as exactly three changed position words; duplication is refused without a runtime map; the structural and runtime-map paths produce byte-identical edits on the tutorial."
+    },
+    {
+      "probe": "tests/editor-level-open.test.mjs, tests/editor-open-route.test.mjs, tests/browser-multilevel.mjs and headless previews of Mining, Haunted Castle, Hub stage 1, Challenge 005 and Dark Forest (2026-09-17)",
+      "summary": "Every level opens by disc path with its own detected class and its objects sit on the decoded scenery in world space. Six boss levels park BossCamera, PhaseDirector and EvilPortalMaster at (30480, 30480, 30480) and several levels keep switch templates near (30, 0, -815); these parked records are drawn but left out of the framing extent. No in-game run was made for this finding."
+    }
+  ]
+}
