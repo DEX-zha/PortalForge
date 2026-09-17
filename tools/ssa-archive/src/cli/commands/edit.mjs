@@ -21,7 +21,9 @@ const planExit = plan => (plan.validation.status === 'VALID' ? EXIT.OK : EXIT.FA
 // What the editor server needs from the outside world: a patch builder, a game runner, the level catalogue and
 // a way to open another level. They are the same ones the command line uses, so an editor run leaves the same
 // evidence trail as a command-line one. Nothing here is bound to one session: the server may switch levels.
-export function editorDeps(o = {}) {
+export function editorDeps(o = {}, legacy = undefined) {
+  // Until feature 006 this took (session, options); a local script written against that form still works.
+  if (o && typeof o === 'object' && Array.isArray(o.placements)) o = legacy ?? {};
   return {
     build: ({ experimentId, replacements, session, redirect = null }) => {
       const game = o.game ?? setting('game');
