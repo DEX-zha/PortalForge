@@ -11,15 +11,44 @@ import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } 
 // plan it made beforehand matches the bytes it is about to write. Patch and launch sit behind that, and behind
 // the session lock, so a running game is never read out from under.
 
-function session() {
+function session({ tail = 0 } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-save-'));
   const file = path.join(dir, 'level.bld.decoded');
-  fs.writeFileSync(file, syntheticLevel().buf);
+  fs.writeFileSync(file, Buffer.concat([syntheticLevel().buf, Buffer.alloc(tail)]));
   const s = openSession(file, { archive: 'level/Test.bld', entry: 3, deps: { gates: () => ({ status: 'PASS' }) } });
   s.outDir = dir;
   return s;
 }
 const out = s => path.join(s.outDir, 'edited.bld.decoded');
+
+test('save counts unauthorized bytes exactly, including a final partial word', () => {
+  const s = session({ tail: 3 });
+  applyEdit(s, { kind: 'transform', target: s.placements[0].offset, heading: 90 });
+  s.buffer[s.buffer.length - 1] = 17;
+  s.buffer[s.buffer.length - 2] = 23;
+  const result = save(s, { out: out(s) });
+  assert.equal(result.written, null);
+  assert.equal(result.plan.status, 'INVALID');
+  assert.equal(result.plan.bytes_changed_outside, 2);
+  assert.equal(fs.existsSync(out(s)), false);
+});
+
+test("launch and an old observation cannot take or release another operation's lock", async () => {
+  const s = session();
+  applyEdit(s, { kind: 'transform', target: s.placements[0].offset, heading: 90 });
+  const deps = { build: () => ({ dir: s.outDir }), run: async () => assert.fail('must not run') };
+  save(s, { out: out(s) });
+  patch(s, { deps });
+  s.lastLaunch = { running: false, patch_dir: s.outDir, experiment_id: 'previous' };
+  s.locked = true; // validation or an asynchronous open, not the previous run
+  s.lock = null;
+  await assert.rejects(launch(s, { mode: 'test', deps }), e => e.error === 'SESSION_LOCKED');
+  assert.throws(
+    () => observe(s, { observed: 'old run', matched: true }),
+    e => e.error === 'SESSION_LOCKED',
+  );
+  assert.equal(s.locked, true);
+});
 
 test('patch and launch refuse stale saved bytes, including edits made after a patch', async () => {
   const s = session(),

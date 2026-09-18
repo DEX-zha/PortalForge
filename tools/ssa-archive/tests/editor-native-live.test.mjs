@@ -180,6 +180,48 @@ function unmeasuredLevel(t) {
   return { s, dir };
 }
 
+test('an uncertain live write is never replayed in the same run', async t => {
+  const { s } = unmeasuredLevel(t);
+  const source = s.placements[0];
+  const additions = [
+    { id: -1, source: source.offset, model: source.model.offset, position: [1, 2, 3], heading: 0, scale: 100 },
+  ];
+  const game = memory(geckoArea(compileNativePatch([], { layout: 'live', capacity: 8 })));
+  let writes = 0;
+  const arrival = liveArrival(s, additions, {
+    read: game.read,
+    write: {
+      u32: async () => {
+        writes++;
+        throw Error('write response lost');
+      },
+      bytes: game.write.bytes,
+    },
+    capture: async () => ({ base: 0x80d00000, placements: [{ offset: source.offset, state: 1, actor: 0x81000200 }] }),
+    keep: () => 'snapshot.json',
+  });
+  await assert.rejects(arrival({ run: 'r' }), e => e.retryable === false && /do not replay/.test(e.message));
+  await assert.rejects(arrival({ run: 'r' }), /do not replay/);
+  assert.equal(writes, 1);
+  const record = {};
+  let attempts = 0;
+  const watch = watchAdditions({
+    native: liveNative(),
+    record,
+    run: 'r',
+    arrival: async () => {
+      attempts++;
+      return arrival({ run: 'r' });
+    },
+  });
+  await watch.atCapture('run-arrived-1.png');
+  await watch.atCapture('run-arrived-2.png');
+  await watch.atEnd();
+  assert.equal(attempts, 1);
+  assert.equal(record.native_additions.verified, false);
+  assert.match(record.native_arrival.error, /write response lost/);
+});
+
 test('a level never measured patches the live routine, and its launch measures it and writes the additions', async t => {
   const { s, dir } = unmeasuredLevel(t);
   const [crate, barrel] = s.placements;

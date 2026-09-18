@@ -787,12 +787,14 @@ async function pollLaunch() {
 function addedObjectsNote(additions) {
   if (!additions?.length) return '';
   const created = additions.filter(a => a.runtime === 'passed').length;
-  const gone = additions.filter(a => a.runtime === 'observed').length;
+  const observed = additions.filter(a => a.runtime === 'observed').length;
+  const inconclusive = additions.filter(a => a.runtime === 'inconclusive').length;
   const failed = additions.filter(a => a.runtime === 'failed');
   return (
     ` Added objects: ${created} of ${additions.length} verified in game` +
-    (gone ? `, ${gone} created then removed by their script` : '') +
-    (failed.length ? `, ${failed.length} not created (${failed[0].reason})` : '') +
+    (observed ? `, ${observed} creation observed but final state unverified` : '') +
+    (inconclusive ? `, ${inconclusive} verification inconclusive` : '') +
+    (failed.length ? `, ${failed.length} failed verification (${failed[0].reason})` : '') +
     '.'
   );
 }

@@ -42,3 +42,42 @@ from an isolated Mining session. Three existing experimental frames were added, 
 images are displayed whole in the README, with run identifiers and limits. Source PNGs were copied unchanged.
 The [image provenance](../images/README.md) records their origins and SHA-256 hashes.
 No new Dolphin experiment was run, no gate was advanced and the user's running editor was not restarted.
+
+## Follow-up: runtime reporting and merge preparation, 2026-09-18
+
+The second pass traced the HTTP session lifecycle, save validation, live-table arrival, per-instance inspections,
+family reports and their evidence pages. It also reviewed the explanatory claims against those code paths.
+
+| Defect or overstatement | Correction |
+|---|---|
+| Asynchronous opening allowed conflicting edits/launches | Hold the old session lock until opening succeeds or fails; failed opening preserves the scene. A stale observation cannot release another operation's lock. |
+| Primitive JSON bodies, string `discard`, unsupported verbs and asynchronous GET rejection | Validate object bodies and boolean discard; reject unsupported API methods; await the handlers inside the error boundary. |
+| Save checks ignored a final partial word and counted changed words as bytes | Check trailing bytes, count actual differing bytes, and compare the written file with the complete validated buffer. |
+| Missing final readings became failed creation or script removal | Distinguish observed creation, inconclusive inspection and explicit failure in reports and UI; file a verdict even when no sample succeeded. |
+| One instance read failure discarded other results; rows could individually pass with shared pointers | Preserve per-row errors and successful readings; cross-check instance, actor and mutable-state ownership across rows. Sequential pointer reuse is inconclusive. |
+| Live-table retry could replay creation after an uncertain bridge acknowledgement | Cache completed arrival and stop retrying after writing has started and failed. Measurement-only failures remain retryable. |
+| Short snapshot reads could silently leave zero-filled memory | Require exact read lengths and MEM1 boundaries before accepting resident-section evidence. |
+| Evidence page only understood tutorial batches and hid other captures | Resolve ordinary editor launches as well as legacy batches; display the full capture sequence and missing local records. |
+| Docs omitted offsets from family keys, claimed continuous sampling and universal wrong-address safety | Match the actual hash inputs, bounded polling and runtime guard limitations. Separate creation from survival and inferred causes. |
+| Generated format provenance excluded executable/memory analysis; CI missed its generated file | Correct the maintained introduction, regenerate, and include `docs/format/iga-v4.md` in the drift check. |
+
+The new [knowledge map](../knowledge-map.md) connects claims, code, evidence and remaining uncertainty. The README,
+documentation index, addition guide and feature 007 contract/plan point to the current behavior. The existing full
+editor capture and nine authorized illustrations are retained; no synthetic or altered proof image was introduced.
+
+Validation after these corrections:
+
+- `npm test` at the root: 385 SSA tests and 6 MCP tests passed, none skipped. Ten new regression tests cover
+  the concrete defects; existing instance-inspection tests gained partial-read and shared-pointer cases.
+- `npm run lint`, `npm run format:check`, and `git diff --check`: passed.
+- Findings: 83 valid records; all four gate files consistent with their existing evidence. No promotion.
+- Documentation: 261 relative links resolve, 113 JSON files parse, fixed paths present.
+- Content: 477 tracked/intended files, nine published images, no prohibited game data and no file over 2 MB.
+- Catalogue browser: `.local/object-workflow/browser-1789718788934/result.json`, no browser errors.
+- Multi-level browser: `.local/level-check/browser-1789718855055/result.json`, PASS.
+
+These are local Windows checks, not a claim that the remote Linux/Windows and Node 22/24 CI matrix has run on
+this diff. No new real-game boot was performed for the host-side fixes; the tutorial compiler remains byte-pinned
+by its regression tests. Runtime experiments and pending research still have the scope stated in their findings.
+Save plus sidecar is not crash-atomic, snapshots are not instantaneous, and experimental additions are not a
+production guarantee for arbitrary game content. The changes are prepared for review; this audit does not merge main.

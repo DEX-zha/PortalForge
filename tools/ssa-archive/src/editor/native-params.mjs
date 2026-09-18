@@ -3,9 +3,9 @@
 //
 // On the tutorial both are constants, validated by the boots of feature 005. On every other level they are read
 // from the level's latest scene snapshot (scene-snapshot.mjs), which measured the base in the running game and
-// saw which placements were active with an actor. Nothing is guessed: a level without a snapshot has no
-// parameters, and the recipe refuses to compile for it. A wrong base is harmless by construction, because the
-// compiled code checks the class pointer, the model and the script of every source before it calls the factory.
+// saw which placements were active with an actor. Without a compatible snapshot this module has no static
+// parameters; native-additions.mjs selects the live routine and measures at launch instead. Source guards check
+// the class, model and script before a factory call; they do not validate arbitrary addresses or revisions.
 import fs from 'node:fs';
 import { NATIVE_BASE, TUTORIAL_ANCHOR } from './native-patch.mjs';
 import { latestSnapshot, latestSnapshotFile } from './scene-snapshot.mjs';

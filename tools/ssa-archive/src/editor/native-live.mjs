@@ -137,7 +137,11 @@ export function liveArrival(session, additions, services = {}) {
     keep = saveSnapshot,
     snapshotDir = session.snapshots_dir,
   } = services;
+  let completed = null,
+    writeFailure = null;
   return async ({ run = null } = {}) => {
+    if (completed) return completed;
+    if (writeFailure) throw writeFailure;
     const snapshot = await capture(session, {
       readBytes: read,
       run,
@@ -148,16 +152,29 @@ export function liveArrival(session, additions, services = {}) {
     const params = nativeParamsFor(session, { snapshot });
     if (!params.available) throw Error(params.reason);
     const rows = typeof additions === 'function' ? await additions({ snapshot, params }) : additions;
-    const written = await writeLiveBatches({
-      additions: rows,
-      base: params.base,
-      anchor: params.anchor.address,
-      read,
-      write,
-      ...(services.settle ? { settle: services.settle } : {}),
-      ...(services.wait ? { wait: services.wait } : {}),
-    });
-    return {
+    let written;
+    try {
+      written = await writeLiveBatches({
+        additions: rows,
+        base: params.base,
+        anchor: params.anchor.address,
+        read,
+        write,
+        ...(services.settle ? { settle: services.settle } : {}),
+        ...(services.wait ? { wait: services.wait } : {}),
+      });
+    } catch (cause) {
+      // A bridge error may arrive after the game has already consumed a batch. Replaying it could
+      // create duplicate instances. Retry measurement only; an uncertain write needs a fresh run.
+      writeFailure = Object.assign(
+        new Error(`Live addition write did not complete; do not replay this batch in the same run: ${cause.message}`, {
+          cause,
+        }),
+        { retryable: false },
+      );
+      throw writeFailure;
+    }
+    completed = {
       additions: rows,
       options: { ...params.options, layout: 'live', capacity: written.capacity, rows: written.rows },
       base: params.base,
@@ -166,5 +183,6 @@ export function liveArrival(session, additions, services = {}) {
       written: written.written,
       batches: written.batches,
     };
+    return completed;
   };
 }

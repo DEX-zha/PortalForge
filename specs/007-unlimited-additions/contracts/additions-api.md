@@ -69,3 +69,17 @@ Errors are kept in the local cache. The placement-free Title archive is not one 
 
 Cache: `.local/catalogue/kinds.json`. CLI equivalent: `node tools/ssa-archive/cli.mjs edit catalogue`
 from the repository root. Foreign cards remain read-only until the import experiments succeed.
+
+## Inspection and report failures
+
+Runtime results distinguish `passed`, `failed`, `observed` (creation observed, final state unverified) and
+`inconclusive` (insufficient inspection). Family cards map the last two to an inconclusive report. Missing
+bridge reads are not evidence that a script removed an object; successful observations for other rows are retained.
+Pointers shared across inspected additions also prevent a passing sample, without assuming simultaneous aliasing.
+
+Live measurement can retry before writing. A failure after table writing starts ends those attempts for the run,
+because replay could create duplicates. Periodic play inspections stop after all additions have been seen alive
+or 40 readings; level-capture and final checks are separate. Reports retain the latest 20 launch entries per family.
+
+Report pages resolve both legacy tutorial batch records and ordinary editor-run records, show their full capture
+sequence and identify missing local records. This evidence does not automatically promote a recipe or gate.

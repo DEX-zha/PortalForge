@@ -260,6 +260,7 @@ docs/*-status.json     gate state, read by the tooling (`cli.mjs gates`)
 
 ## Documentation
 
+- **Evidence and implementation** — [what is known, why, and where to investigate](docs/knowledge-map.md): scoped findings, loader hypotheses, runtime verdicts, code paths and reproduction limits.
 - **Start here** — [`docs/README.md`](docs/README.md) indexes every document.
 - **Formats** — [IGA v4 containers](docs/format/iga-v4.md) · [IGZ level editing](docs/format/igz-level-editing.md) · [mesh geometry](docs/format/igz-mesh-geometry.md)
 - **Editor** — [roadmap](docs/editor/roadmap.md) · [adding objects](docs/editor/adding-objects.md) · [patch, launch and scripted movement](docs/editor/dolphin-workflow.md) · [direct level entry](docs/editor/direct-entry.md) · [scene poses](docs/editor/scene-poses.md) · [missing-scenery study](docs/editor/missing-scenery-study.md)
@@ -278,7 +279,7 @@ duplication) are PASS; M4A (new assets), M4B (collision) and M5 (gameplay) are U
 to pretend otherwise. A property is only made editable once its finding is CONFIRMED; experimental runtime additions have the separate
 labelled, launch-verified scope described above.
 
-**Tests and reproduction.** 375 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp`, plus scripted WebGL
+**Tests and reproduction.** 385 tests in `tools/ssa-archive`, 6 in `tools/dolphin-mcp` in the local audit, plus scripted WebGL
 browser runs (catalogue, and the level switch across three levels) and the two-boot Dolphin protocol. Failures and negative results are documented as carefully as the
 successes — the research files are full of them, because they are what makes the successes trustworthy.
 

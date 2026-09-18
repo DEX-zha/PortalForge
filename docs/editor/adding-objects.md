@@ -22,8 +22,8 @@ The card says what is known about that source, and never more:
 | **Add** | a confirmed recipe: this exact source passed two identical boots and a review (nine tutorial sources) |
 | **Add · verified in game** | a launch created it and read it back from the game's memory; the count of launches is in the tooltip |
 | **Add · related source tested** | another object of the same family (same model, script and scale) was in the game; this one was not yet |
-| **Add · lifecycle unclear** | it was created, and was gone before the end of the run: its own script removed or collected it |
-| **Add · failed in game** | the last launch did not create it; the reason is in the tooltip. It can be added again |
+| **Add · verification unclear** | inspection was incomplete, or creation was observed but the final state was not verified; this does not establish disappearance or its cause |
+| **Add · failed in game** | the last inspection failed the runtime checks; the reason is in the tooltip. It can be added again |
 | **Add · not verified** / **script not verified** | never launched yet |
 | **Blocked** | cannot work: the source is itself an added copy, or its scale is not 100 % |
 
@@ -38,8 +38,8 @@ Things that the boots taught:
   model-less set-up records (`Intro_Elemental_Swarmer(1)`, …). A copied set-up runs its script and removes itself
   without leaving an enemy; a copied template stands where you put it and then behaves: on Mining the added
   swarmer ran sixteen units to the player within the opening dialogue.
-- **Some objects remove themselves**: debris, dead automaton parts, actors of a closing cutscene. They read as
-  "lifecycle unclear". That is their script, not a failed creation.
+- **Some objects remove themselves**: debris, dead automaton parts, actors of a closing cutscene. Earlier observations can establish creation even when the final inspection cannot verify a live instance.
+  The generic report does not identify the responsible script or prove that collection occurred.
 - **A level's singletons** (its Level Master, its cutscene directors) can be added like anything else, and copying
   one may hang the level. The launch records it; undo the addition.
 
@@ -89,7 +89,8 @@ this reading.
 - **Patch** compiles the Gecko companion `portalforge-additions.ini` next to the Riivolution patch and records the
   options it was compiled with, so that the launcher installs exactly those bytes.
 - **Launch** installs the companion into the research profile, boots, and reads every addition back from memory at
-  each capture of the level, every fifteen seconds or so while you play, and at the end. The note at the end of a
+  each capture of the level and at the end. During play it also takes periodic readings (at most 40),
+  stopping those periodic readings once every addition has been seen alive. This is sampled evidence, not continuous tracking. The note at the end of a
   launch says how many were verified; the verdicts are filed per family under `.local/addition-validation/` and
   show on the cards. A missing experimental addition never stops the game.
 
@@ -101,7 +102,7 @@ the source's model and script, and the source as its parent. The companion is a 
 the activation manager (`0x80062B88`), which runs with the level. It waits until the manager has observers and a
 known placement of the level, the **anchor**, is active with an actor; then it walks a table and calls the factory
 once per row. Every row is guarded: the source must carry the placement class pointer, the expected model and the
-expected script, or the row is skipped. A wrong address therefore creates nothing rather than something wrong.
+expected script, or the row is skipped. These guards reject mismatched records at readable addresses; they do not make arbitrary addresses or other executable revisions safe.
 
 The confirmed tutorial recipes keep the context they were proven in: script-less sources are created at the return
 of the game's own clone call (`0x800445C8`), scripted ones in the activation manager. Everything else, on every
@@ -132,7 +133,7 @@ The ceiling is Dolphin's Gecko area: its code handler leaves 3 256 bytes for cod
   the Dolphin bridge: the rows, then the anchor, then the count. The routine does nothing while the count is zero,
   so it never sees half a table. From then on the level is measured, and its next patch compiles the table in.
 
-So additions work on a level the first time it is launched from the editor, with nothing to prepare.
+The editor can attempt additions on the first launch without a prior snapshot. Successful measurement, a suitable anchor and compatible runtime state are still required. Measurement failures are recorded. Once live-table writing starts, an uncertain bridge failure is not retried in the same run: the game may already have created some objects.
 
 **More than 59.** The routine attempts every row of its table in one pass, and the launcher can then read what it
 wrote (for each row, the attempt word and the instance the factory returned), keep it, and write the next 59 rows
@@ -185,6 +186,6 @@ node research-probes/native-level-probe.mjs --level Level_039_UndeadVolcano --au
 
 - Rendering was looked at for the added enemies only; combat, damage, loot and defeat are not judged.
 - More than 59 additions when the game is played without the editor: a table outside the Gecko area
-  ([study](../../specs/007-unlimited-additions/study-add-anything.md), step S08).
+  ([study](../../specs/007-unlimited-additions/study-add-anything.md), step S09).
 - Objects whose template is not in the level (an enemy of another level): phase C, gate M4A.
 - Scales other than 100 %.

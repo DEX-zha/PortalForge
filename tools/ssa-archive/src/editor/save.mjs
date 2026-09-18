@@ -4,8 +4,8 @@
 //   save   produces the plan BEFORE writing and checks it against the bytes it is about to write; if the plan is
 //          not VALID nothing is produced, and the plan still carries every failure so the refusal can be read.
 //   patch  builds a replacement-only workspace from the last valid save, never from the working buffer.
-//   launch requires a prediction, because an experiment without one cannot be judged, and takes the session lock.
-//   observe records what was actually seen and is what releases that lock, so a run cannot be quietly forgotten.
+//   launch takes the session lock; explicit modes derive a prediction when omitted and unlock when the run ends.
+//   observe records what was actually seen; legacy launches without a mode keep their lock until observation.
 import fs from 'node:fs';
 import path from 'node:path';
 import { authorisedWords } from './session.mjs';
@@ -105,11 +105,13 @@ export function buildSavePlan(session) {
       reason: 'the working buffer is not the same length as the file that was opened',
     });
   if (original && lengthUnchanged) {
-    for (let p = 0; p + 4 <= original.length; p += 4) {
-      if (original.readUInt32BE(p) === session.buffer.readUInt32BE(p)) continue;
+    for (let p = 0; p < original.length; p += 4) {
+      const size = Math.min(4, original.length - p);
+      if (size === 4 && original.readUInt32BE(p) === session.buffer.readUInt32BE(p)) continue;
       if (allowed.has(p)) continue;
-      outside++;
-      if (outside === 1)
+      const before = outside;
+      for (let i = 0; i < size; i++) if (original[p + i] !== session.buffer[p + i]) outside++;
+      if (before === 0 && outside > 0)
         failures.push({
           stage: 'validation',
           reason: `a word changed outside every edited attribute, at 0x${p.toString(16)}`,
@@ -177,21 +179,12 @@ export function save(session, { out = null } = {}) {
 
   // The plan was made before the write; check the file that now exists against it rather than trusting the write.
   const written = fs.readFileSync(target);
-  const original = fs.readFileSync(session.file);
-  const allowed = authorisedWords(session);
-  if (written.length !== original.length) {
-    fs.rmSync(target, { force: true });
-    plan.status = 'INVALID';
-    plan.failures.push({ stage: 'written', reason: 'the written file is not the same length as the original' });
-    return { plan, written: null };
-  }
-  for (let p = 0; p + 4 <= original.length; p += 4) {
-    if (original.readUInt32BE(p) === written.readUInt32BE(p) || allowed.has(p)) continue;
+  if (!written.equals(session.buffer)) {
     fs.rmSync(target, { force: true });
     plan.status = 'INVALID';
     plan.failures.push({
       stage: 'written',
-      reason: `the written file differs at 0x${p.toString(16)}, which the plan did not authorise`,
+      reason: 'the written file does not match the exact bytes validated by the save plan',
     });
     return { plan, written: null };
   }
@@ -322,6 +315,7 @@ export async function launch(
     );
   if (!session.lastPatch) fail('NOTHING_PATCHED', 'build a patch before launching');
   if (session.lastLaunch?.running) fail('ALREADY_RUNNING', 'a run is already under way; wait for it to finish');
+  if (session.locked) fail('SESSION_LOCKED', 'finish the current session operation before launching');
   if (hash(session.buffer) !== session.lastPatch.save_sha256)
     fail('STALE_PATCH', 'the patch predates these edits: save and rebuild it first');
   if (additionsDigest(currentAdditionRecipe(session)) !== (session.lastPatch.additions_sha256 ?? additionsDigest([])))
@@ -420,7 +414,7 @@ export async function launch(
       // What the game said about each added object, shown with the launch and filed under its family: this is
       // how an experimental addition earns its evidence (feature 007).
       const carried = runPatch.native_additions;
-      if (carried && record?.native_samples?.some(sample => sample.rows?.length)) {
+      if (carried && record) {
         const results = judgeRun(carried.additions, record.native_samples);
         current.additions = results.map(({ id, source, runtime, reason, verification_error }) => ({
           id,
@@ -475,6 +469,8 @@ export function observe(session, { experiment_id, observed, matched, deps = {} }
   if (!session.lastLaunch) fail('NOTHING_LAUNCHED', 'no run to record an observation against');
   if (session.lastLaunch.running)
     fail('STILL_RUNNING', 'the run has not finished; there is nothing to have observed yet');
+  if (session.locked && session.lock?.patch_dir !== session.lastLaunch.patch_dir)
+    fail('SESSION_LOCKED', 'another operation owns the session; an old observation cannot release its lock');
   if (experiment_id && experiment_id !== session.lastLaunch.experiment_id)
     fail('WRONG_EXPERIMENT', `this session launched ${session.lastLaunch.experiment_id}, not ${experiment_id}`);
   if (!String(observed ?? '').trim())

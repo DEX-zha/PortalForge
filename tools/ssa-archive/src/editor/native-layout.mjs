@@ -1,6 +1,6 @@
-// Memory layout the native-addition recipe relies on, for SSPP52 Rev 1. Every value here was read from the
-// running game (specs/005-native-object-addition/research.md) and is checked against code fingerprints before
-// a run, so a different game revision is refused rather than misread.
+// Memory layout the native-addition recipe relies on, for SSPP52 Rev 1; see feature 005 research.md.
+// Factory and activation fingerprints guard the known executable paths before a run. They do not
+// independently validate every layout constant or establish compatibility with another revision.
 
 // The range the Gecko code handler reserves for codes; the recipe keeps its per-addition slots there.
 export const GECKO_AREA = { start: 0x80001800, size: 0x1800 };

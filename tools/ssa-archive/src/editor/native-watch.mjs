@@ -45,7 +45,7 @@ export function watchAdditions({ native, record, run, inspect = null, arrival = 
       measure = 'done';
     } catch (e) {
       record.native_arrival = { error: e.message, attempts };
-      if (attempts >= ARRIVAL_ATTEMPTS) measure = 'failed';
+      if (e.retryable === false || attempts >= ARRIVAL_ATTEMPTS) measure = 'failed';
     }
   };
 

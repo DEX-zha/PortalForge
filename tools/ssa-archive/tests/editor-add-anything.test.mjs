@@ -194,7 +194,24 @@ test('several additions of one family count as one verdict, the worst, and a van
   const [report] = fileLaunchReports(s, results, { run: 'r1', dir: path.join(dir, 'reports') });
   assert.equal(report.runtime, 'inconclusive');
   assert.equal(report.launches[0].additions, 2);
-  assert.match(report.reason, /collected or destroyed/);
+  assert.match(report.reason, /does not establish disappearance/);
+});
+
+test('missing memory readings are inconclusive and do not assert destruction or failed creation', t => {
+  const { s, dir, barrel } = tutorial(t);
+  const additions = [{ id: -1, source: barrel.offset }];
+  const error = { capture: null, rows: [], error: 'bridge disconnected' };
+  const unknown = judgeRun(additions, [error]);
+  assert.equal(unknown[0].runtime, 'inconclusive');
+  assert.match(unknown[0].reason, /bridge disconnected/);
+  const [report] = fileLaunchReports(s, unknown, { run: 'r-missing', dir: path.join(dir, 'reports') });
+  assert.equal(report.runtime, 'inconclusive');
+  assert.equal(report.observed_live, false);
+  const earlier = judgeRun(additions, [{ rows: [{ id: -1, runtime: 'passed' }] }, error]);
+  assert.equal(earlier[0].runtime, 'observed');
+  assert.equal(earlier[0].seen_alive, true);
+  assert.equal(earlier[0].verification_error, 'bridge disconnected');
+  assert.equal(judgeRun(additions, [])[0].runtime, 'inconclusive');
 });
 
 test('another level is addable before it was ever measured, and compiles its table in once it has been', t => {

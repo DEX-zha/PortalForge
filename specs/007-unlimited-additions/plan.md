@@ -42,7 +42,7 @@ within the game's Content tree, lower-cased and hashed, so that a placed instanc
 from are one kind; a
 record with neither falls back to its normalized bare name, so different names remain distinct while equal
 fallback names group together without proving asset equivalence. The
-libraries that carry a kind are attributes of it. Offsets identify records, but are not part of family or kind keys. Anything that points outside the open
+libraries that carry a kind are attributes of it. Kind keys omit offsets. Family report keys include the probe version, original decoded-file digest, archive, model and script offsets and paths, and scale; they cannot be reused across arbitrary file revisions. Anything that points outside the open
 level carries its level. Recounted on 2026-09-17 with full Content paths: 8 800 kinds in 75 levels (the title screen
 has no placement),
 6 578 of them in one level only, 83 in thirty levels or more; Mining holds 323, and 382 enemy kinds with a model

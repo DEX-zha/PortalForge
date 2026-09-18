@@ -268,7 +268,19 @@ export async function inspectAdditions(additions, read = readNativeBytes, option
       });
       continue;
     }
-    const b = await read(row.pointer, INSTANCE_BYTES);
+    let b;
+    try {
+      b = await read(row.pointer, INSTANCE_BYTES);
+      if (b.length !== INSTANCE_BYTES) throw Error('Incomplete instance memory read.');
+    } catch (e) {
+      results.push({
+        ...row,
+        runtime: 'inconclusive',
+        reason: 'Instance memory could not be read.',
+        verification_error: e.message,
+      });
+      continue;
+    }
     row.bytes_hex = b.toString('hex');
     row.state = b.readUInt32BE(INSTANCE.state);
     row.actor = b.readUInt32BE(INSTANCE.actor);
@@ -287,8 +299,30 @@ export async function inspectAdditions(additions, read = readNativeBytes, option
     row.reason =
       row.runtime === 'passed'
         ? 'Distinct native instance and actor observed; visual and behavior checks pending.'
-        : 'No matching live actor remains at capture time. The script may have transformed or destroyed the object; this does not prove incompatibility.';
+        : 'The instance could not be verified at capture time. See the verification error; this does not establish disappearance or incompatibility.';
     results.push(row);
+  }
+  // Individual checks cannot establish that different rows own different instances and mutable state.
+  // Readings are sequential, so a reused address makes both observations inconclusive, not proof of a
+  // simultaneous alias or of a failed creation. Never publish both as distinct verified additions.
+  const verified = results.filter(row => row.runtime === 'passed');
+  for (const key of ['pointer', 'actor', 'actor_parameters', 'local_variables']) {
+    const owners = new Map();
+    for (const row of verified) {
+      const value = row.creation.objects[0][key];
+      if (!value) continue;
+      const same = owners.get(value) ?? [];
+      same.push(row);
+      owners.set(value, same);
+    }
+    for (const same of owners.values()) {
+      if (same.length < 2) continue;
+      for (const row of same) {
+        row.runtime = 'inconclusive';
+        row.verification_error = `Addition rows ${same.map(r => r.id).join(', ')} share ${key} during this reading.`;
+        row.reason = 'Distinct ownership across additions could not be verified.';
+      }
+    }
   }
   return results;
 }

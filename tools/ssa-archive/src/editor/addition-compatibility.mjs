@@ -24,7 +24,7 @@ const LABELS = {
   blocked: 'Blocked',
   confirmed: 'Add',
   runtime_passed: 'Add · verified in game',
-  inconclusive: 'Add · lifecycle unclear',
+  inconclusive: 'Add · verification unclear',
   family_tested: 'Add · related source tested',
   test_failed: 'Add · failed in game',
   needs_script_test: 'Add · script not verified',

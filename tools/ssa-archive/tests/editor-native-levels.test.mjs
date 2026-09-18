@@ -18,7 +18,7 @@ import {
   TABLE,
   TABLE_STRIDE,
 } from '../src/editor/native-patch.mjs';
-import { locateAdditionRows, verifyNativeInstances } from '../src/editor/native-run.mjs';
+import { locateAdditionRows, verifyNativeInstances, inspectAdditions } from '../src/editor/native-run.mjs';
 import { GECKO_AREA, INSTANCE, INSTANCE_BYTES, PLACEMENT_CLASS, SLOT } from '../src/editor/native-layout.mjs';
 import { chooseAnchor, nativeParamsFor } from '../src/editor/native-params.mjs';
 import { saveSnapshot } from '../src/editor/scene-snapshot.mjs';
@@ -261,6 +261,28 @@ for (const layout of ['slot', 'table'])
 
     // Read from the tutorial's base, the same memory proves nothing.
     await assert.rejects(verifyNativeInstances(additions, read, { layout }), /not uniquely consumed/);
+    // Per-row checks must retain the whole batch's independent-actor invariant.
+    instances.writeUInt32BE(0x81100000, 0x100 + INSTANCE.actor);
+    const shared = await inspectAdditions(additions, read, options);
+    assert.deepEqual(
+      shared.map(row => row.runtime),
+      ['inconclusive', 'inconclusive'],
+    );
+    assert.ok(shared.every(row => /share actor/.test(row.verification_error)));
+    instances.writeUInt32BE(0x81100100, 0x100 + INSTANCE.actor);
+    const partial = await inspectAdditions(
+      additions,
+      async (address, length) => {
+        if (address === instancesAt) throw Error('bridge read failed');
+        return read(address, length);
+      },
+      options,
+    );
+    assert.deepEqual(
+      partial.map(row => row.runtime),
+      ['inconclusive', 'passed'],
+    );
+    assert.match(partial[0].verification_error, /bridge read failed/);
     // An instance that is not where it was asked is a failure, whatever the layout.
     instances.writeFloatBE(99, INSTANCE.position);
     await assert.rejects(verifyNativeInstances(additions, read, options), /does not match the patch/);
@@ -464,6 +486,6 @@ test('a source seen alive at a capture but gone at the end is observed, not pass
   );
   assert.deepEqual(
     judgeRun(additions, []).map(r => r.runtime),
-    ['failed', 'failed'],
+    ['inconclusive', 'inconclusive'],
   );
 });

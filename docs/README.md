@@ -6,6 +6,10 @@ below live in the untracked `.local/` folder. See the [project README](../README
 
 ## Formats
 
+New contributors should start with the [knowledge and implementation map](knowledge-map.md): it connects
+the claims to their evidence, distinguishes confirmed recipes from hypotheses, and traces an edit through the
+runtime and reports. The [audit record](reports/documentation-audit.md) lists corrections and actual checks.
+
 | Document | What it covers |
 |---|---|
 | [format/iga-v4.md](format/iga-v4.md) | The `IGA v4` container: header, entry table, chunk tables, LZMA entries, hash table, trailer. Hand-written introduction plus generated tables. |
