@@ -117,13 +117,13 @@ try {
     `[...document.querySelectorAll('#capabilities .row')].map(r => [r.querySelector('.k').textContent, r.querySelector('.v').textContent])`,
   );
   // Direct entry on Mining is the archive redirect: offered when its voice pack is on disk, and its confidence
-  // (like the transform's) is the level's row in docs/level-entry-status.json.
+  // is the level's row in docs/level-entry-status.json. Transform proof has its own finding scope.
   const direct = session.level.capabilities.direct_entry;
   const move = session.level.capabilities.transform;
   assert.deepEqual(capabilities, [
     ['Move / rotate / scale', move.confidence],
     ['Duplicate', 'not available'],
-    ['Add', 'not available'],
+    ['Add', 'LIKELY · experimental'],
     ['Automatic test', 'not available'],
     [
       'Direct entry',
@@ -225,7 +225,7 @@ try {
   const tutorial = await evaluate(
     `[...document.querySelectorAll('#capabilities .row')].map(r => r.querySelector('.v').textContent)`,
   );
-  assert.deepEqual(tutorial.slice(0, 3), ['CONFIRMED', 'CONFIRMED', 'CONFIRMED']);
+  assert.deepEqual(tutorial.slice(0, 3), ['CONFIRMED', 'CONFIRMED', 'LIKELY · experimental']);
   step('tutorial', { capabilities: tutorial });
   await shot('04-tutorial');
 

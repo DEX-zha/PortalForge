@@ -265,3 +265,108 @@ test('an abort before launch returns its PID still closes the subsequently owned
   assert.equal(r.status, 'STOPPED');
   assert.ok(f.calls.some(c => c[0] === 'stop'));
 });
+
+test('a probe reads the running game at every capture of the level and at the end, and a failed reading is kept', async () => {
+  const f = fixture();
+  f.fake.runScriptSafe = async (steps, opts) => {
+    opts.onStep?.({ step: 0 });
+    await opts.onShot?.('run-menu.png');
+    await opts.onShot?.('run-tutorial-arrived.png');
+    return [];
+  };
+  let reads = 0;
+  const r = await runEditorGame({
+    ...f,
+    mode: 'test',
+    archive: 'level/Level_027_Tutorial.bld',
+    gameFactory: () => f.fake,
+    evidenceDir: f.dir,
+    inspect: async () => {
+      reads++;
+      if (reads === 2) throw new Error('bridge closed');
+      return { state: 1 };
+    },
+  });
+  assert.deepEqual(r.inspections, [
+    { capture: 'run-tutorial-arrived.png', result: { state: 1 } },
+    { capture: null, error: 'bridge closed' },
+  ]);
+  assert.equal(r.status, 'MACRO_COMPLETED');
+  const written = JSON.parse(fs.readFileSync(path.join(f.dir, r.id + '.json'), 'utf8'));
+  assert.equal(written.inspections.length, 2);
+});
+
+const nativeFixture = additions => {
+  const f = fixture();
+  f.fake.runScriptSafe = async (steps, opts) => {
+    opts.onStep?.({ step: 0 });
+    await opts.onShot?.('run-tutorial-arrived.png');
+    return [];
+  };
+  const calls = [];
+  return {
+    ...f,
+    calls,
+    patch: { ...f.patch, native_additions: { additions, options: {} } },
+    // Nothing here may reach the research profile or a game that happens to be running.
+    nativeServices: {
+      install: async () => () => calls.push('restored'),
+      fingerprint: async () => calls.push('fingerprint'),
+      inspect: async rows => rows.map(a => ({ id: a.id, source: a.source, runtime: 'failed', reason: 'not created' })),
+      verify: async () => {
+        throw Error('Added object -1: native recipe was not uniquely consumed.');
+      },
+    },
+  };
+};
+
+test('a launch with experimental additions inspects each of them and plays on when one was not created', async () => {
+  const additions = [
+    { id: -1, source: 8, model: 16, position: [0, 0, 0], heading: 0, scale: 100, experimental: true },
+    { id: -2, source: 24, model: 16, position: [1, 0, 0], heading: 0, scale: 100, experimental: true },
+  ];
+  const f = nativeFixture(additions);
+  let looks = 0;
+  const r = await runEditorGame({
+    ...f,
+    mode: 'test',
+    archive: 'level/Level_027_Tutorial.bld',
+    gameFactory: () => f.fake,
+    evidenceDir: f.dir,
+    nativeInspect: async rows => {
+      looks++;
+      return rows.map(a => ({
+        id: a.id,
+        source: a.source,
+        runtime: a.id === -1 ? 'passed' : 'failed',
+        reason: 'seen',
+      }));
+    },
+  });
+  assert.equal(r.status, 'MACRO_COMPLETED', 'the run is not failed by an addition that was not created');
+  assert.equal(looks, 2, 'once at the capture of the level, once at the end');
+  assert.deepEqual(
+    r.native_samples.map(s => [s.capture, s.rows.map(row => row.runtime)]),
+    [
+      ['run-tutorial-arrived.png', ['passed', 'failed']],
+      [null, ['passed', 'failed']],
+    ],
+  );
+  assert.equal(r.native_additions.verified, false);
+  assert.equal(r.native_profile_restored, true);
+});
+
+test('a launch whose additions are all confirmed recipes still fails when the game did not create them', async () => {
+  const additions = [{ id: -1, source: 8, model: 16, position: [0, 0, 0], heading: 0, scale: 100 }];
+  const f = nativeFixture(additions);
+  await assert.rejects(
+    runEditorGame({
+      ...f,
+      mode: 'test',
+      archive: 'level/Level_027_Tutorial.bld',
+      gameFactory: () => f.fake,
+      evidenceDir: f.dir,
+    }),
+    /not uniquely consumed/,
+  );
+});

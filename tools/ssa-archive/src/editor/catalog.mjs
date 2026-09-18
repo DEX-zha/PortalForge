@@ -8,7 +8,9 @@ import { sceneRoles } from './scene-roles.mjs';
 import { interchangeable, planReplace, applyEdit } from './session.mjs';
 import { classifyAddition, groupCandidates } from './addition-compatibility.mjs';
 import { readFamilyReport } from './addition-probe.mjs';
-import { NATIVE_LIMIT } from './native-patch.mjs';
+import { NATIVE_LIMIT, nativeCapacity } from './native-patch.mjs';
+import { ADDITION_LIMIT } from './native-additions.mjs';
+import { folderOf, kindOf } from './object-kinds.mjs';
 
 const TOKEN_BYTES = 24;
 
@@ -67,6 +69,9 @@ function catalogEntry(session, placement, inactiveOffsets) {
     name: placement.name,
     model: placement.model?.path ?? null,
     layers: placement.layers,
+    // Read from the record's library and script directory, never from its display name (object-kinds.mjs).
+    folder: folderOf(placement),
+    kind: kindOf(placement).key,
     category,
     available: !reason,
     reason,
@@ -75,6 +80,13 @@ function catalogEntry(session, placement, inactiveOffsets) {
   };
 }
 
+let measured = null;
+const measuredCapacity = () =>
+  (measured ??= {
+    slot: nativeCapacity({}, { scripted: true }),
+    table: nativeCapacity({ layout: 'table' }, { scripted: true }),
+  });
+
 export function catalog(session) {
   const inactiveOffsets = new Set(sceneRoles(session).map(role => role.offset));
   const entries = session.placements.map(placement => catalogEntry(session, placement, inactiveOffsets));
@@ -82,7 +94,16 @@ export function catalog(session) {
   for (const entry of entries) counts[entry.addition.status] = (counts[entry.addition.status] ?? 0) + 1;
   return {
     addition_mode: 'native',
-    addition_capacity: { used: session.additions?.length ?? 0, limit: NATIVE_LIMIT },
+    // `limit` is the scene guard, `fits` the compiled capacity, and `confirmed` the count proven for
+    // the exact tutorial recipe (level.prop.native-addition-capacity), not for arbitrary sources.
+    addition_capacity: {
+      used: session.additions?.length ?? 0,
+      // What the editor accepts in a scene. Up to `fits.table` additions are compiled into the patch of a measured
+      // level; past that, and on a level never measured, the launch writes them into the running game.
+      limit: ADDITION_LIMIT,
+      confirmed: NATIVE_LIMIT,
+      fits: measuredCapacity(),
+    },
     entries,
     compatibility: { counts, families: groupCandidates(session) },
   };

@@ -1,5 +1,9 @@
 # Implementation Plan: Real object addition
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Branch**: main (folder 005, independent) | **Date**: 2026-09-16 | **Spec**: [spec.md](spec.md)
 
 ## Summary

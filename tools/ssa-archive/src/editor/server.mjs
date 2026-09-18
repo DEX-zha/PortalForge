@@ -6,8 +6,8 @@
 // check, not after.
 //
 // The API is the contract in specs/003-placement-editor-3d/contracts/editor-api.md. It returns resolved records,
-// never bytes, and it is the only way the view can reach the session. GET routes read; POST routes change the
-// session only, and `/api/save` is the single place a file is produced. A refusal answers 409 with the rule or
+// never raw archive bytes, and it is the only way the view can reach the session. GET routes read; POST routes
+// edit, save or run explicitly requested workflows (patches, snapshots, library). A refusal answers 409 with the rule or
 // reason that caused it.
 import http from 'node:http';
 import fs from 'node:fs';
@@ -28,13 +28,15 @@ import { catalog, prepareDrop, commitDrop } from './catalog.mjs';
 import { classifyAddition, familyKey } from './addition-compatibility.mjs';
 import { runAdditionProbe, readFamilyReport, reportsDir } from './addition-probe.mjs';
 import { renderAdditionReport } from './addition-report-page.mjs';
+import { loadAdditionEvidence } from './addition-evidence.mjs';
 import { assessPlacement } from './safety.mjs';
 import { scriptDiagnostics } from './script-diagnostics.mjs';
 import { directEntryConfirmed, TUTORIAL } from './level-entry.mjs';
 import { buildSavePlan, save, patch, launch, observe, launchState, stopLaunch } from './save.mjs';
-import { capabilitiesOf, levelKey } from './level-catalog.mjs';
+import { capabilitiesOf, levelKey, transformStatusFor } from './level-catalog.mjs';
 import { isTutorial } from './levels.mjs';
 import { captureSceneSnapshot, saveSnapshot, latestSnapshot, snapshotSummary } from './scene-snapshot.mjs';
+import { buildCatalogue, libraryFor, readCatalogue, catalogueFile } from './game-catalogue.mjs';
 import { readNativeBytes } from './native-run.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -89,27 +91,25 @@ function sendFile(res, abs) {
   res.end(body);
 }
 
-// A family report names the batch whose record holds the runs. The batch name becomes a path segment, so it is
-// checked against its exact shape before it is used as one.
-function loadFamilyReport(key) {
-  const report = readFamilyReport(key);
-  if (!report || !/^batch-[0-9]+-[a-f0-9]{8}$/.test(report.batch)) return null;
-  const record = JSON.parse(fs.readFileSync(path.join(reportsDir, report.batch, 'result.json'), 'utf8'));
-  return { report, record };
-}
-
 async function readJsonBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   if (!chunks.length) return {};
+  let body;
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
     throw Object.assign(new Error('the request body is not JSON'), { error: 'BAD_BODY' });
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    throw Object.assign(new Error('the request body must be a JSON object'), { error: 'BAD_BODY' });
+  return body;
 }
 
 export function startServer({ session: initial, port = DEFAULT_PORT, host = '127.0.0.1', deps = {} } = {}) {
+  const evidenceDir = path.resolve(deps.evidenceDir ?? EVIDENCE_DIR);
+  const loadFamilyReport = key =>
+    loadAdditionEvidence(key, { reports: deps.reportsDir ?? reportsDir, evidence: evidenceDir });
   // The session every route acts on. `POST /api/open` replaces it (feature 006); nothing else reassigns it, and
   // no route keeps a reference across requests, so a switch is complete the moment it happens.
   let session = initial;
@@ -195,7 +195,11 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     const { report, record } = loaded;
     if (runIndex !== undefined) {
       const shot = record.runs[Number(runIndex)]?.screenshots?.[Number(shotIndex)];
-      const servable = shot && path.resolve(shot).startsWith(EVIDENCE_DIR + path.sep) && path.extname(shot) === '.png';
+      const servable =
+        typeof shot === 'string' &&
+        path.resolve(shot).startsWith(evidenceDir + path.sep) &&
+        path.extname(shot) === '.png' &&
+        fs.existsSync(shot);
       return servable ? sendFile(res, path.resolve(shot)) : notFound(res, 'that test screenshot');
     }
     const screenshots = record.runs.flatMap((run, i) =>
@@ -213,6 +217,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
       listed?.capabilities ??
       capabilitiesOf({
         tutorial: isTutorial(session.archive),
+        transformStatus: transformStatusFor(session.archive),
         runtimeMap: session.has_runtime_map ? { file: null, source: 'given' } : null,
         directEntry: directEntryConfirmed(),
       })
@@ -253,22 +258,34 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
       });
     if (typeof body.archive !== 'string' || !body.archive.trim())
       return json(res, 409, { error: 'BAD_VALUE', reason: 'name the level to open' });
+    if (body.discard !== undefined && typeof body.discard !== 'boolean')
+      return json(res, 409, { error: 'BAD_VALUE', reason: 'discard must be a boolean' });
     if (session.dirty && !body.discard)
       return json(res, 409, {
         error: 'UNSAVED_CHANGES',
         reason: `${session.edits.length} unsaved edit(s) would be lost: save first, or open again with discard`,
         undo_depth: session.edits.length,
       });
-    const next = await deps.open(body.archive.trim());
-    session = next;
-    validation = null;
-    return json(res, 200, { opened: sessionSummary(session) });
+    // Extraction can await a child process. Hold the old scene stable until the new one is ready;
+    // failure leaves the original scene and history available again.
+    const previous = session;
+    previous.locked = true;
+    try {
+      const next = await deps.open(body.archive.trim());
+      if (deps.snapshotDir) next.snapshots_dir = deps.snapshotDir;
+      session = next;
+      validation = null;
+      return json(res, 200, { opened: sessionSummary(session) });
+    } finally {
+      previous.locked = false;
+    }
   }
 
   // The level as the running game holds it (feature 006): the newest snapshot read from Dolphin for this level,
   // and whether one can be taken now, which needs an editor-owned run that has reached play.
   const playing = () => !!session.lastLaunch?.running && session.lastLaunch?.progress?.phase === 'playing';
   const snapshotOptions = deps.snapshotDir ? { dir: deps.snapshotDir } : {};
+  if (deps.snapshotDir) session.snapshots_dir = deps.snapshotDir; // native-params.mjs reads the same folder
   function snapshotState(res) {
     return json(res, 200, {
       snapshot: snapshotSummary(latestSnapshot(session.archive, snapshotOptions), session),
@@ -290,8 +307,25 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     return json(res, 200, { snapshot: snapshotSummary({ file, ...snapshot }, session), capturable: true });
   }
 
+  // Every kind of object of the game, seen from the open level (feature 007, phase P). Building reads each
+  // decoded level once, a few seconds in all; it never opens the game image and never switches the session.
+  const libraryFile = deps.catalogueFile ?? catalogueFile;
+  const library = res => json(res, 200, libraryFor(session.archive, readCatalogue(libraryFile)));
+  async function buildLibrary(res) {
+    if (!deps.levels || !deps.open)
+      return json(res, 409, { error: 'LIBRARY_UNAVAILABLE', reason: 'start the editor with `edit open <level>`' });
+    const { levels } = await deps.levels();
+    const built = await buildCatalogue({
+      levels: levels.filter(level => level.ready),
+      open: level => deps.open(level.name, { game: null }),
+      file: libraryFile,
+    });
+    return json(res, 200, libraryFor(session.archive, built));
+  }
+
   const GET_ROUTES = {
     '/api/session': res => json(res, 200, sessionSummary(session)),
+    '/api/library': library,
     '/api/levels': levelList,
     '/api/snapshot': snapshotState,
     '/api/catalog': res => json(res, 200, catalog(session)),
@@ -349,6 +383,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
 
   const POST_ROUTES = {
     '/api/open': openLevel,
+    '/api/library': buildLibrary,
     '/api/snapshot': captureSnapshot,
     '/api/addition-validation': startValidation,
     '/api/addition-validation/stop': res => {
@@ -411,7 +446,7 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
     return notFound(res, pathname);
   }
 
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     let pathname;
     try {
       pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -428,7 +463,9 @@ export function startServer({ session: initial, port = DEFAULT_PORT, host = '127
         return res.end(renderAdditionReport(loaded.report, loaded.record, reportPage[1]));
       }
       if (pathname.startsWith('/api/')) {
-        return req.method === 'GET' ? handleGet(res, pathname) : handlePost(req, res, pathname);
+        if (req.method === 'GET') return await handleGet(res, pathname);
+        if (req.method === 'POST') return await handlePost(req, res, pathname);
+        return json(res, 405, { error: 'METHOD_NOT_ALLOWED', reason: 'use GET or POST for the editor API' });
       }
       return serveStatic(res, pathname);
     } catch (e) {

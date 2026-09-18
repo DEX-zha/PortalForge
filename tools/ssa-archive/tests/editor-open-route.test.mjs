@@ -14,7 +14,7 @@ import { capabilitiesOf } from '../src/editor/level-catalog.mjs';
 
 const gates = { gates: () => ({ status: 'PASS' }) };
 
-function machine({ switching = true } = {}) {
+function machine({ switching = true, beforeOpen = async () => {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-open-route-'));
   const files = {
     'level/A.bld': path.join(dir, 'a.decoded'),
@@ -41,7 +41,19 @@ function machine({ switching = true } = {}) {
   });
   return open('level/A.bld').then(async session => ({
     session,
-    server: await startServer({ session, port: 0, deps: switching ? { open, levels } : {} }),
+    server: await startServer({
+      session,
+      port: 0,
+      deps: switching
+        ? {
+            open: async query => {
+              await beforeOpen();
+              return open(query);
+            },
+            levels,
+          }
+        : {},
+    }),
   }));
 }
 
@@ -72,6 +84,76 @@ test('/api/levels lists the levels, marks the current one and states its capabil
   } finally {
     await server.close();
   }
+});
+
+test('opening holds the old session stable and releases it on failure', async t => {
+  let release, entered;
+  const started = new Promise(resolve => {
+    entered = resolve;
+  });
+  const pending = new Promise((resolve, reject) => {
+    release = reject;
+  });
+  const { server, session } = await machine({
+    beforeOpen: () => {
+      entered();
+      return pending;
+    },
+  });
+  t.after(() => server.close());
+  const opening = post(server, '/api/open', { archive: 'level/B.bld' });
+  await started;
+  try {
+    assert.equal(session.locked, true);
+    const edit = await post(server, '/api/edit', {
+      kind: 'transform',
+      target: session.placements[0].offset,
+      heading: 35,
+    });
+    assert.equal(edit.body.error, 'SESSION_LOCKED');
+    const second = await post(server, '/api/open', { archive: 'level/A.bld' });
+    assert.equal(second.body.error, 'SESSION_LOCKED');
+  } finally {
+    release(Object.assign(new Error('decode failed'), { error: 'DECODE_FAILED' }));
+  }
+  assert.equal((await opening).body.error, 'DECODE_FAILED');
+  assert.equal(session.locked, false);
+  assert.equal(session.edits.length, 0);
+  assert.equal((await get(server, '/api/session')).archive, 'level/A.bld');
+});
+
+test('invalid body shapes, methods and discard types never mutate a session', async t => {
+  const { server, session } = await machine();
+  t.after(() => server.close());
+  for (const body of [null, [], 'text', 17]) {
+    const result = await post(server, '/api/open', body);
+    assert.equal(result.status, 400);
+    assert.equal(result.body.error, 'BAD_BODY');
+  }
+  const badDiscard = await post(server, '/api/open', { archive: 'level/B.bld', discard: 'false' });
+  assert.equal(badDiscard.status, 409);
+  const unsupported = await fetch(server.url + '/api/reset', { method: 'DELETE' });
+  assert.equal(unsupported.status, 405);
+  assert.equal(session.edits.length, 0);
+  assert.equal((await get(server, '/api/session')).archive, 'level/A.bld');
+});
+
+test('a rejected asynchronous GET is an HTTP error instead of an unhandled rejection', async t => {
+  const { session, server: first } = await machine();
+  await first.close();
+  const server = await startServer({
+    session,
+    port: 0,
+    deps: {
+      levels: async () => {
+        throw Error('catalogue unavailable');
+      },
+    },
+  });
+  t.after(() => server.close());
+  const response = await fetch(server.url + '/api/levels');
+  assert.equal(response.status, 500);
+  assert.match((await response.json()).reason, /catalogue unavailable/);
 });
 
 test('/api/open replaces the session: every later route answers for the new level', async () => {

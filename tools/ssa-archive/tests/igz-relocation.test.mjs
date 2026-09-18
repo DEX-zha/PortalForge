@@ -54,7 +54,7 @@ test('structuralModel credits type-consistent fixed fields', () => {
 });
 
 test('decodeScript reads a type-92 script: count/capacity/size word, array at +0x34, instruction opcodes and blob coverage', async () => {
-  const { decodeScript, scriptTable } = await import('../src/igz/script.mjs');
+  const { decodeScript, scriptTable, scriptClass } = await import('../src/igz/script.mjs');
   const { buildGraph } = await import('../src/igz/graph.mjs');
   // synthetic script: owner (type 92, 0x34 header + 2 pointers = 0x3c) followed by two instruction records
   const built = buildIgz({
@@ -84,6 +84,7 @@ test('decodeScript reads a type-92 script: count/capacity/size word, array at +0
   built.buf.writeUInt32BE(S + 0x34 - secOff, S + 0x30);
   const g = buildGraph(built.buf);
   assert.deepEqual(scriptTable(built.buf, g), [S]);
+  assert.equal(scriptClass(built.buf, g), 92);
   const d = decodeScript(built.buf, g, { pointer_words: [S + 0x34, S + 0x38] }, S);
   assert.equal(d.count, 2);
   assert.deepEqual(d.issues, []);
@@ -93,6 +94,11 @@ test('decodeScript reads a type-92 script: count/capacity/size word, array at +0
   assert.equal(d.instructions[1].opcode, 'clone||at|facing||cloned');
   assert.ok(d.instructions.every(e => e.in_blob && e.header));
   assert.equal(d.coverage.uncovered_bytes, 0);
+  const other = Buffer.from(built.buf);
+  other.writeUInt32BE(86, S);
+  const otherGraph = buildGraph(other);
+  assert.equal(scriptClass(other, otherGraph), 86);
+  assert.deepEqual(decodeScript(other, otherGraph, { pointer_words: [S + 0x34, S + 0x38] }, S).issues, []);
 });
 
 test('listPlacements lists type-104 header-table records with position, heading, scale, model, script and layer names', async () => {

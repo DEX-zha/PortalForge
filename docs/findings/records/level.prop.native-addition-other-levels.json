@@ -1,0 +1,26 @@
+{
+  "id": "level.prop.native-addition-other-levels",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Native additions on a level other than the tutorial",
+  "structure": "The confirmed native factory recipe with the level's own resident base and readiness anchor, every source created from the activation manager hook",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler for Level_000_Mining reached through the archive redirect"
+  },
+  "meaning": "The recipe of level.prop.native-addition is bound to the tutorial by data only: the address the resident section is loaded at and a placement that is active with an actor once the level is ready. With Mining's values, read from its scene snapshot (base 0x80DC6F48, anchor MineTrain, a still script-less prop), and every source routed through the activation manager hook at 0x80062B88, eight additions were created on two identical cold boots: four from active placements (a lantern, an emerald, a breakable wall, an amethyst) and four from stored templates that the level never instantiates by itself (a half rock, a pizza, a script-less helmet, a key pickup). Each was read back from memory at four moments of each run as a distinct placement instance with its own actor, state 1, its source as parent, the source's model and script, and the requested position and heading. Not judged: rendering (the opening dialogue's camera does not frame the batch), behaviour, any other level. An experimental addition under constitution 1.2.0 relies on this recipe and is verified by every run that carries it.",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789671375662-ad57b21e",
+      "summary": "A1 boot 1: 8 of 8 created and verified from memory at every capture and at the end; patch consumption proven; clean stop, profile restored. Batch file .local/addition-campaigns/level_000_mining/batch-2026-09-17T18-56-15-661Z.json."
+    },
+    {
+      "probe": "editor-direct-test-1789671550982-a346f9ba",
+      "summary": "A1 boot 2: the same compiled recipe (sha256 0500bdff1e…), 8 of 8 again with the same verdict per source; clean stop, profile restored."
+    }
+  ]
+}

@@ -1,10 +1,14 @@
 # Feature Specification: Object browser, import and direct level access
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `main` (folder independent from the branch)
 
 **Created**: 2026-09-15
 
-**Status**: Batch 1 implemented and validated on 2026-09-15; batches 2–3 documented and planned, still to be done. See [validation](validation.md).
+**Status**: Batch 1 implemented and validated on 2026-09-15. Direct entry was extended by 005–006; the game-wide read-only catalogue is delivered by 007 phase P. Import/dependency work remains in 007 phase C. See [validation](validation.md).
 
 **Interface evolution**: Unity-inspired layout, folders/sub-folders and 3D thumbnails under the names, implemented as described in [interface.md](interface.md).
 

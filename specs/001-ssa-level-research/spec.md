@@ -1,10 +1,14 @@
 # Feature Specification: SSA Level Research
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `001-ssa-level-research`
 
 **Created**: 2026-09-12
 
-**Status**: Draft
+**Status**: Research toolkit implemented; M0–M3 PASS. This initial specification records the broader feasibility goal; M4A, M4B and M5 remain UNKNOWN.
 
 **Input**: User description: "Build an SSA Research Toolkit that proves the feasibility of replacing and substantially modifying an existing Skylanders: Spyro’s Adventure Wii level without altering the original game image."
 

@@ -131,6 +131,22 @@ export function entryStatusFor(archive, { repoRoot = root } = {}) {
   return ['CONFIRMED', 'LIKELY', 'UNKNOWN'].includes(status) ? status : 'UNKNOWN';
 }
 
+// Reaching a level proves entry, not that an edited transform has the predicted effect.
+// Only the transform finding's explicit scope can confirm another level.
+export function transformStatusFor(archive, { repoRoot = root } = {}) {
+  try {
+    const finding = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, 'docs/findings/records/level.transform.other-levels.json'), 'utf8'),
+    );
+    return finding.confidence === 'CONFIRMED' &&
+      finding.confirmed_levels?.some(level => levelKey(level) === levelKey(archive))
+      ? 'CONFIRMED'
+      : 'LIKELY';
+  } catch {
+    return 'LIKELY';
+  }
+}
+
 // The level entry of a workspace: the one `.bld` inside the archive. An uncompressed entry is its own decoded
 // form; a compressed one is decoded only once `decodeWorkspace` has run.
 export function levelEntry(dir, manifest) {
@@ -152,6 +168,7 @@ export function capabilitiesOf({
   directEntry = false,
   companion = false,
   entryStatus = 'UNKNOWN',
+  transformStatus = 'LIKELY',
 } = {}) {
   const map = !!runtimeMap;
   // Another level reaches direct entry by being served under the tutorial's file names (archive redirect). That
@@ -175,7 +192,7 @@ export function capabilitiesOf({
           finding: 'igz.placement.type104-record',
           why: 'moving, rotating and scaling placements is confirmed in game on this level',
         }
-      : entryStatus === 'CONFIRMED'
+      : transformStatus === 'CONFIRMED'
         ? {
             available: true,
             confidence: 'CONFIRMED',
@@ -203,20 +220,13 @@ export function capabilitiesOf({
           finding: 'igz.loader.fixup-map',
           why: 'duplicating rewrites pointer words, and which words are pointers is known only from a runtime map: capture one with experiment ptr-scan on this level',
         },
-    add:
-      tutorial && map
-        ? {
-            available: true,
-            confidence: 'CONFIRMED',
-            finding: 'level.prop.native-addition',
-            why: 'nine exact sources, eight additions at most, SSPP52 Rev1',
-          }
-        : {
-            available: false,
-            confidence: 'UNKNOWN',
-            finding: 'level.prop.native-addition',
-            why: 'the native addition recipe is anchored on the tutorial and its runtime map; other levels need their own anchor and proof',
-          },
+    add: {
+      available: true,
+      experimental: true,
+      confidence: 'LIKELY',
+      finding: 'level.prop.native-addition-live-table',
+      why: 'resident sources at scale 100 can be added and verified by the editor launch; each card identifies its own confirmed recipe or experimental status; an unmeasured level is measured at launch, and more than 59 additions need the editor',
+    },
     test: tutorial
       ? {
           available: true,
@@ -228,7 +238,7 @@ export function capabilitiesOf({
           available: false,
           confidence: 'UNKNOWN',
           finding: null,
-          why: 'no input macro reaches this level: use Normal play and navigate to it yourself',
+          why: "the individual automatic source test is tutorial-only; use an editor-owned direct launch to verify this level's additions",
         },
     direct_entry:
       tutorial && directEntry
@@ -292,6 +302,7 @@ function describe(archive, ctx) {
       directEntry: ctx.direct,
       companion: companion.present,
       entryStatus: entryStatusFor(archive, ctx),
+      transformStatus: transformStatusFor(archive, ctx),
     }),
   };
 }

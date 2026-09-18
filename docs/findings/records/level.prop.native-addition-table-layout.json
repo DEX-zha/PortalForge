@@ -1,0 +1,26 @@
+{
+  "id": "level.prop.native-addition-table-layout",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Thirty-two native additions from a compact table",
+  "structure": "40-byte rows (attempt, instance, id, position, source, heading, model, script) and one shared 144-byte argument block, zeroed and rebuilt from the row before each factory call",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler, table layout, Level_000_Mining"
+  },
+  "meaning": "The proven recipe keeps the factory's argument block inside each 144-byte slot, which bounds a patch at 18 additions in the 3 256 bytes that Dolphin's Gecko area leaves for codes (the code list starts at 0x80002338). The table layout shares one argument block between all rows and holds 59. The hypothesis it rests on is that the factory keeps no pointer into the block once it has returned. On two identical cold boots of Mining, 32 sources of 32 different families (props, loot, NPCs, a wagon, the mine train, a fan template, a legendary treasure, a key) were all created, each read back as a distinct instance with its own actor at the requested position and, which is what tests the hypothesis, with its own requested heading (0, 45, 270, 180, 19 degrees and others in one batch). Ten of them were gone at the next capture on both boots, the same ten: dead automaton parts, hay debris, the closing cutscene's actors, a camera dummy, a formation node, whose own scripts remove or hide them. Not judged: rendering, counts above 32, the ceiling of the game's own actor pools.",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789671746399-84848d08",
+      "summary": "A2 boot 1: 32 of 32 verified at the first capture of the level, 22 of 32 at the following ones and at the end; 2 144 bytes of recipe; consumption proven; clean stop, profile restored."
+    },
+    {
+      "probe": "editor-direct-test-1789672039351-5580ad6e",
+      "summary": "A2 boot 2: the same compiled recipe (sha256 8d64c26096…) and the same verdict for each of the 32 sources, including the same ten removed by their scripts."
+    }
+  ]
+}

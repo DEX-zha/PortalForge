@@ -4,11 +4,16 @@ import path from 'node:path';
 import { profile, portOccupied, bridgeCall } from '../../../dolphin-mcp/runtime.mjs';
 import {
   compileNativePatch,
+  nativeOptions,
   FACTORY_HASH,
   ACTIVATION_HASH,
   NATIVE_MAGIC,
+  NATIVE_HEADER_MAGIC,
+  LIVE_HEADER_MAGIC,
+  LIVE_HEADER_BYTES,
   NATIVE_STRIDE,
-  NATIVE_BASE,
+  TABLE,
+  TABLE_STRIDE,
 } from './native-patch.mjs';
 import { sha256 as hash } from '../util/hash.mjs';
 import {
@@ -29,7 +34,9 @@ export async function installNativePatch(
   native,
   { directory = profile, occupied = portOccupied, compiler = compileNativePatch } = {},
 ) {
-  const recipe = compiler(native.additions);
+  // The patch names the options it was compiled with (another level's base and anchor, the layout); a patch
+  // without them is a tutorial patch from before they existed.
+  const recipe = compiler(native.additions, native.options ?? {});
   if (
     hash(recipe.ini) !== native.sha256 ||
     !fs.existsSync(native.file) ||
@@ -97,51 +104,90 @@ export async function verifyNativeFactory(read = readNativeBytes) {
     throw Error('Native activation manager fingerprint differs: this game revision is not supported.');
 }
 
+// Where each addition's bookkeeping sits in a dump of the Gecko area: the words the compiled code writes as it
+// runs. One list of matches per addition, in the order given; a consumed patch has exactly one match each.
+//
+// A live table is refilled once its rows are created (native-live.mjs), which overwrites them: what the routine
+// had written for those additions was read before the refill and travels in `options.rows`, by addition id. An
+// addition named there is answered from there, never from whatever row now sits in its place.
+export function locateAdditionRows(memory, additions, options = {}) {
+  const { base, layout } = nativeOptions(options);
+  const kept = options.rows ?? {};
+  const found = [];
+  if (layout === 'table' || layout === 'live') {
+    // Both keep 40-byte rows after a header and the shared argument block; the live header is two words longer.
+    const magic = layout === 'live' ? LIVE_HEADER_MAGIC : NATIVE_HEADER_MAGIC;
+    const head = layout === 'live' ? LIVE_HEADER_BYTES : 0x10;
+    for (let off = 0; off + head + NATIVE_STRIDE <= memory.length; off += 4) {
+      if (memory.readUInt32BE(off) !== magic || memory.readUInt32BE(off + 12) !== TABLE_STRIDE) continue;
+      const count = memory.readUInt32BE(off + 8),
+        first = off + head + NATIVE_STRIDE;
+      if (!count || first + count * TABLE_STRIDE > memory.length) continue;
+      for (let at = first; at < first + count * TABLE_STRIDE; at += TABLE_STRIDE)
+        found.push({
+          at,
+          id: memory.readInt32BE(at + TABLE.id),
+          source: memory.readUInt32BE(at + TABLE.source),
+          attempt: memory.readUInt32BE(at + TABLE.attempt),
+          pointer: memory.readUInt32BE(at + TABLE.pointer),
+        });
+    }
+  } else {
+    for (let at = 0; at + NATIVE_STRIDE <= memory.length; at += 4) {
+      if (memory.readUInt32BE(at) !== NATIVE_MAGIC) continue;
+      found.push({
+        at,
+        id: memory.readInt32BE(at + SLOT.id),
+        source: memory.readUInt32BE(at + SLOT.source),
+        attempt: memory.readUInt32BE(at + SLOT.attempt),
+        pointer: memory.readUInt32BE(at + SLOT.pointer),
+      });
+    }
+  }
+  return additions.map(a =>
+    kept[a.id]
+      ? [{ at: null, id: a.id, source: base + a.source, attempt: kept[a.id].attempt, pointer: kept[a.id].pointer }]
+      : found.filter(row => row.id === a.id && row.source === base + a.source),
+  );
+}
+
 // A consumed code is not enough: demand distinct live placements and their actors.
 // Render visibility is still judged from screenshots, never inferred here.
-export async function verifyNativeInstances(additions, read = readNativeBytes) {
+export async function verifyNativeInstances(additions, read = readNativeBytes, options = {}) {
+  const { base, context } = nativeOptions(options);
   const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
+    located = locateAdditionRows(memory, additions, options),
     rows = [];
   const valid = p => p % 4 === 0 && p >= HEAP.start && p + INSTANCE_BYTES <= HEAP.end;
-  for (const a of additions) {
-    const matches = [];
-    for (let off = 0; off + NATIVE_STRIDE <= memory.length; off += 4) {
-      if (
-        memory.readUInt32BE(off) === NATIVE_MAGIC &&
-        memory.readInt32BE(off + SLOT.id) === a.id &&
-        memory.readUInt32BE(off + SLOT.source) === NATIVE_BASE + a.source
-      )
-        matches.push(off);
-    }
+  for (const [index, a] of additions.entries()) {
+    const matches = located[index];
     if (matches.length !== 1) throw Error(`Added object ${a.id}: native recipe was not uniquely consumed.`);
-    const at = matches[0],
-      pointer = memory.readUInt32BE(at + SLOT.pointer);
-    if (
-      memory.readUInt32BE(at + SLOT.attempt) !== ATTEMPT_CREATED ||
-      !valid(pointer) ||
-      pointer === NATIVE_BASE + a.source
-    )
+    const { attempt, pointer } = matches[0];
+    if (attempt !== ATTEMPT_CREATED || !valid(pointer) || pointer === base + a.source)
       throw Error(`Added object ${a.id}: native creation did not complete.`);
     const b = await read(pointer, INSTANCE_BYTES),
-      source = await read(NATIVE_BASE + a.source, INSTANCE_BYTES);
+      source = await read(base + a.source, INSTANCE_BYTES);
     // Native metadata identifies +24 as the initial transform, +3c as current.
     // AI movement and coin animation may change the latter after creation.
     const position = readVector(b, INSTANCE.position),
       heading = b.readFloatBE(INSTANCE.heading);
     const current_position = readVector(b, INSTANCE.current_position),
       current_heading = b.readFloatBE(INSTANCE.current_heading);
-    if (b.readUInt32BE(INSTANCE.script) !== (a.script == null ? 0 : NATIVE_BASE + a.script))
+    const script = a.script == null ? 0 : base + a.script;
+    if (b.readUInt32BE(INSTANCE.script) !== script)
       throw Error(`Added object ${a.id}: source script was not retained.`);
+    // The validated context creates a script-less copy only from a source that is itself active. In the
+    // activation context the source may be a stored template, which never has an actor: it is identified by
+    // its class and its script instead.
     const sourceValid =
-      a.script == null
+      a.script == null && context === 'validated' && !a.experimental
         ? valid(source.readUInt32BE(INSTANCE.actor))
-        : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS &&
-          source.readUInt32BE(INSTANCE.script) === NATIVE_BASE + a.script;
+        : source.readUInt32BE(INSTANCE.class) === PLACEMENT_CLASS && source.readUInt32BE(INSTANCE.script) === script;
     if (
       b.readUInt32BE(INSTANCE.class) !== PLACEMENT_CLASS ||
       b.readUInt32BE(INSTANCE.state) !== STATE_ACTIVE ||
-      b.readUInt32BE(INSTANCE.parent) !== NATIVE_BASE + a.source ||
-      b.readUInt32BE(INSTANCE.model) !== NATIVE_BASE + a.model ||
+      b.readUInt32BE(INSTANCE.parent) !== base + a.source ||
+      b.readUInt32BE(INSTANCE.model) !== (a.model == null ? 0 : base + a.model) ||
       !valid(b.readUInt32BE(INSTANCE.actor)) ||
       !sourceValid ||
       b.readUInt32BE(INSTANCE.actor) === source.readUInt32BE(INSTANCE.actor) ||
@@ -186,14 +232,97 @@ export async function verifyNativeInstances(additions, read = readNativeBytes) {
 
 // Scripts may destroy a successfully created actor during the macro. Preserve
 // the earlier proof separately from final survival; never relax static checks.
-export async function verifyNativeLifecycle(additions, observations, verify = verifyNativeInstances) {
+export async function verifyNativeLifecycle(additions, observations, verify = verifyNativeInstances, options = {}) {
   try {
-    return { ...(await verify(additions)), lifecycle: 'present_at_end' };
+    return { ...(await verify(additions, undefined, options)), lifecycle: 'present_at_end' };
   } catch (error) {
     const earlier = observations.find(o => o.verified && additions.every(a => o.objects.some(p => p.id === a.id)));
     if (!additions.some(a => a.script != null) || !earlier) throw error;
     const statics = additions.filter(a => a.script == null);
-    if (statics.length) await verify(statics);
+    if (statics.length) await verify(statics, undefined, options);
     return { ...earlier, lifecycle: 'changed_after_creation', final_verified: false, final_error: error.message };
   }
+}
+
+// One row per addition, whatever happened to it: a campaign and a launch judge many sources at once, and a source
+// that failed is a result to show, not a reason to stop. `verifyNativeInstances` stays the strict check of one
+// addition; this wraps it and adds what the game left in the row and in the instance.
+const MAX_INSTANCE_POINTER = 0x817fff00; // a margin below the end of MEM1 for a pointer the factory returned
+export async function inspectAdditions(additions, read = readNativeBytes, options = {}) {
+  const memory = await read(GECKO_AREA.start, GECKO_AREA.size),
+    located = locateAdditionRows(memory, additions, options),
+    results = [];
+  for (const [index, a] of additions.entries()) {
+    const row = { source: a.source, id: a.id, runtime: 'failed', visual: 'pending', gameplay: 'pending' };
+    const found = located[index][0];
+    if (!found) {
+      results.push({ ...row, reason: 'Probe payload was not consumed.' });
+      continue;
+    }
+    row.attempt = found.attempt;
+    row.pointer = found.pointer;
+    if (row.attempt !== ATTEMPT_CREATED || row.pointer < HEAP.start || row.pointer > MAX_INSTANCE_POINTER) {
+      results.push({
+        ...row,
+        reason: row.attempt ? 'Native factory returned no valid instance.' : 'Source guards have not passed yet.',
+      });
+      continue;
+    }
+    let b;
+    try {
+      b = await read(row.pointer, INSTANCE_BYTES);
+      if (b.length !== INSTANCE_BYTES) throw Error('Incomplete instance memory read.');
+    } catch (e) {
+      results.push({
+        ...row,
+        runtime: 'inconclusive',
+        reason: 'Instance memory could not be read.',
+        verification_error: e.message,
+      });
+      continue;
+    }
+    row.bytes_hex = b.toString('hex');
+    row.state = b.readUInt32BE(INSTANCE.state);
+    row.actor = b.readUInt32BE(INSTANCE.actor);
+    row.position = readVector(b, INSTANCE.position);
+    row.heading = b.readFloatBE(INSTANCE.heading);
+    row.parent = b.readUInt32BE(INSTANCE.parent);
+    row.model = b.readUInt32BE(INSTANCE.model);
+    row.script = b.readUInt32BE(INSTANCE.script);
+    try {
+      row.creation = await verifyNativeInstances([a], read, options);
+      row.runtime = 'passed';
+    } catch (e) {
+      row.runtime = 'inconclusive';
+      row.verification_error = e.message;
+    }
+    row.reason =
+      row.runtime === 'passed'
+        ? 'Distinct native instance and actor observed; visual and behavior checks pending.'
+        : 'The instance could not be verified at capture time. See the verification error; this does not establish disappearance or incompatibility.';
+    results.push(row);
+  }
+  // Individual checks cannot establish that different rows own different instances and mutable state.
+  // Readings are sequential, so a reused address makes both observations inconclusive, not proof of a
+  // simultaneous alias or of a failed creation. Never publish both as distinct verified additions.
+  const verified = results.filter(row => row.runtime === 'passed');
+  for (const key of ['pointer', 'actor', 'actor_parameters', 'local_variables']) {
+    const owners = new Map();
+    for (const row of verified) {
+      const value = row.creation.objects[0][key];
+      if (!value) continue;
+      const same = owners.get(value) ?? [];
+      same.push(row);
+      owners.set(value, same);
+    }
+    for (const same of owners.values()) {
+      if (same.length < 2) continue;
+      for (const row of same) {
+        row.runtime = 'inconclusive';
+        row.verification_error = `Addition rows ${same.map(r => r.id).join(', ')} share ${key} during this reading.`;
+        row.reason = 'Distinct ownership across additions could not be verified.';
+      }
+    }
+  }
+  return results;
 }

@@ -37,7 +37,7 @@ export function chip(key, c) {
     key
   ];
   if (!c.available) {
-    const why = { duplicate: 'no map', add: 'tutorial only', test: 'manual', direct_entry: 'no' }[key];
+    const why = { duplicate: 'no map', add: 'unavailable', test: 'manual', direct_entry: 'no' }[key];
     return { text: why ? `${short} · ${why}` : short, cls: 'withheld', title };
   }
   if (c.experimental) return { text: `${short} · experimental`, cls: 'experimental', title };

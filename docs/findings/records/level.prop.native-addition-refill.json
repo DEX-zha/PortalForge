@@ -1,0 +1,26 @@
+{
+  "id": "level.prop.native-addition-refill",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "More additions than the Gecko area has rows for",
+  "structure": "The live table of 59 rows, rewritten by the launcher once the routine has attempted every row; the attempt word and the returned instance of each overwritten row are kept by the launcher",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler, live layout, Level_000_Mining"
+  },
+  "meaning": "The addition routine attempts every row of its table in one pass of the activation manager and never looks at a row again once its attempt word is set. The launcher can therefore read what the routine wrote, keep it, and write the next rows over the same table while the game runs: the Gecko area bounds a batch, not a scene. On two boots of Mining, 152 sources (every family of the level with a visible model) were written as three tables of 59, 59 and 34; the factory returned an instance for all 152 on both boots, 115 were alive at the first reading of each boot and 108 and 107 at the end, the rest having been removed by their own scripts or in the fight that putting every enemy next to every breakable starts. The additions of the overwritten tables were read back at every reading from the kept rows. The game played its opening with 152 more objects and stopped cleanly. Not judged: rendering, the ceiling of the game's actor pools, objects with nothing to draw, and play without the editor, where nothing refills the table.",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789675453809-e2bce8db",
+      "summary": "R1 boot 1: measured in one attempt, 3 batches, 152 of 152 instances returned by the factory, 108 alive at the end; consumption proven; clean stop, profile restored."
+    },
+    {
+      "probe": "editor-direct-test-1789675647260-f7aa929c",
+      "summary": "R1 boot 2: the same routine and batch, 152 of 152 again, 107 alive at the end; one source (Wagon(2)) survived the first boot and not the second."
+    }
+  ]
+}

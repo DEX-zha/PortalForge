@@ -33,6 +33,28 @@
       ]
     },
     {
+      "level": "Undead Volcano",
+      "archive": "level/Level_039_UndeadVolcano.bld",
+      "status": "CONFIRMED",
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "proof": ["editor-direct-test-1789674098348-7b8a8ff7", "editor-direct-test-1789674397828-eb0134fc"],
+      "modes": ["direct-test", "direct-play"],
+      "limits": [
+        "Two identical boots landed in the level (its opening fly-over in the captures, its resident section located in memory)",
+        "Whether the level completes and returns to the hub normally is not covered"
+      ]
+    },
+    {
+      "level": "Challenge 005",
+      "archive": "level/Challenge_Level_005.bld",
+      "status": "LIKELY",
+      "strategy": "archive-redirect",
+      "finding": "level.entry.archive-redirect",
+      "proof": ["editor-direct-test-1789674572271-d7e99109"],
+      "reason": "One boot landed in the challenge (its timer on screen, its resident section located in memory); a second identical boot is needed for CONFIRMED"
+    },
+    {
       "level": "Other level families",
       "status": "LIKELY",
       "strategy": "archive-redirect",

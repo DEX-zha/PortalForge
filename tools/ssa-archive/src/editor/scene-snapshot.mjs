@@ -15,10 +15,17 @@ export const SNAPSHOT_VERSION = 1;
 // The +0x54 word of a constructed placement record, as read in Mining and the tutorial (igz.placement.inactive-flag).
 export const STATE_LABELS = { 1: 'active', 2: 'dormant', 3: 'finished', 5: 'template' };
 export const snapshotsDir = path.join(local, 'dolphin-evidence', 'scene-snapshots');
-export const snapshotFolder = archive => path.join(snapshotsDir, levelName(archive).toLowerCase());
 
 export const MEM1 = { start: 0x80000000, end: 0x81800000 };
 const CHUNK = 0x10000;
+async function readExact(readBytes, address, size) {
+  if (!Number.isInteger(address) || address < MEM1.start || address + size > MEM1.end)
+    throw new Error('snapshot read is outside MEM1');
+  const bytes = await readBytes(address, size);
+  if (!Buffer.isBuffer(bytes) || bytes.length !== size)
+    throw new Error(`incomplete snapshot read at 0x${address.toString(16)}: expected ${size} bytes`);
+  return bytes;
+}
 const round3 = v => Math.round(v * 1000) / 1000;
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
@@ -43,6 +50,8 @@ const storedTriple = (session, p) => session.buffer.subarray(p.offset + 0x24, p.
 // stored position triple is searched for and the hit is checked against a second placement before it is trusted.
 // The search starts where the two levels measured so far were loaded (0x80DBC020, 0x80DC6F48) and wraps.
 export async function locateResidentSection(session, readBytes, { start = 0x80c00000 } = {}) {
+  if (!Number.isInteger(start) || start < MEM1.start || start >= MEM1.end)
+    throw new Error('snapshot search start is outside MEM1');
   const [anchor, check] = anchorPlacements(session);
   if (!anchor || !check) throw new Error('no two placements with unique positions to anchor the search on');
   const pattern = storedTriple(session, anchor);
@@ -50,12 +59,13 @@ export async function locateResidentSection(session, readBytes, { start = 0x80c0
   for (let at = start; at < MEM1.end; at += CHUNK - 16) order.push(at);
   for (let at = MEM1.start; at < start; at += CHUNK - 16) order.push(at);
   for (const at of order) {
-    const buf = await readBytes(at, Math.min(CHUNK, MEM1.end - at));
+    const buf = await readExact(readBytes, at, Math.min(CHUNK, MEM1.end - at));
     let i = buf.indexOf(pattern);
     while (i >= 0) {
       const base = at + i - (anchor.offset + 0x24);
-      if (base >= MEM1.start) {
-        const probe = await readBytes(base + check.offset + 0x24, 12);
+      const sec = session.graph.sections[session.graph.object_section];
+      if (base >= MEM1.start && base + sec.offset + sec.size <= MEM1.end) {
+        const probe = await readExact(readBytes, base + check.offset + 0x24, 12);
         if (probe.equals(storedTriple(session, check))) return { base, anchor: anchor.name, check: check.name };
       }
       i = buf.indexOf(pattern, i + 1);
@@ -64,12 +74,16 @@ export async function locateResidentSection(session, readBytes, { start = 0x80c0
   throw new Error('the level section was not found in MEM1');
 }
 
-// The whole resident object section, read once so every record comes from the same instant.
+// The whole resident object section, read in bridge-sized chunks. A running game can change
+// between chunks; this is an observation over the read interval, not an atomic snapshot.
 export async function readResidentSection(session, base, readBytes) {
   const sec = session.graph.sections[session.graph.object_section];
   const size = sec.offset + sec.size;
+  if (!Number.isInteger(base) || base < MEM1.start || base + size > MEM1.end)
+    throw new Error('resident section is outside MEM1');
   const out = Buffer.alloc(size);
-  for (let at = 0; at < size; at += CHUNK) (await readBytes(base + at, Math.min(CHUNK, size - at))).copy(out, at);
+  for (let at = 0; at < size; at += CHUNK)
+    (await readExact(readBytes, base + at, Math.min(CHUNK, size - at))).copy(out, at);
   return out;
 }
 
@@ -110,11 +124,12 @@ export async function scanCreatedInstances(session, base, readBytes, { placement
   const word = Buffer.alloc(4);
   word.writeUInt32BE(PLACEMENT_CLASS);
   for (let at = MEM1.start; at < MEM1.end; at += CHUNK) {
-    const buf = await readBytes(at, Math.min(CHUNK, MEM1.end - at));
+    const buf = await readExact(readBytes, at, Math.min(CHUNK, MEM1.end - at));
     let i = buf.indexOf(word);
     while (i >= 0) {
       const address = at + i;
-      if (i % 4 === 0 && (address < base || address >= residentEnd)) hits.push(address);
+      if (i % 4 === 0 && address + INSTANCE_BYTES <= MEM1.end && (address < base || address >= residentEnd))
+        hits.push(address);
       i = buf.indexOf(word, i + 4);
     }
   }
@@ -128,7 +143,7 @@ export async function scanCreatedInstances(session, base, readBytes, { placement
   for (const address of hits) {
     let head;
     try {
-      head = await readBytes(address, INSTANCE_BYTES);
+      head = await readExact(readBytes, address, INSTANCE_BYTES);
     } catch {
       continue;
     }
@@ -203,19 +218,23 @@ export function saveSnapshot(snapshot, { dir = snapshotsDir } = {}) {
 }
 
 // The newest snapshot of a level, or null. Its placements are keyed by offset for the view.
-export function latestSnapshot(archive, { dir = snapshotsDir } = {}) {
+export function latestSnapshotFile(archive, { dir = snapshotsDir } = {}) {
   const folder = path.join(dir, levelName(archive).toLowerCase());
-  let files;
   try {
-    files = fs
+    const newest = fs
       .readdirSync(folder)
       .filter(f => f.endsWith('.json'))
-      .sort();
+      .sort()
+      .at(-1);
+    return newest ? path.join(folder, newest) : null;
   } catch {
     return null;
   }
-  if (!files.length) return null;
-  const file = path.join(folder, files.at(-1));
+}
+
+export function latestSnapshot(archive, { dir = snapshotsDir } = {}) {
+  const file = latestSnapshotFile(archive, { dir });
+  if (!file) return null;
   try {
     return { file, ...JSON.parse(fs.readFileSync(file, 'utf8')) };
   } catch {

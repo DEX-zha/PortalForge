@@ -76,9 +76,9 @@ export function tutorialSteps({ direct = false, skipIntro = false, interactive =
   }
   return result;
 }
-// Archive redirect (feature 006, UNKNOWN): another level's archive and voice pack are served under the tutorial's
-// file names, so the confirmed tutorial checkpoint makes the game load that level. After the transition nothing
-// is known about what the game shows, so the macro only proves that the redirected archive was read and takes
+// Archive redirect (feature 006): Mining is CONFIRMED; other levels retain their individual entry status.
+// Another level's archive and voice pack are served under the tutorial's file names through its checkpoint.
+// The generic macro checks archive consumption, not each level's gameplay semantics, and takes
 // pictures spaced apart, with a tap of A between them for whatever prompt the level opens with. The same steps
 // serve test and play: in play the player takes over once they end.
 export function redirectSteps() {
@@ -158,6 +158,11 @@ async function entryBinding(patch, figure) {
           .sort(),
       ),
     ),
+    // A checkpoint restores all of memory, so what a patch writes into memory at boot belongs to its identity.
+    // The key is absent for a patch that writes nothing, which keeps every existing checkpoint valid.
+    ...(patch.memory?.length
+      ? { memory: hash(JSON.stringify(patch.memory.map(m => [m.offset, m.value ?? m.sha256]))) }
+      : {}),
   };
 }
 export async function readEntryFst(

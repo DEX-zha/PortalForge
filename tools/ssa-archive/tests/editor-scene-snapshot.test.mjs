@@ -111,6 +111,21 @@ test('every placement gets its runtime state, its actor and how far the game mov
   ]);
 });
 
+test('incomplete memory reads and sections outside MEM1 cannot become snapshot evidence', async () => {
+  const { s, base } = machine();
+  const shortRead = async (_address, size) => Buffer.alloc(size - 1);
+  await assert.rejects(readResidentSection(s, base, shortRead), /incomplete snapshot read/);
+  await assert.rejects(locateResidentSection(s, shortRead), /incomplete snapshot read/);
+  let reads = 0;
+  const read = async () => {
+    reads++;
+    return Buffer.alloc(0);
+  };
+  await assert.rejects(readResidentSection(s, MEM1.end - 4, read), /outside MEM1/);
+  await assert.rejects(locateResidentSection(s, read, { start: MEM1.end }), /outside MEM1/);
+  assert.equal(reads, 0);
+});
+
 test('a snapshot is captured, saved under its level, found again as the newest, and summarised for the view', async () => {
   const { dir, s, readBytes } = machine();
   const snapshot = await captureSceneSnapshot(s, { readBytes, run: 'editor-direct-play-test', moment: 'test' });

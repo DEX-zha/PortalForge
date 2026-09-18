@@ -106,7 +106,11 @@ try {
   const capacity = await evaluate(
     `(async()=>{const b=await(await fetch('/api/catalog')).json();return {capacity:b.addition_capacity,available:b.entries.filter(e=>e.addition.available).length};})()`,
   );
-  assert.deepEqual(capacity, { capacity: { used: 0, limit: 8 }, available: 9 });
+  // Feature 007: every object of the level can be added; eight is what two boots confirmed, 59 what a patch holds.
+  assert.deepEqual(capacity, {
+    capacity: { used: 0, limit: 590, confirmed: 8, fits: { slot: 18, table: 59 } },
+    available: 673,
+  });
   assert.equal(await evaluate(`document.getElementById('skip-intro').checked`), false, 'opening is kept by default');
   await evaluate(`document.getElementById('skip-intro').click()`);
   await send('Page.reload');
@@ -201,10 +205,10 @@ try {
     const $=id=>document.getElementById(id), c=$('c').getBoundingClientRect(), project=$('project-panel').getBoundingClientRect(), inspector=$('inspector-panel').getBoundingClientRect(), thumbnails=document.querySelectorAll('.asset-preview img').length;
     if(project.top<c.bottom||inspector.left<c.right-1)throw Error('workspace arrangement');
     if(document.querySelectorAll('[data-hierarchy]').length!==673)throw Error('hierarchy missing records');
-    const folder=[...document.querySelectorAll('#folder-tree [data-folder]')].find(e=>e.dataset.folder===JSON.stringify(['Vegetation','Flowers']));
+    const folder=[...document.querySelectorAll('#folder-tree [data-folder]')].find(e=>e.dataset.folder===JSON.stringify(['Enemies','Chompy']));
     if(!folder)throw Error('subfolder missing');folder.click();
     const count=document.querySelectorAll('[data-object]').length;if(!count||count>=673)throw Error('folder filter');
-    if(!$('folder-breadcrumb').textContent.includes('Flowers'))throw Error('breadcrumb');
+    if(!$('folder-breadcrumb').textContent.includes('Chompy'))throw Error('breadcrumb');
     $('folder-breadcrumb').querySelector('[data-folder="[]"]').click();
     const start=Number($('project-splitter').getAttribute('aria-valuenow'));$('project-splitter').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));
     if(Number($('project-splitter').getAttribute('aria-valuenow'))!==start+20)throw Error('splitter');
@@ -212,6 +216,20 @@ try {
     $('tab-layers').click();if($('layers-pane').hidden)throw Error('layers tab');$('tab-hierarchy').click();
     return {folderCount:count,thumbnails,layout:true,resize:true};
   })()`);
+  // The Whole game scope (feature 007, phase P): every kind of the game once the catalogue exists on this machine,
+  // the offer to build it otherwise; kinds held elsewhere are cards without an offset. Back to the level after.
+  await evaluate("document.getElementById('scope-game').click()");
+  await waitFor("document.getElementById('build-library') || document.querySelector('#objects .object-item')");
+  const scopeChecks = await evaluate(`(() => {
+    const prompt = !!document.getElementById('build-library');
+    const foreign = document.querySelectorAll('#objects [data-kind]').length;
+    const local = document.querySelectorAll('#objects [data-object]').length;
+    if (!prompt && !local) throw Error('the whole game scope shows nothing of this level');
+    if ([...document.querySelectorAll('#objects [data-kind]')].some(e => e.draggable)) throw Error('a foreign kind is draggable');
+    return { prompt, foreign, local, note: document.getElementById('object-count').textContent };
+  })()`);
+  await evaluate("document.getElementById('scope-level').click()");
+  await waitFor("document.querySelectorAll('#objects [data-object]').length === 673");
   const before = Buffer.from(session.buffer);
   const subject = process.argv.includes('--clamper')
     ? { source: 2357236, search: 'Enemy_ChompyClamper', label: 'chompy', script: 2348068 }
@@ -373,14 +391,17 @@ try {
     for (let count = 3; count <= 8; count++) {
       await drop({ x: 0.35 + (count % 3) * 0.12, y: 0.5 + (count % 2) * 0.18 });
       await waitFor(
-        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/8 added')`,
+        `document.querySelector('[data-hierarchy="-${count}"]') && document.getElementById('object-count').textContent.includes('${count}/590 added')`,
       );
       assert.equal(session.additions.length, count);
     }
-    const full = structuredClone(session.additions);
+    // Eight is no longer a wall: a ninth addition is accepted, and undone here to keep the proven scene.
     await drop();
-    await waitFor("document.getElementById('status-tip').textContent.includes('at most 8')");
-    assert.deepEqual(session.additions, full);
+    await waitFor('document.querySelector(\'[data-hierarchy="-9"]\')');
+    assert.equal(session.additions.length, 9);
+    await evaluate("document.getElementById('undo').click()");
+    await waitFor('!document.querySelector(\'[data-hierarchy="-9"]\')');
+    const full = structuredClone(session.additions);
     await evaluate("document.getElementById('undo').click()");
     await waitFor('!document.querySelector(\'[data-hierarchy="-8"]\')');
     assert.equal(session.additions.length, 7);
@@ -431,6 +452,7 @@ try {
       'scale disabled',
       'undo removes additions',
       'redo recreates additions',
+      'whole game scope: ' + scopeChecks.note,
       'reset restores opened scene',
       'saved sidecar preserved',
       'real model thumbnails',

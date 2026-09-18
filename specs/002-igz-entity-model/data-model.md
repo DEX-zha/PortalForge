@@ -1,5 +1,9 @@
 # Data Model: IGZ v5 Level Object Model
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Reuses `Experiment`, `ResearchFinding` and `ValidationGate` from `specs/001-ssa-level-research/data-model.md`.
 
 ## ObjectGraph (`contracts/object-graph.schema.json`)

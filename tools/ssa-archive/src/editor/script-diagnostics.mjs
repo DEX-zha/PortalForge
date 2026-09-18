@@ -15,11 +15,13 @@ export function cloneAtOwner(session, instruction) {
   const ref = at => (valid(at, 4) ? sec.offset + (b.readUInt32BE(at) & 0x7fffffff) : -1);
   if (!valid(instruction, 0x2c)) return false;
   const list = ref(instruction + 0x28);
-  if (!valid(list, 24) || b.readUInt32BE(list) !== 114) return false;
+  if (!valid(list, 24)) return false;
   if (b.readUInt32BE(list + 8) !== 1 || b.readUInt32BE(list + 12) !== 1 || b.readUInt32BE(list + 16) !== 0x80000004)
     return false;
   const array = ref(list + 20);
-  return valid(array, 4) && b.readUInt32BE(array) === 0x8000005b;
+  // The expression class varies by file and by script. On the tutorial this structural signature selects the
+  // same 441 of 592 clone expressions as the old hardcoded class, and it works on Mining's different indices.
+  return valid(array, 20) && (b.readUInt32BE(array) & 0x80000000) !== 0 && b.readUInt32BE(array + 16) === 0xffffffff;
 }
 
 function movementDiagnostics(session, placement, sceneRole, trajectory, templateFor) {
@@ -81,11 +83,18 @@ export function scriptDiagnostics(session, placement) {
       for (const op of decoded.instructions) {
         if (op.opcode !== 'clone||at|facing||cloned') continue;
         const list = ref(op.target + 0x20);
-        if (!valid(list) || b.readUInt32BE(list) !== 124) continue;
+        if (!valid(list)) continue;
         const count = b.readUInt32BE(list + 8),
           capacity = b.readUInt32BE(list + 12),
           start = ref(list + 20);
-        if (count !== capacity || count > 1024 || !valid(start) || start + count * 4 > sec.offset + sec.size) continue;
+        if (
+          count !== capacity ||
+          count > 1024 ||
+          b.readUInt32BE(list + 16) !== (0x80000000 | (count * 4)) >>> 0 ||
+          !valid(start) ||
+          start + count * 4 > sec.offset + sec.size
+        )
+          continue;
         for (let i = 0; i < count; i++) {
           const p = placements.get(ref(start + i * 4));
           if (!p) continue;

@@ -1,5 +1,9 @@
 # Implementation Plan: SSA Level Research
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Branch**: `001-ssa-level-research` | **Date**: 2026-09-12 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `/specs/001-ssa-level-research/spec.md`
@@ -34,7 +38,9 @@ Build the **SSA Research Toolkit**: a Node.js library and CLI (`ssa-archive`) th
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-`.specify/memory/constitution.md` is still the unfilled template: no principles are ratified, so no constitution-derived gate can fail or pass. Recommendation: run `$speckit-constitution` to ratify the project invariants below, which this plan treats as binding because they come from the specification and `AGENTS.md`:
+At initial planning, `.specify/memory/constitution.md` was an unfilled template. It is now ratified at 1.2.0;
+the table below records the original pre-implementation check, while the current constitution governs changes.
+The invariants originated in the specification and `AGENTS.md`:
 
 | Gate | Source | Status before Phase 0 | Status after Phase 1 |
 | --- | --- | --- | --- |

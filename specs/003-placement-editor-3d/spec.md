@@ -1,10 +1,14 @@
 # Feature Specification: 3D placement editor
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `003-placement-editor-3d`
 
 **Created**: 2026-09-13
 
-**Status**: Draft
+**Status**: Editor implemented and extended by 004–007. Tutorial and Mining transform proofs exist; remaining performance, lock-during-play and documentation validation tasks are tracked in tasks.md.
 
 **Input**: User description (translated from French): "Build the simple 3D view: cubes/proxies only, grouped by layer, mouse selection, free camera, Move / Rotate / Scale gizmos. Wire the v1 contract straight into the UI: position, rotation, scale, model, behavior, layers, shared state, evidence, safety. Respect the safety rules in the editor: critical issues clearly reported, scripted objects with a warning, duplication/replacement only when the plan is valid. Implement Save → validation → patch → Launch Dolphin. Validate the editor on the tutorial, then on at least a second level actually booted. Only after that: more advanced scripts/gameplay, geometry, collisions and duplication without sacrifice."
 

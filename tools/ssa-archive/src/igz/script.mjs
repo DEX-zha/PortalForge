@@ -1,5 +1,6 @@
-// Type-92 script records (spec 002, visible-duplication chantier). Model verified on the tutorial:
-//   owner header (type 92)          +0x24 count, +0x28 capacity (== count), +0x2C 0x80000000 | count*4,
+// Script records (spec 002, visible-duplication chantier). Their class index is per file (92 in the tutorial,
+// 86 in Mining), while the structure below is shared:
+//   owner header                    +0x24 count, +0x28 capacity (== count), +0x2C 0x80000000 | count*4,
 //                                   +0x30 -> own +0x34, then `count` section-1 pointers = the instruction list
 //   instruction records             follow the owner contiguously and tile the blob [entry, next entry);
 //                                   word +0 = opcode class (type index), word +8 = opcode text (section-2
@@ -22,6 +23,26 @@ export function scriptTable(buf, graph) {
     entries.push(sec.offset + off);
   }
   return [...new Set(entries)].sort((a, b) => a - b);
+}
+
+const classes = new WeakMap();
+// A script owner is a header-table entry whose array starts at its own +0x34 and contains count pointers.
+// This signature picks exactly one class on the tutorial, Mining and Castle; no type name/index is trusted.
+export function scriptClass(buf, graph) {
+  if (classes.has(graph)) return classes.get(graph);
+  const sec = graph.sections[graph.object_section];
+  const types = new Set();
+  for (const off of scriptTable(buf, graph)) {
+    if (off + 0x34 > buf.length) continue;
+    const count = buf.readUInt32BE(off + 0x24);
+    if (count > 10000 || buf.readUInt32BE(off + 0x28) !== count) continue;
+    if (buf.readUInt32BE(off + 0x2c) !== (0x80000000 | (count * 4)) >>> 0) continue;
+    if (sec.offset + (buf.readUInt32BE(off + 0x30) & 0xffffff) !== off + 0x34) continue;
+    types.add(buf.readUInt32BE(off));
+  }
+  const type = types.size === 1 ? [...types][0] : null;
+  classes.set(graph, type);
+  return type;
 }
 
 function stringAt(buf, graph, v) {
@@ -56,7 +77,8 @@ export function decodeScript(buf, graph, fixups, recOffset) {
     arrPtr = buf.readUInt32BE(recOffset + 0x30);
   const arrayStart = sec.offset + (arrPtr & 0xffffff);
   const issues = [];
-  if (type !== 92) issues.push(`type ${type} is not 92`);
+  const expectedType = scriptClass(buf, graph);
+  if (type !== expectedType) issues.push(`type ${type} is not the detected script class ${expectedType}`);
   if (cap !== count) issues.push(`capacity ${cap} != count ${count}`);
   if (sizeWord !== (0x80000000 | (count * 4)) >>> 0)
     issues.push(`size word 0x${sizeWord.toString(16)} != 0x80000000|count*4`);
@@ -160,7 +182,8 @@ export function decodeScript(buf, graph, fixups, recOffset) {
 
 export function auditScripts(buf, graph, fixups) {
   const sorted = scriptTable(buf, graph);
-  const scripts = sorted.filter(e => buf.readUInt32BE(e) === 92);
+  const detected = scriptClass(buf, graph);
+  const scripts = detected === null ? [] : sorted.filter(e => buf.readUInt32BE(e) === detected);
   const rows = scripts.map(e => {
     try {
       const d = decodeScript(buf, graph, fixups, e);
@@ -178,5 +201,5 @@ export function auditScripts(buf, graph, fixups) {
     }
   });
   const ok = rows.filter(r => !r.error && r.issues === 0 && r.uncovered === 0); // list entries may point at values (arguments by reference), so headers are not required
-  return { scripts: scripts.length, model_ok: ok.length, rows };
+  return { script_class: detected, scripts: scripts.length, model_ok: ok.length, rows };
 }

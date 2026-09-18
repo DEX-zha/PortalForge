@@ -35,6 +35,7 @@
     },
     "confidence": {"enum": ["CONFIRMED", "LIKELY", "UNKNOWN"]},
     "editable": {"type": "boolean"},
+    "confirmed_levels": {"type": "array", "uniqueItems": true, "items": {"type": "string"}, "description": "Optional explicit archive paths covered by a level-specific confirmed finding. Entry evidence does not establish transform evidence."},
     "updated": {"type": "string", "format": "date"}
   },
   "allOf": [

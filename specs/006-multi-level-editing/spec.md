@@ -1,10 +1,14 @@
 # Feature Specification: Multi-level editing
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Feature Branch**: `feat/006-multi-level-open`
 
 **Created**: 2026-09-17
 
-**Status**: Step 1 of the roadmap implemented and validated offline (open any level, move its objects, switch levels from the editor); the in-game proof on a non-tutorial level is pending the user's boots. Steps 2 to 6 are specified as backlog in [docs/editor/roadmap.md](../../docs/editor/roadmap.md).
+**Status**: Multi-level opening and editing implemented. Mining transforms and archive-redirect entry were each proven by two identical boots on 2026-09-17. Other levels keep their own confidence. Additions and the catalogue are extended by 007; see [validation](validation.md).
 
 **Input**: User request (translated from French): "We have a very good base. I would like every object to be placeable and working, to load levels other than the tutorial directly, and to edit those levels as well. Can we do it, or are there bigger priorities on the project right now?" The assessment that followed ordered the work: open and move first, runtime maps per level second, the family campaign third, the addition cap fourth, direct entry per level fifth, native additions elsewhere and gameplay last. The user then asked to set that roadmap up, "paying attention to objects and terrain".
 
@@ -24,7 +28,7 @@ places.
 
 **Independent Test**: `edit levels` lists 76 levels; `edit open Level_000_Mining --open` serves Mining with 617
 placements; the **Level** tab next to Project shows one card per level with Mining marked current, its chips
-reading Move · likely, Duplicate · no map, Add · tutorial only, Test · manual, Direct entry · experimental; the
+reading Move, Duplicate · no map, Add · experimental, Test · manual, Direct entry (CONFIRMED on Mining); the
 header picker lists the same 76 levels grouped by family.
 
 **Acceptance Scenarios**:
@@ -173,7 +177,7 @@ Launch prepares a checkpoint for that layout, restores it, presses A, and the fi
 
 ## Success Criteria *(mandatory)*
 
-- **SC-001**: All 76 levels of SSPP52 Rev1 open by name in under one second each on the reference machine.
+- **SC-001**: All 75 scenes of SSPP52 Rev1 open by name (the 76th archive, Title, has no placements and is refused) in under one second each on the reference machine.
 - **SC-002**: The headless previews of five non-tutorial levels show the objects on their terrain, and no level's
   extent is inflated by parked objects.
 - **SC-003**: The real-browser scenario (`tests/browser-multilevel.mjs`) passes with zero JavaScript exceptions:

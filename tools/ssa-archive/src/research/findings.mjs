@@ -141,14 +141,15 @@ export function render({ dir = recordsDir, outDir = findingsDir } = {}) {
     written.push(out);
   }
   // docs/format/iga-v4.md = hand-maintained intro + generated container and IGZ tables (T066: no drift).
-  const introFile = path.join(path.dirname(outDir), 'iga-v4.intro.md');
+  const formatDir = path.join(path.dirname(outDir), 'format');
+  const introFile = path.join(formatDir, 'iga-v4.intro.md');
   if (fs.existsSync(introFile)) {
     const parts = [fs.readFileSync(introFile, 'utf8').trimEnd(), ''];
     for (const cat of ['container', 'igz-objects']) {
       const f = path.join(outDir, `${cat}.md`);
       if (fs.existsSync(f)) parts.push(fs.readFileSync(f, 'utf8').replace(/^# /, '## ').trimEnd(), '');
     }
-    const target = path.join(path.dirname(outDir), 'iga-v4.md');
+    const target = path.join(formatDir, 'iga-v4.md');
     fs.writeFileSync(target, parts.join('\n'));
     written.push(target);
   }

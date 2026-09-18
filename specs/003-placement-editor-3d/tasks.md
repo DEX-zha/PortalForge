@@ -1,5 +1,9 @@
 ---
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 description: "Task list for the 3D placement editor"
 ---
 
@@ -166,8 +170,8 @@ result against the prediction stated before the boot.
 
 - [X] T051 [US4] Confirm the editor opens `.local/workspaces/mining-bld/entries/3-level.bld.decoded` with `--archive level/Level_000_Mining.bld --entry 3` and no fixup map, and fix whatever assumes the tutorial in `tools/ssa-archive/src/editor/session.mjs` (US4 acceptance scenario 1)
 - [X] T052 [US4] Make the absence of a runtime map visible in `tools/ssa-archive/src/view/inspector.mjs`, so that a structural value is never displayed the way a runtime-confirmed one is (Principle I, FR-008)
-- [ ] T053 [US4] **Costs 2 boots, and is BLOCKED until a save state exists inside Mining: the only automated path into the game reaches the tutorial, so the edited archive would never be read. See the quickstart run notes.** Run quickstart scenario 7 on `Level_000_Mining`: state the prediction, launch twice on the identical rebuilt archive, judge, and index both experiment records in `docs/experiments/README.md` (SC-007)
-- [ ] T054 [US4] Record the result as evidence in `docs/findings/records/igz.placement.type104-record.json`: a second level edited and booted promotes the placement layout from validated-on-paper to demonstrated on two levels, or, if it fails, the failure and what was seen instead are recorded and the editor is described as tutorial-specific
+- [x] T053 [US4] Completed through 006 archive redirect: Mining lantern position edits on two identical boots (`editor-direct-test-1789650694320-cf7db99e`, `editor-direct-test-1789650921032-81b4cf69`). See 006 validation and `level.transform.other-levels`; no loaded-level savestate is needed.
+- [x] T054 [US4] Recorded separately in `docs/findings/records/level.transform.other-levels.json`, with explicit Mining scope and both runs. The tutorial placement-layout finding remains distinct.
 
 **Checkpoint**: the editor is no longer a tutorial-specific tool, or the record says plainly that it still is.
 
@@ -175,8 +179,8 @@ result against the prediction stated before the boot.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T055 [P] Write the editor section of `docs/format/igz-level-editing.md`: how to start it, what the view shows, what it refuses and why, with the boot evidence behind each refusal
-- [ ] T056 [P] Add the editor commands to `tools/ssa-archive/README.md` and to the CLI usage banner in `tools/ssa-archive/cli.mjs`
+- [x] T055 [P] Editor section in `docs/format/igz-level-editing.md` updated during the documentation audit: startup, view, refusal rules and scoped tutorial/Mining evidence.
+- [x] T056 [P] Editor commands documented in `tools/ssa-archive/README.md`; the CLI banner already lists them in `src/cli/usage.mjs`.
 - [ ] T057 Measure the open-to-visible time on the 673-placement tutorial and the frame rate while orbiting, and record both in `specs/003-placement-editor-3d/quickstart.md` notes; if the open exceeds five seconds, cache the resolved session rather than weakening the target (SC-001)
 - [ ] T058 Run the regression block of `quickstart.md`: the whole `node --test` suite passes, `ssa-archive corpus` still validates every record against the frozen contract, and the boot-confirmed duplication still reproduces `sunflower-dup.decoded` byte for byte
 - [ ] T059 Update `docs/experiments/README.md` and the gate notes in `docs/m3-status.json` with the editor runs, so the evidence trail for the editor sits with the rest

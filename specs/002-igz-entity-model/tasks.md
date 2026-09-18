@@ -1,5 +1,9 @@
 ---
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 description: "Task list for IGZ v5 Level Object Model and Entity Duplication"
 ---
 
@@ -106,6 +110,6 @@ Question driving this phase: why does the engine not instantiate a valid appende
 - [X] T034 Extend `tools/ssa-archive/src/igz/clone.mjs` to register the clone in the container that owns the source (bump the count when capacity allows, otherwise relocate the element array and fix its pointer), update parent references found by T031, and re-validate the graph per FR-006 / US3 acceptance scenario 1 (done as `src/igz/relocate.mjs` + `igz clone-entity`: the owning structure is the section-1 header table, registration inserts an entry and rebases the 160 575 shifted pointer words of the fixup map)
 - [X] T035 Rerun M3 with the registered clone (`experiment m3`, screening run then two formal runs), judge with `experiment m2-judge`, update `docs/m3-status.json` and `docs/experiments/README.md` per FR-007 / US3 acceptance scenario 2 (missing)
 - [X] T036 If T035 still shows an inert clone, test the parent hypothesis: clone the referrer entity found by T031 together with its child references (leaf record as component), run twice, record PASS or the new blocking unknown per US3 acceptance scenario 3 and the identifier-scheme edge case (missing)
-- [ ] T037 Annotate `igz show` fields in `tools/ssa-archive/src/cli-commands.mjs` with the finding id, name and confidence when `docs/findings/records` describes that object type and field offset (the CONFIRMED spawn position at +0x94) per US1 acceptance scenario 2 (partial)
+- [ ] T037 Annotate `igz show` fields in `tools/ssa-archive/src/cli/commands/igz.mjs` with the finding id, name and confidence when `docs/findings/records` describes that object type and field offset (the CONFIRMED spawn position at +0x94) per US1 acceptance scenario 2 (partial)
 - [X] T038 Study the 0x01xxxxxx object ids (result: they are not ids but section-2 string pointers, finding `igz.pointer.section-indexed`; header word +4 is the reference count, finding `igz.object.refcount`) in `tools/ssa-archive/research-probes/probe-igz-ids.mjs`: uniqueness and ordering across the tutorial and two Challenge levels, and whether ids appear as reference values elsewhere; record a finding per FR-003 and the identifier edge case (missing)
 - [X] T039 Correlate the per-type u32 table (result: section 0 is a static lookup table, not a size stream; `igz.section0.type-size-table` kept LIKELY as a hint only) with measured object sizes across three levels in `tools/ssa-archive/src/igz/types.mjs` and update finding `igz.section0.type-size-table` per SC-001 quality (partial)

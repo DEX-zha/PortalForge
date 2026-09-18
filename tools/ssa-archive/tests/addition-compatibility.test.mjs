@@ -35,27 +35,41 @@ test('macro waits for checkpoint inspection before the next input can change act
   });
   assert.deepEqual(events, ['capture', 'inspection', 'input']);
 });
-test('unknown scripted objects are candidates, not confirmed or incompatible merely because of a script', () => {
+test('an unverified scripted object can be added as an experimental addition, and is never called confirmed', () => {
   const row = p(10, 'Barrel.ai'),
     s = session([row]);
   const r = classifyAddition(s, row);
   assert.equal(r.status, 'needs_script_test');
-  assert.equal(r.available, false);
+  assert.equal(r.available, true);
+  assert.equal(r.experimental, true);
+  assert.equal(r.label, 'Add · script not verified');
+  assert.match(r.reason, /next launch/);
   assert.equal(r.testable, true);
   assert.ok(r.checks.some(c => c.id === 'script' && c.status === 'pending'));
 });
-test('missing model, runtime map and non-original scale have specific blocking reasons', () => {
+test('an object with nothing to draw is addable; only what cannot work is blocked, with its reason', () => {
   let row = p(),
     s = session([row]);
-  row.model.offset = null;
-  assert.equal(classifyAddition(s, row).status, 'blocked');
+  row.model = { offset: null, path: null, status: 'absent' };
+  let r = classifyAddition(s, row);
+  assert.equal(r.status, 'needs_test');
+  assert.equal(r.available, true);
+  assert.ok(r.checks.some(c => c.id === 'model' && c.status === 'info' && /memory/.test(c.detail)));
+  // The tutorial's place in memory is a constant: no runtime map is needed to add to it.
   row = p();
   s = session([row]);
   s.has_runtime_map = false;
-  assert.match(classifyAddition(s, row).reason, /runtime map/i);
-  s.has_runtime_map = true;
+  assert.equal(classifyAddition(s, row).available, true);
+  // A level that was never measured is no obstacle either: its first launch measures it.
+  s.archive = 'level/Level_099_Nowhere.bld';
+  r = classifyAddition(s, row);
+  assert.equal(r.available, true);
+  assert.ok(r.checks.some(c => c.id === 'level' && c.status === 'info' && /first launch/.test(c.detail)));
+  s.archive = 'level/Level_027_Tutorial.bld';
   row.scale = 120;
-  assert.match(classifyAddition(s, row).reason, /100%/);
+  r = classifyAddition(s, row);
+  assert.equal(r.status, 'blocked');
+  assert.match(r.reason, /100%/);
 });
 test('families share actual model and script resources, not a display name', () => {
   const a = p(10, 'Barrel.ai'),
@@ -66,12 +80,22 @@ test('families share actual model and script resources, not a display name', () 
   assert.equal(groups.length, 2);
   assert.equal(groups[0].members.length, 2);
 });
-test('runtime success alone is never advertised as confirmed Add', () => {
+test('a source verified in game is addable and says so, without being called confirmed', () => {
   const row = p(),
     s = session([row]);
-  const r = classifyAddition(s, row, { report: { runtime: 'passed', visual: 'pending' } });
+  const r = classifyAddition(s, row, {
+    report: { runtime: 'passed', visual: 'pending', launches: [{ run: 'a' }, { run: 'b' }] },
+  });
   assert.equal(r.status, 'runtime_passed');
-  assert.equal(r.available, false);
+  assert.equal(r.label, 'Add · verified in game');
+  assert.match(r.reason, /2 launch/);
+  assert.equal(r.available, true);
+  assert.equal(r.experimental, true);
+  const failed = classifyAddition(s, row, {
+    report: { runtime: 'failed', reason: 'Source guards have not passed yet.' },
+  });
+  assert.equal(failed.status, 'test_failed');
+  assert.equal(failed.available, true, 'a failure is shown, it does not forbid another try');
 });
 test('a related source result and a transient object do not become confirmation', () => {
   const row = p(),

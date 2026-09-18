@@ -1,5 +1,9 @@
 # Quickstart: validating the 3D placement editor
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Runnable scenarios that prove the feature works end to end. Each states what to run and what must be true
 afterwards. Paths are relative to `tools/ssa-archive/`. Scenarios 1 to 4 write nothing to the game; scenarios 5
 to 7 do, and 6 and 7 consume boots, which the researcher counts.

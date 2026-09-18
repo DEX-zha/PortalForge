@@ -1,7 +1,7 @@
 // The Project pane: folder tree, search, cards with 3D thumbnails, and the drag that ends in a drop.
 // The server owns the transaction; this controller only holds its opaque token.
 import { renderRule } from './inspector.mjs';
-import { assetFolder, folderTree, inFolder } from './asset-folders.mjs';
+import { assetFolder, folderTree, inFolder, libraryCards } from './asset-folders.mjs';
 import { createThumbnails } from './thumbnails.mjs';
 
 export function filterCatalog(entries, query = '', category = 'all') {
@@ -29,12 +29,19 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     capacity = null;
   let selectedFolder = [],
     selectedOffset = null;
+  // The Project pane shows the open level, or every kind of object of the game (phase P). In the second scope a
+  // kind the level holds is this level's own entry; a kind held elsewhere is a read-only card.
+  let scope = 'level',
+    library = null;
+  const shown = () =>
+    scope === 'game' && library?.status === 'ready' ? libraryCards(library.kinds, entries) : entries;
   let testing = false,
     pollTimer = null;
   const thumbnails = createThumbnails(scene);
   const blocked = () => busy() || submitting;
   function render() {
-    const rows = filterCatalog(entries, $('object-search').value, $('object-category').value)
+    const all = shown();
+    const rows = filterCatalog(all, $('object-search').value, $('object-category').value)
       .filter(p => inFolder(p, selectedFolder))
       .sort(
         (a, b) =>
@@ -43,10 +50,15 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     const available = entries.filter(p => p.addition?.available).length;
     const families = new Set(entries.filter(p => p.addition?.testable).map(p => p.addition.family)).size;
     $('object-count').textContent =
-      `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families` +
-      (capacity ? ` · ${capacity.used}/${capacity.limit} added` : '');
+      scope === 'game'
+        ? libraryNote(rows.length)
+        : `${rows.length} / ${entries.length} objects · ${available} can add · ${families} testable families` +
+          (capacity
+            ? ` · ${capacity.used}/${capacity.limit} added${capacity.confirmed ? ` (${capacity.confirmed} confirmed by boots)` : ''}`
+            : '');
     const fragment = document.createDocumentFragment();
-    if (!rows.length) {
+    if (scope === 'game' && library?.status !== 'ready') fragment.append(libraryPrompt());
+    else if (!rows.length) {
       const empty = document.createElement('p');
       empty.className = 'empty';
       empty.textContent = 'No objects match this search.';
@@ -54,13 +66,16 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     }
     for (const p of rows) {
       const button = document.createElement('button');
-      button.className = 'object-item';
-      button.dataset.object = p.offset;
-      button.draggable = p.available && !blocked();
+      button.className = 'object-item' + (p.offset === null ? ' elsewhere' : '');
+      // A kind held by other levels only has no record here: it carries no offset and cannot be dragged.
+      if (p.offset === null) button.dataset.kind = p.kind;
+      else button.dataset.object = p.offset;
+      button.draggable = p.offset !== null && p.available && !blocked();
       button.title = [
         p.name,
         p.model,
         p.layers.join(', '),
+        p.levels ? `In ${p.levels.length} level(s)` : null,
         p.reason ?? (additionMode ? 'Drag into the scene to add an object' : 'Drag into the scene to prepare a copy'),
       ]
         .filter(Boolean)
@@ -70,7 +85,7 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
       name.textContent = p.name ?? 'Unnamed';
       const preview = document.createElement('span');
       preview.className = 'asset-preview';
-      preview.dataset.thumbnail = p.offset;
+      if (p.offset !== null) preview.dataset.thumbnail = p.offset;
       preview.textContent = '◇';
       const meta = document.createElement('span');
       meta.className = 'asset-meta';
@@ -83,13 +98,59 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
       availability.title = p.addition?.reason ?? '';
       meta.append(kind, availability);
       button.append(name, preview, meta);
-      button.classList.toggle('selected', p.offset === selectedOffset);
-      button.setAttribute('aria-pressed', String(p.offset === selectedOffset));
+      button.classList.toggle('selected', p.offset !== null && p.offset === selectedOffset);
+      button.setAttribute('aria-pressed', String(p.offset !== null && p.offset === selectedOffset));
       fragment.append(button);
     }
     $('objects').replaceChildren(fragment);
     thumbnails.observe($('objects'));
   }
+  function libraryNote(count) {
+    if (library?.status !== 'ready') return 'The game-wide catalogue has not been built yet.';
+    return `${count} / ${library.kinds.length} kinds in ${library.levels} levels · ${library.here} in this level · ${library.elsewhere} in other levels only`;
+  }
+  // Building reads every decoded level once: a few seconds, asked for rather than done behind the user's back.
+  function libraryPrompt() {
+    const box = document.createElement('p');
+    box.className = 'empty';
+    const button = document.createElement('button');
+    button.id = 'build-library';
+    button.textContent = 'Build the game catalogue';
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = 'Reading every level…';
+      try {
+        library = await api('/api/library', {});
+        folders();
+        render();
+      } catch (e) {
+        note(e.message);
+        button.disabled = false;
+        button.textContent = 'Build the game catalogue';
+      }
+    });
+    box.append('Every kind of object of the 76 levels, with the levels that hold it. ', button);
+    return box;
+  }
+  async function chooseScope(next) {
+    if (next === scope) return;
+    scope = next;
+    selectedFolder = [];
+    $('scope-level').classList.toggle('on', scope === 'level');
+    $('scope-game').classList.toggle('on', scope === 'game');
+    if (scope === 'game' && !library) {
+      try {
+        library = await api('/api/library');
+      } catch (e) {
+        library = { status: 'missing', kinds: [] };
+        note(e.message);
+      }
+    }
+    folders();
+    render();
+  }
+  $('scope-level').addEventListener('click', () => chooseScope('level'));
+  $('scope-game').addEventListener('click', () => chooseScope('game'));
   function folderButton(name, path, count, child = false, tag = 'button') {
     const b = document.createElement(tag);
     b.className = 'folder' + (child ? ' child' : '');
@@ -104,8 +165,9 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
   }
   function folders() {
     const root = $('folder-tree');
-    root.replaceChildren(folderButton('All objects', [], entries.length));
-    for (const p of folderTree(entries)) {
+    const all = shown();
+    root.replaceChildren(folderButton(scope === 'game' ? 'All kinds' : 'All objects', [], all.length));
+    for (const p of folderTree(all)) {
       const branch = document.createElement('details');
       branch.open = true;
       // Summary is already a keyboard-operable disclosure. Do not nest a button in it.
@@ -179,6 +241,8 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     entries = b.entries.map(p =>
       additionMode ? { ...p, available: !!p.addition?.available, reason: p.addition?.reason ?? null } : p,
     );
+    // Another level may have been opened: what "here" means changed, so the library is asked again when shown.
+    if (library) library = scope === 'game' ? await api('/api/library').catch(() => null) : null;
     thumbnails.invalidate();
     folders();
     hierarchy();
@@ -296,6 +360,12 @@ export function bindCatalog({ api, scene, select, changed, busy, note, validatio
     if (suppressClick) {
       e.preventDefault();
       suppressClick = false;
+      return;
+    }
+    const foreign = e.target.closest('[data-kind]');
+    if (foreign) {
+      const kind = library?.kinds.find(k => k.key === foreign.dataset.kind);
+      if (kind) note(`${kind.name} is not in this level. It is held by: ${kind.levels.map(l => l.name).join(', ')}.`);
       return;
     }
     const el = e.target.closest('[data-object]');

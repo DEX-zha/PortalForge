@@ -14,11 +14,11 @@ with `error` and `reason`.
     "name": "Level_000_Mining",
     "family": "story",
     "capabilities": {
-      "transform":    { "available": true,  "confidence": "LIKELY",  "finding": "level.transform.other-levels", "why": "…" },
+      "transform":    { "available": true,  "confidence": "CONFIRMED", "finding": "level.transform.other-levels", "why": "…" },
       "duplicate":    { "available": false, "confidence": "UNKNOWN", "finding": "igz.loader.fixup-map", "why": "…" },
-      "add":          { "available": false, "confidence": "UNKNOWN", "finding": "level.prop.native-addition", "why": "…" },
+      "add":          { "available": true, "experimental": true, "confidence": "LIKELY", "finding": "level.prop.native-addition-live-table", "why": "…" },
       "test":         { "available": false, "confidence": "UNKNOWN", "finding": null, "why": "…" },
-      "direct_entry": { "available": false, "confidence": "UNKNOWN", "finding": "level.entry.preload-checkpoint", "why": "…" }
+      "direct_entry": { "available": true, "confidence": "CONFIRMED", "finding": "level.entry.archive-redirect", "why": "…" }
     }
   },
   "switching": true,
@@ -42,6 +42,12 @@ with `error` and `reason`.
   ]
 }
 ```
+
+This example assumes Mining’s voice pack and a confirmed checkpoint strategy are available. Transform
+confidence comes from the transform finding’s explicit `confirmed_levels`; direct-entry confidence comes
+from the separate entry matrix. Add availability is per level; source cards retain their own eligibility
+and experimental status. The legacy top-level `direct_entry` field describes tutorial checkpoint support;
+use `capabilities.direct_entry` for redirect support.
 
 - `family` is one of `story`, `hub`, `challenge`, `pvp`, `other`; levels are sorted by family then name.
 - `runtime_map` is `{ "file", "source" }` with `source` in `config`, `folder`, `default`, or null.

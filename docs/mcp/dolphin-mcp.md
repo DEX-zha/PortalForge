@@ -8,7 +8,7 @@ This step is part of building PortalForge. Detailed planning and development of 
 
 | Item | Installation |
 | --- | --- |
-| Existing Dolphin | `C:/Users/romai/Desktop/dolphin-2606a-x64/Dolphin-x64/Dolphin.exe`, kept and never driven |
+| Existing Dolphin | Dolphin 2606a, configured by `official_dolphin` in `.local/dolphin-config.json`; kept and never driven |
 | MCP runtime | `.local/dolphin-felk/Dolphin.exe`, Felk `scripting-preview4` |
 | Server | `tools/dolphin-mcp/server.mjs`, Node.js, MCP stdio, 35 tools |
 | Dependencies | `mcp-dolphin` 0.3.0, MCP SDK 1.29.0, Ajv 8.20.0, locked in `package-lock.json` |

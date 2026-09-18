@@ -1,5 +1,10 @@
 # Result contract for an addition
 
+> Historical confirmed baseline (005): the eight-instance limit and source refusal below were superseded
+> by [007 additions API](../../007-unlimited-additions/contracts/additions-api.md). The confirmed recipe scope
+> remains nine exact sources and eight instances. Direct entry beyond the tutorial is covered by
+> [006 levels API](../../006-multi-level-editing/contracts/levels-api.md).
+
 `POST /api/edit` accepts `{kind:"add", source:3446244, position:[x,y,z]}`. No victim parameter. The response gives `placement.native_addition`, a negative identity, `rebuild_scene:true` and the history depths. `GET /api/placement/-1` works for the copies; `transform` accepts their position and heading, not their scale.
 
 `GET /api/catalog` announces `addition_mode:"native"`, `addition_capacity:{used,limit:8}`, `entry.addition.{available,reason,status,label,testable,family,checks,report}` and `compatibility.{counts,families}`. Project uses that capacity for Add; the old replacement routes stay explicit. Unconfirmed sources: a diagnostic and an English reason. Current limit: eight copies in total drawn from the nine exact sources listed in compatibility.md, scale 100 %, SSPP52 Rev1 tutorial.

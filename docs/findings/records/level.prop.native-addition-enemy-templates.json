@@ -1,0 +1,34 @@
+{
+  "id": "level.prop.native-addition-enemy-templates",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Enemies added from their stored templates",
+  "structure": "A level's enemy templates (placement records with a model and an enemy script, flag +0x54 = 5, never instantiated by the level itself) used as sources of the native factory recipe",
+  "location": {
+    "offset": 2147489792,
+    "length": 6144,
+    "file_pattern": "SSA SSPP52 Rev1 / native handler, Level_000_Mining"
+  },
+  "meaning": "A level keeps each of its enemies once as a stored template (Mining: Elemental_Swarmer, Elemental_Near_1, Enemy_ElementalHeavy, Enemy_ElementalHeavy_Ranged, Enemy_Elemental_Mage_Fire) and places them through model-less set-up records whose scripts clone the template. Adding the template itself works: six enemies (the five templates and the placed Enemy_Thief(1)) were created next to the level's start on two identical cold boots, each a distinct instance with its own actor, read at four moments of each run. Their behaviour runs: within the opening dialogue the swarmer had travelled about sixteen units towards the player, the near elemental five, both heavies more than one, while the mage and the thief held their place; the last capture of both runs shows fire at the right edge of the frame and the Skylander pushed into view, neither of which is in the same capture of the runs without enemies (largest pixel cluster 120x143 at the bottom right). Adding a set-up record instead does not give an enemy: four of them (Intro_Elemental_Swarmer(1), Intro_Elemental_Near(6), Intro_Elemental_Heavy(1), Intro_Enemy_Thief(1)) were created on two boots and removed themselves before the next reading, leaving nothing at their position. Not judged: combat, damage, loot, defeat, persistence outside the activation range, other levels, enemies whose template lives in another level's libraries.",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789672643910-5a1b0119",
+      "summary": "E2 boot 1: 6 of 6 enemies verified at all four readings; swarmer from (76.0, 10.8, -47.0) to (92.1, 12.3, -47.3); capture 11 shows a fire creature at the bottom right."
+    },
+    {
+      "probe": "editor-direct-test-1789672812252-5e9db3c3",
+      "summary": "E2 boot 2: the same compiled recipe (sha256 d0279c21c9…), 6 of 6 again; swarmer at (90.9, 12.0, -46.1); capture 11 shows fire at the right edge."
+    },
+    {
+      "probe": "editor-direct-test-1789672248949-fb386024",
+      "summary": "E1 boot 1: four model-less enemy set-ups created (4 of 4 at the first reading, zero model word accepted by the recipe's guard), gone at the next."
+    },
+    {
+      "probe": "editor-direct-test-1789672443373-aa1e1799",
+      "summary": "E1 boot 2: the same verdicts; a scan of the instances the game created around the batch finds no enemy at the set-ups' positions."
+    }
+  ]
+}

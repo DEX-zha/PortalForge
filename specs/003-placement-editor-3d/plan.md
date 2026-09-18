@@ -1,5 +1,9 @@
 # Implementation Plan: 3D placement editor
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 **Branch**: `003-placement-editor-3d` | **Date**: 2026-09-13 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `/specs/003-placement-editor-3d/spec.md`

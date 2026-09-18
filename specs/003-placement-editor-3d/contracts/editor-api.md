@@ -164,14 +164,14 @@ served, and no path outside those two directories is reachable.
 
 ---
 
-## What this contract deliberately does not expose
+## Limits and later extensions
 
 - No endpoint returns or accepts raw file bytes. The view cannot write a byte even by mistake.
 - No endpoint applies an edit directly to disk; `POST /api/edit` changes memory only, and `POST /api/save` is the
   single place where a file is produced.
-- No endpoint edits geometry, collision data or script contents, and none creates a placement without consuming an
-  existing slot. Those are out of scope for this feature and absent from the interface, not merely disabled in the
-  interface.
+- No endpoint edits geometry, collision data or script contents. Feature 003 replacement consumes an existing
+  slot; [005 additions](../../005-native-object-addition/contracts/addition.md), extended by
+  [007](../../007-unlimited-additions/contracts/additions-api.md), create native instances without a victim.
 
 The confirmed tutorial Drifting_Piece position edit also translates private type-148 waypoint xyz reached by
 the placement's +0xE4 list. It changes existing coordinates only, preserving instruction bytes and list shape.
@@ -202,7 +202,7 @@ is the creator's yaw minus 90 degrees; cannon top follows creator yaw while the 
 The view preserves those rules during refresh and resolves preview picking to the owner. These previews
 do not add editable placements or affect save plans. See `docs/editor/scene-poses.md` for runtime scope.
 
-`scene_roles` contains tutorial-only `{ offset, role: "template_or_inactive", confidence: "LIKELY",
+`scene_roles` contains per-level `{ offset, role: "template_or_inactive", confidence: "LIKELY",
 editable: false, counterparts: [{offset,name}] }` display hints from the initially inactive/template flag.
 The view hides these stored objects by default under a reversible layer, without changing file visibility.
 `GET /api/placement/:offset` includes `script` diagnostics (clone resources, template users, animation presence,

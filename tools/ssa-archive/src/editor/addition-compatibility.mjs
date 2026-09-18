@@ -1,12 +1,17 @@
-// Whether an object can be added to the game, and why. Every placement gets a list of checks (level, model,
-// scale, identity, recipe, test report) and one status derived from them, so the Project pane shows a reason
-// rather than a disabled button.
+// What is known about adding an object to the game. Every placement gets a list of checks (level, model, scale,
+// identity, recipe, report) and one status derived from them, so the Project pane shows the evidence next to Add.
 //
-// A family is every placement sharing a model, a behaviour script and a scale in one level. A test report is
-// stored per family, but it only ever confirms the exact source that was booted: the others stay candidates.
+// Since feature 007 the evidence no longer gates the addition: any resident object of a level whose place in
+// memory is known can be added, and every launch verifies from memory what it carried and files the result
+// (addition-reports.mjs). A status says how much is known: confirmed by a finding, verified in game, a related
+// source verified, failed in game, or not verified yet. Only what cannot work is blocked.
+//
+// A family is every placement sharing a model, a behaviour script and a scale in one level. A report is stored
+// per family and names the exact source that was in the game: the others are related, not verified.
 import { additionSource } from './native-additions.mjs';
 import { sha256 } from '../util/hash.mjs';
 import { isTutorial } from './levels.mjs';
+import { nativeParamsFor } from './native-params.mjs';
 
 // Part of the family key: bumping it retires every stored report, which is how a change of recipe stops an
 // old failure (or an old success) from being reused.
@@ -18,12 +23,12 @@ const INVISIBLE_MODEL = /[/\\]inviso\.mdl$/i; // the engine's placeholder for ob
 const LABELS = {
   blocked: 'Blocked',
   confirmed: 'Add',
-  runtime_passed: 'Visual check pending',
-  inconclusive: 'Lifecycle check needed',
-  family_tested: 'Related source tested',
-  test_failed: 'Test failed',
-  needs_script_test: 'Needs script test',
-  needs_test: 'Needs test',
+  runtime_passed: 'Add · verified in game',
+  inconclusive: 'Add · verification unclear',
+  family_tested: 'Add · related source tested',
+  test_failed: 'Add · failed in game',
+  needs_script_test: 'Add · script not verified',
+  needs_test: 'Add · not verified',
 };
 
 // What a stored report says about the runtime, mapped to the status it gives an unconfirmed placement.
@@ -45,16 +50,36 @@ export const familyKey = (session, placement) =>
 
 const check = (id, passes, detail) => ({ id, status: passes ? 'pass' : 'blocked', detail });
 
+// The recipe needs to know where the level sits in memory: a constant on the tutorial, the scene snapshot's
+// measure on a level that has one (native-params.mjs), and otherwise the measure the first launch takes when it
+// reaches the level (native-live.mjs). None of them blocks an addition.
+function levelCheck(session) {
+  const measured = nativeParamsFor(session).available;
+  return {
+    id: 'level',
+    status: measured ? 'pass' : 'info',
+    detail: isTutorial(session.archive)
+      ? 'The tutorial sits at its validated place in memory.'
+      : measured
+        ? 'Level measured: its table is compiled into the patch.'
+        : 'Level not measured yet: the first launch from the editor measures it and writes the additions into the game.',
+  };
+}
+
 function structuralChecks(session, placement) {
   const { model, behavior } = placement;
   const visibleModel = Number.isInteger(model?.offset) && !!model?.path && !INVISIBLE_MODEL.test(model.path);
   return [
-    check(
-      'level',
-      session.has_runtime_map && isTutorial(session.archive),
-      'Tutorial runtime map required for this recipe.',
-    ),
-    check('model', visibleModel, 'A resolved visible model is required.'),
+    levelCheck(session),
+    {
+      id: 'model',
+      // Triggers, spawners, enemy set-ups and cameras have nothing to draw. The game creates them like any other
+      // record; a capture cannot show them, so their proof is the memory check of the launch.
+      status: visibleModel ? 'pass' : 'info',
+      detail: visibleModel
+        ? 'Visible model.'
+        : 'Nothing to draw: this object is verified from memory, not from a capture.',
+    },
     check('scale', placement.scale === ORIGINAL_SCALE, 'This recipe currently supports the original 100% scale.'),
     check('identity', !placement.native_addition, 'Tests use an original level object as their source.'),
     {
@@ -84,25 +109,28 @@ function statusOf({ blocked, confirmed, relatedReport, report, scripted }) {
   return STATUS_BY_RUNTIME[report?.runtime] ?? (scripted ? 'needs_script_test' : 'needs_test');
 }
 
+const launches = report => (report?.launches?.length ? ` (${report.launches.length} launch(es))` : '');
+
 function reasonOf({ blocked, confirmed, relatedReport, report, scripted }) {
   // A sibling's result is the most useful thing to say about an unconfirmed placement, even a blocked one.
   if (relatedReport && !confirmed) {
-    return `Related source ${report.name ?? report.source} tested: ${report.runtime}. This exact placement is not confirmed.`;
+    return `Related source ${report.name ?? report.source} in game: ${report.runtime}${launches(report)}. This exact placement has not been in the game yet; the next launch verifies it.`;
   }
   if (blocked) return blocked.detail;
   if (confirmed) return 'Confirmed native addition.';
-  if (report?.runtime === 'passed') return 'Native creation passed. Visibility and behavior have not been confirmed.';
-  if (report?.reason != null) return report.reason;
+  if (report?.runtime === 'passed')
+    return `Created by the game and verified from memory${launches(report)}. Look at it in game to judge how it renders and behaves.`;
+  if (report?.reason != null) return `${report.reason} It can still be added; the next launch verifies it again.`;
   return scripted
-    ? 'A scripted source: test its native creation, rendering and behavior.'
-    : 'Structurally eligible; native creation and rendering still need testing.';
+    ? 'Not verified yet: a scripted source. The next launch that carries it verifies its creation from memory.'
+    : 'Not verified yet. The next launch that carries it verifies its creation from memory.';
 }
 
 export function classifyAddition(session, placement, { report = null } = {}) {
   const checks = structuralChecks(session, placement);
   const facts = {
     blocked: checks.find(c => c.status === 'blocked'),
-    confirmed: additionSource(session, placement.offset).available,
+    confirmed: additionSource(session, placement.offset).evidence === 'confirmed',
     // A report is filed under the family, so it may describe another member than the one being classified.
     relatedReport: report?.source != null && report.source !== placement.offset,
     report,
@@ -113,7 +141,9 @@ export function classifyAddition(session, placement, { report = null } = {}) {
     status,
     label: LABELS[status],
     reason: reasonOf(facts),
-    available: facts.confirmed && !facts.blocked,
+    // Addable whenever nothing blocks it; `confirmed` and the report say how much is known.
+    available: !facts.blocked,
+    experimental: !facts.blocked && !facts.confirmed,
     testable: !facts.blocked,
     family: familyKey(session, placement),
     checks,

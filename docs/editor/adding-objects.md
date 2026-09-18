@@ -1,0 +1,191 @@
+# Adding objects to a level
+
+How the editor adds an object that the level does not contain, what stands behind the **Add** on a card, and how
+the game ends up creating it. Feature [007](../../specs/007-unlimited-additions/spec.md); the boots behind every
+claim are in its [validation](../../specs/007-unlimited-additions/validation.md).
+
+Nothing here inserts a byte into a level file. An added object is created by the game itself, at run time, from a
+record the level already holds.
+
+## In the editor
+
+Every object of the open level can be added, from the **Project** browser or the hierarchy: placed objects, stored
+templates (the hidden "Templates and disabled objects" layer), and objects with nothing to draw (triggers, spawners,
+cameras). Drop it where you want it; move or rotate the copy like any other object. A scene takes up to 590
+additions: the first 59 can be compiled into the patch, and a larger scene is written into the running game by the
+launch, batch after batch, so it needs to be launched from the editor.
+
+The card says what is known about that source, and never more:
+
+| On the card | Meaning |
+|---|---|
+| **Add** | a confirmed recipe: this exact source passed two identical boots and a review (nine tutorial sources) |
+| **Add · verified in game** | a launch created it and read it back from the game's memory; the count of launches is in the tooltip |
+| **Add · related source tested** | another object of the same family (same model, script and scale) was in the game; this one was not yet |
+| **Add · verification unclear** | inspection was incomplete, or creation was observed but the final state was not verified; this does not establish disappearance or its cause |
+| **Add · failed in game** | the last inspection failed the runtime checks; the reason is in the tooltip. It can be added again |
+| **Add · not verified** / **script not verified** | never launched yet |
+| **Blocked** | cannot work: the source is itself an added copy, or its scale is not 100 % |
+
+An addition whose source has no confirmed recipe is an **experimental addition**: it is marked as such in the
+session, in the file saved next to the level and in the patch, and its proof is taken by every launch that carries
+it ([constitution](../../.specify/memory/constitution.md) 1.2.0).
+
+Things that the boots taught:
+
+- **To add an enemy, add its template**, not the record that places it. A level keeps each enemy once as a stored
+  template with a model and an enemy script (`Elemental_Swarmer`, `Enemy_ElementalHeavy`, …) and places it through
+  model-less set-up records (`Intro_Elemental_Swarmer(1)`, …). A copied set-up runs its script and removes itself
+  without leaving an enemy; a copied template stands where you put it and then behaves: on Mining the added
+  swarmer ran sixteen units to the player within the opening dialogue.
+- **Some objects remove themselves**: debris, dead automaton parts, actors of a closing cutscene. Earlier observations can establish creation even when the final inspection cannot verify a live instance.
+  The generic report does not identify the responsible script or prove that collection occurred.
+- **A level's singletons** (its Level Master, its cutscene directors) can be added like anything else, and copying
+  one may hang the level. The launch records it; undo the addition.
+
+## Finding an object: the Project tab
+
+The folders of the Project tab come from what the game says about each record, never from its display name: the
+library it was compiled from (`Enemy_Elemental_Swarmer.lvl`) and the directory of its script in the game's own
+content tree (`Levels/_Enemies/Elemental_Swarmer`, `Levels/Includes/GameElement_PushBlock`). Every object sits in
+exactly one folder:
+
+| Folder | What files there |
+|---|---|
+| **Enemies** / name | enemy libraries and everything scripted under `Levels/_Enemies`: the templates, their set-ups, macros and intros |
+| **Game elements** / name | `GameElement_*` libraries and includes: walls, push blocks, doors and keys, food, bridges, lanterns |
+| **Loot and treasure** | loot includes and treasure chest libraries |
+| **Destructibles** | the shared destructibles include: barrels, crates, pots |
+| **Shared libraries** / name | any other library compiled into the level |
+| **This level** / layer | the level's own objects, by the layer its authors put them in |
+| **Logic** / layer | records with nothing to draw: triggers, cameras, sounds, the level's scripts |
+
+A switch widens the tab from **This level** to the **Whole game**: every *kind* of object of the 75 scenes with placements (76 archives including Title), 8 800
+of them, with the levels that hold each. A kind is a model path and a script path within the game's Content tree,
+so a placed instance and the template it was cloned from are one kind, and two objects that merely share a name
+are not. Records with neither a model nor a script use their normalized bare name as a fallback, so equal
+fallback names group together without proving asset equivalence. The catalogue is built
+once (`edit catalogue`, or the button the tab offers; about seven seconds) and kept under `.local/`.
+
+- A kind the open level holds is shown as this level's own object: select it, drag it, add it. Looking for "a
+  Chompy" in a level that has the Chompy library finds that level's Chompy.
+- A kind held only by other levels is a read-only card: it names the levels that hold it and cannot be dragged.
+  Nothing of another level can reach a scene, because a record of another level has no offset in this one.
+  Bringing such an object in is phase C of the [plan](../../specs/007-unlimited-additions/plan.md): 6 578 kinds
+  exist in one level only, and Mining lacks 382 enemy kinds that other levels have.
+
+## Do additions cost the level its own objects?
+
+Measured on Mining, one boot each: with one addition the level has 60 of its own objects active with an actor at
+every reading, 313 dormant, 381 in all; with 152 additions it has 59, 61 and 62 active, still 381 in all. Every
+object active in the control boot is active with 152 additions too; the two more that woke up are a barrel and a
+hint near the start, because the fight moved the Skylander. Nothing was pushed out. `--census` on the probe takes
+this reading.
+
+## Save, Patch, Launch
+
+- **Save** writes the level (unchanged by additions) and a sidecar `<level>.portalforge.json` holding the additions:
+  the source's file offset, its model and script offsets, the position and heading, and `experimental`.
+- **Patch** compiles the Gecko companion `portalforge-additions.ini` next to the Riivolution patch and records the
+  options it was compiled with, so that the launcher installs exactly those bytes.
+- **Launch** installs the companion into the research profile, boots, and reads every addition back from memory at
+  each capture of the level and at the end. During play it also takes periodic readings (at most 40),
+  stopping those periodic readings once every addition has been seen alive. This is sampled evidence, not continuous tracking. The note at the end of a
+  launch says how many were verified; the verdicts are filed per family under `.local/addition-validation/` and
+  show on the cards. A missing experimental addition never stops the game.
+
+## How the game creates them
+
+The executable has a factory (`0x80041984`) that the game's own scripts use to clone a placement record: given a
+source record, a position and an orientation expression, it returns a new placement instance with its own actor,
+the source's model and script, and the source as its parent. The companion is a small PowerPC routine hooked into
+the activation manager (`0x80062B88`), which runs with the level. It waits until the manager has observers and a
+known placement of the level, the **anchor**, is active with an actor; then it walks a table and calls the factory
+once per row. Every row is guarded: the source must carry the placement class pointer, the expected model and the
+expected script, or the row is skipped. These guards reject mismatched records at readable addresses; they do not make arbitrary addresses or other executable revisions safe.
+
+The confirmed tutorial recipes keep the context they were proven in: script-less sources are created at the return
+of the game's own clone call (`0x800445C8`), scripted ones in the activation manager. Everything else, on every
+level, goes through the activation manager.
+
+Two things are specific to a level: the address its resident section is loaded at (**base**; a source is addressed
+as base plus its file offset) and the anchor. Three layouts carry the rows:
+
+| Layout | Per addition | Holds | Used when |
+|---|---:|---:|---|
+| `slot` | 144 bytes: the factory's argument block lives in the slot | 18 | up to 18 additions on a measured level; the only layout the nine confirmed recipes were proven with |
+| `table` | 40 bytes, one shared argument block rebuilt before each call | 59 | past 18 additions on a measured level |
+| `live` | the same rows, empty at boot | 59 per batch, refilled | a level that was never measured; any scene of more than 59 additions |
+
+The ceiling is Dolphin's Gecko area: its code handler leaves 3 256 bytes for codes (the code list starts at
+`0x80002338`), routine included.
+
+## Measured levels, and levels never measured
+
+- **The tutorial** sits at a constant place (`0x80DBC020`) and its anchor is the sunflower source: constants,
+  validated by feature 005. Its compiled bytes are pinned by a test and must not change.
+- **A level with a scene snapshot** (taken by *As in game → Capture*, or left by a previous launch) has been
+  measured: the snapshot located the resident section and saw which placements were active. Its table is compiled
+  into the patch, with a still, visible, script-less active prop as the anchor (Mining: the mine train). Such a
+  patch also works when the game is played without the editor.
+- **A level never measured** gets the `live` routine: the same bytes for every level, with an empty table. When the
+  launch reaches the level it measures it, keeps that snapshot, and writes the table into the running game through
+  the Dolphin bridge: the rows, then the anchor, then the count. The routine does nothing while the count is zero,
+  so it never sees half a table. From then on the level is measured, and its next patch compiles the table in.
+
+The editor can attempt additions on the first launch without a prior snapshot. Successful measurement, a suitable anchor and compatible runtime state are still required. Measurement failures are recorded. Once live-table writing starts, an uncertain bridge failure is not retried in the same run: the game may already have created some objects.
+
+**More than 59.** The routine attempts every row of its table in one pass, and the launcher can then read what it
+wrote (for each row, the attempt word and the instance the factory returned), keep it, and write the next 59 rows
+over them. The Gecko area bounds a batch, not a scene. The kept rows travel with the run (`options.rows`) so that
+every later reading still finds the additions of the earlier batches. A patch that relies on this carries the live
+routine even on a measured level; played without the editor, that routine finds an empty table and creates nothing.
+The editor accepts 590 additions in a scene, which is a guard, not a measure of what the game can hold: 152 went in
+on Mining through three tables, twice, and the game played on.
+
+## What a launch checks
+
+For each addition, from the game's memory (`inspectAdditions` in `native-run.mjs`): the row was consumed and the
+factory returned an instance; the instance carries the placement class pointer, state 1, its own actor (distinct
+from the source's and from every other addition's), the source as parent, the source's model and script, and the
+position and heading that were asked for. The initial transform is checked apart from the current one, because an
+enemy walks away from where it was created. Rendering is never inferred: look at the screen.
+
+## Probes
+
+Run from `tools/ssa-archive`, one Dolphin boot per invocation, twice for the two-boot rule:
+
+```powershell
+# a batch of sources on a level, laid out on a grid (beside the level's anchor when no --origin is given)
+node research-probes/native-level-probe.mjs --level Level_000_Mining --auto 32 --visible --layout table
+node research-probes/native-level-probe.mjs --level Level_000_Mining --origin 76,10.8,-47 --spacing 3 --columns 3 `
+  --sources "Elemental_Swarmer,Elemental_Near_1,Enemy_ElementalHeavy"
+# a level never measured: the run measures it and writes the batch into the game
+node research-probes/native-level-probe.mjs --level Level_039_UndeadVolcano --auto 8 --visible
+```
+
+`--dry` plans and compiles without booting; `--scan 12` lists what the game itself created around the batch.
+
+## Code map
+
+| File (`tools/ssa-archive/src/editor/`) | Role |
+|---|---|
+| `native-patch.mjs` | the PowerPC routine and its three layouts; `nativeCapacity` measures what fits |
+| `native-params.mjs` | a level's base and anchor: the tutorial's constants, or the newest scene snapshot |
+| `native-live.mjs` | measuring a level at arrival and writing the table into the running game |
+| `native-additions.mjs` | the session's additions: sources, the experimental mark, the sidecar, compile options |
+| `native-run.mjs` | installing the companion in the research profile; reading additions back from memory |
+| `native-watch.mjs` | what a run does about its additions: measure, read at each capture and in play, verdict |
+| `addition-compatibility.mjs` | the evidence on a card: checks, status, family key |
+| `addition-reports.mjs` | one verdict per addition per run, filed per family with its launches |
+| `addition-campaign.mjs` | batches of sources in one boot, for experiments and campaigns |
+| `object-kinds.mjs` | what an object is across levels (kind) and the folder it files under, from its library and script directory |
+| `game-catalogue.mjs` | every kind of the game with the levels that hold it; `edit catalogue`, `/api/library` |
+
+## Not proven, not done
+
+- Rendering was looked at for the added enemies only; combat, damage, loot and defeat are not judged.
+- More than 59 additions when the game is played without the editor: a table outside the Gecko area
+  ([study](../../specs/007-unlimited-additions/study-add-anything.md), step S09).
+- Objects whose template is not in the level (an enemy of another level): phase C, gate M4A.
+- Scales other than 100 %.

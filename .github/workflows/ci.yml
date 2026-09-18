@@ -43,7 +43,7 @@ jobs:
         working-directory: tools/dolphin-mcp
         run: npm ci --ignore-scripts
 
-      # The repository has no bundler and no linter; parsing every module catches syntax errors in the files
+      # Alongside the quality job, parsing every module catches syntax errors in the files
       # the test suites never import, such as the research probes and the browser view modules.
       - name: Parse every module
         shell: bash
@@ -112,9 +112,9 @@ jobs:
       - name: Rendered findings match their records
         run: |
           node tools/ssa-archive/cli.mjs findings render
-          if ! git diff --quiet -- docs/findings; then
-            git --no-pager diff --stat -- docs/findings
-            echo "::error::docs/findings is out of date; run 'node tools/ssa-archive/cli.mjs findings render' and commit the result"
+          if ! git diff --quiet -- docs/findings docs/format/iga-v4.md; then
+            git --no-pager diff --stat -- docs/findings docs/format/iga-v4.md
+            echo "::error::Generated findings or format documentation is out of date; run 'node tools/ssa-archive/cli.mjs findings render' and commit the result"
             exit 1
           fi
 

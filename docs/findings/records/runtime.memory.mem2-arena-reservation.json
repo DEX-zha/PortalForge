@@ -1,0 +1,30 @@
+{
+  "id": "runtime.memory.mem2-arena-reservation",
+  "updated": "2026-09-17",
+  "category": "world-entities",
+  "confidence": "LIKELY",
+  "editable": false,
+  "endian": "be",
+  "type": "Memory reserved from the game through the OS arena",
+  "structure": "Riivolution memory patch on the word at 0x80003128 (end of usable MEM2), applied by Dolphin after the executable is loaded and before its first instruction; a second memory patch fills the reserved block from a value file",
+  "location": {
+    "offset": 2147496232,
+    "length": 4,
+    "file_pattern": "SSA SSPP52 Rev1 in the research Dolphin / MEM2 0x935A0000..0x935E0000"
+  },
+  "meaning": "The game's OS takes the end of usable MEM2 from the word at 0x80003128 when it starts (0x935E0000 on this game in Dolphin). A Riivolution memory patch that lowers it to 0x935A0000 is in place before the game's first instruction, and the game then never allocates in the 256 KB above it: a pattern written there by a second memory patch was intact, word for word, at all four readings of two boots of Mining, through the direct-entry checkpoint, the level load and the opening dialogue, and the level played as usual. The control boot wrote the same pattern without lowering the word: the game overwrote all 65 536 words of it before the first reading, so that block is memory the game uses and the lowered word is what keeps it out. A checkpoint restores all of memory, so what a patch writes into memory is part of the checkpoint's identity (level-entry.mjs); the reservation was made with the checkpoint and survived its restore. Not judged: a table of additions placed there (S09), other levels, sizes other than 256 KB, memory pressure late in a level, real hardware (where this word and this region belong to IOS).",
+  "evidence": [
+    {
+      "probe": "editor-direct-test-1789678712449-aaa9d8b7",
+      "summary": "M1 boot with the reservation: the word reads 0x935A0000 and the block is intact at the three captures of the level and at the end; consumption proven; MACRO_COMPLETED."
+    },
+    {
+      "probe": "editor-direct-test-1789679147543-71adac31",
+      "summary": "Second boot with the reservation: the same word and an intact block at all four readings."
+    },
+    {
+      "probe": "editor-direct-test-1789678882121-ed05e74a",
+      "summary": "Control: the same pattern with the word left at 0x935E0000; all 65 536 words overwritten at the first reading."
+    }
+  ]
+}

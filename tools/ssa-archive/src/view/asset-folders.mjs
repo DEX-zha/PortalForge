@@ -1,24 +1,8 @@
-// Navigation categories only: never write these inferred labels into game data.
-export function assetFolder(entry) {
-  const name = `${entry.model ?? ''} ${entry.name ?? ''}`.toLowerCase();
-  if (entry.category === 'marker')
-    return ['Markers', /camera|^cs_|cutscene/.test(name) ? 'Cameras and cutscenes' : 'Logic and positions'];
-  if (/sunflower|flower|petal/.test(name)) return ['Vegetation', 'Flowers'];
-  if (/tree|palm|trunk|stump/.test(name)) return ['Vegetation', 'Trees'];
-  if (/weed|plant|grass|bush|vine|fern/.test(name)) return ['Vegetation', 'Plants'];
-  if (/bridge|plank|ramp|platform|jumpad/.test(name)) return ['Scenery', 'Bridges and platforms'];
-  if (/rock|stone|cliff|island|terrain|shell/.test(name)) return ['Scenery', 'Rocks and terrain'];
-  if (/house|building|windmill|tower|roof|wall|fence|gate/.test(name)) return ['Scenery', 'Buildings'];
-  if (/coin|treasure|gem|loot|food|apple|chest/.test(name)) return ['Objects', 'Treasure and pickups'];
-  if (/barrel|crate|pot|basket|box/.test(name)) return ['Objects', 'Containers'];
-  if (/cannon|canon|switch|lever|gear|wheel|push.?block/.test(name)) return ['Objects', 'Mechanisms'];
-  if (/chompy|enemy|mabu|hugo|sheep|troll|npc|character/.test(name)) return ['Characters', 'Creatures and characters'];
-  if (/vfx|particle|smoke|fire|water|cloud|light|effect/.test(name)) return ['Atmosphere', 'Effects and environment'];
-  return [
-    'Other',
-    entry.category === 'scripted' ? 'Scripted objects' : entry.category === 'resource' ? 'Resources' : 'Props',
-  ];
-}
+// Folder navigation of the Project pane. The folder of an entry is decided by the server from the game's own
+// data: the library the record was compiled from and the directory of its script (src/editor/object-kinds.mjs).
+// Nothing here looks at a display name, and nothing here is ever written into game data.
+export const assetFolder = entry =>
+  Array.isArray(entry.folder) && entry.folder.length === 2 ? entry.folder : ['Unsorted', entry.category ?? 'Objects'];
 
 export function folderTree(entries) {
   const roots = new Map();
@@ -33,8 +17,41 @@ export function folderTree(entries) {
     .sort((a, b) => a.name.localeCompare(b.name, 'en'))
     .map(r => ({
       ...r,
-      children: [...r.children].sort(([a], [b]) => a.localeCompare(b, 'en')).map(([name, count]) => ({ name, count })),
+      children: [...r.children]
+        .sort(([a], [b]) => a.localeCompare(b, 'en', { numeric: true }))
+        .map(([name, count]) => ({ name, count })),
     }));
 }
 export const inFolder = (entry, selected) =>
   !selected.length || selected.every((name, i) => assetFolder(entry)[i] === name);
+
+// The Whole game scope: one card per kind of object. A kind that the open level holds is this level's own entry,
+// so it is selected, dragged and verified like any other; a kind held elsewhere is a read-only card that says
+// which levels hold it. `entries` are the open level's catalogue entries, by offset.
+export function libraryCards(kinds, entries) {
+  const byOffset = new Map(entries.map(entry => [entry.offset, entry]));
+  return kinds.map(kind => {
+    const local = kind.here ? byOffset.get(kind.here.offset) : null;
+    if (local)
+      return { ...local, name: kind.name, folder: kind.folder, kind: kind.key, levels: kind.levels, here: kind.here };
+    const names = kind.levels.map(level => level.name);
+    return {
+      offset: null,
+      kind: kind.key,
+      name: kind.name,
+      model: kind.model,
+      layers: [],
+      folder: kind.folder,
+      category: 'elsewhere',
+      available: false,
+      levels: kind.levels,
+      here: null,
+      reason: `Not in this level. Held by ${names.length} level(s): ${names.slice(0, 12).join(', ')}${names.length > 12 ? '…' : ''}`,
+      addition: {
+        status: 'elsewhere',
+        label: `In ${names.length} level${names.length > 1 ? 's' : ''}`,
+        available: false,
+      },
+    };
+  });
+}

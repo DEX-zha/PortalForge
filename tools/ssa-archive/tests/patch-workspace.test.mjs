@@ -49,3 +49,46 @@ test('patch workspace contains only differing files, a valid Riivolution XML and
   const patchJson = JSON.parse(fs.readFileSync(path.join(out, 'patch.json'), 'utf8'));
   assert.equal(patchJson.replacements[0].sha256.length, 64);
 });
+
+test('memory patches are written as Riivolution memory elements, a block through a value file, and refused outside RAM', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ssa-patch-memory-'));
+  const game = path.join(dir, 'fake.wbfs');
+  fs.writeFileSync(game, Buffer.alloc(16));
+  const replacement = path.join(dir, 'level.bld');
+  fs.writeFileSync(replacement, Buffer.alloc(2048, 7));
+  const block = Buffer.alloc(0x1000, 0x5a);
+  const base = { experimentId: 'memory-test', game, outDir: path.join(dir, 'patch'), force: true };
+  const replacements = [{ disc_path: 'level/Level_027_Tutorial.bld', file: replacement }];
+  const ws = buildPatchWorkspace({
+    ...base,
+    replacements,
+    memory: [
+      { offset: 0x80003128, value: '935a0000' },
+      { offset: 0x935a0000, bytes: block },
+    ],
+  });
+  const xml = fs.readFileSync(ws.xml, 'utf8');
+  assert.match(xml, /<memory offset="0x80003128" value="935A0000" \/>/);
+  // Like a replacement file, the value file is named from the descriptor root.
+  assert.match(xml, /<memory offset="0x935A0000" valuefile="\/memory\/0x935A0000\.bin" \/>/);
+  assert.ok(fs.readFileSync(path.join(ws.dir, 'memory', '0x935A0000.bin')).equals(block));
+  assert.deepEqual(
+    ws.memory.map(m => [m.offset, m.value ?? m.size]),
+    [
+      [0x80003128, '935A0000'],
+      [0x935a0000, 0x1000],
+    ],
+  );
+  // A patch that writes nothing into memory says nothing about memory: existing descriptors do not change.
+  const plain = buildPatchWorkspace({ ...base, outDir: path.join(dir, 'plain'), replacements });
+  assert.equal(plain.memory, undefined);
+  assert.doesNotMatch(fs.readFileSync(plain.xml, 'utf8'), /<memory/);
+  assert.throws(
+    () => buildPatchWorkspace({ ...base, replacements, memory: [{ offset: 0x1000, value: '00' }] }),
+    /MEM1 or MEM2/,
+  );
+  assert.throws(
+    () => buildPatchWorkspace({ ...base, replacements, memory: [{ offset: 0x80003128, value: 'xyz' }] }),
+    /hex bytes/,
+  );
+});

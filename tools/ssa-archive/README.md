@@ -1,6 +1,6 @@
 # ssa-archive — SSA Research Toolkit
 
-Node.js library and CLI for the PortalForge research gates M1 (archive round-trip) and M2 (controlled world mutation) on Skylanders: Spyro's Adventure Wii (`SSPP52`). Design: `specs/001-ssa-level-research/` (plan, research, data model, contracts, quickstart, tasks).
+Node.js library, CLI and browser editor for Skylanders: Spyro's Adventure Wii (`SSPP52 Rev1`): archive rebuilding, placement editing, runtime additions, a game-wide object catalogue and Dolphin experiments. See the [project README](../../README.md) for setup and the [specification status](../../specs/README.md) for current scope.
 
 ## Scope
 
@@ -8,7 +8,7 @@ Non-commercial fan research and preservation tooling. Not affiliated with Activi
 
 ## Gate rule (FR-015)
 
-No editor, viewport, import, object-creation or menu-expansion code lives in this package until `docs/m1-status.json` and `docs/m2-status.json` both read `PASS`. Until then the toolkit only inspects, extracts, verifies, rebuilds, diffs, patches and runs experiments. Findings with confidence `UNKNOWN` or `LIKELY` are never exposed as editable properties (FR-013).
+M0–M3 are PASS: archive rebuilding, controlled placement edits and same-size duplication are implemented. Only CONFIRMED properties are editable (FR-013); constitution 1.2.0 separately permits explicitly experimental runtime additions from resident sources, verified by each editor-owned launch. This does not authorize IGZ insertion or cross-level imports. M4A, M4B and M5 remain UNKNOWN.
 
 ## Rules of the road
 
@@ -24,6 +24,9 @@ cd tools/ssa-archive
 npm ci --ignore-scripts
 npm test
 node cli.mjs --help
+node cli.mjs edit levels
+node cli.mjs edit open Level_000_Mining --port 7400 --open
+node cli.mjs edit catalogue
 ```
 
 Commands and JSON shapes: `specs/001-ssa-level-research/contracts/ssa-archive-cli.md`. Validation scenarios: `specs/001-ssa-level-research/quickstart.md`.

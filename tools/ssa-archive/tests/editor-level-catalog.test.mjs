@@ -194,7 +194,7 @@ test('capabilities come from the evidence held for the level, and each one names
   assert.deepEqual(Object.fromEntries(Object.entries(other).map(([k, v]) => [k, v.available])), {
     transform: true,
     duplicate: false,
-    add: false,
+    add: true,
     test: false,
     direct_entry: false,
   });
@@ -205,7 +205,9 @@ test('capabilities come from the evidence held for the level, and each one names
   const mapped = capabilitiesOf({ tutorial: false, runtimeMap: { file: 'm' }, directEntry: false });
   assert.equal(mapped.duplicate.available, true);
   assert.equal(mapped.duplicate.confidence, 'LIKELY');
-  assert.equal(mapped.add.available, false, 'a map alone does not unlock native additions outside the tutorial');
+  assert.equal(mapped.add.available, true);
+  assert.equal(mapped.add.experimental, true, 'availability never confirms every source in a level');
+  assert.equal(other.add.experimental, true, 'a runtime map is not required for live additions');
 
   const unprepared = capabilitiesOf({ tutorial: true, runtimeMap: { file: 'm' }, directEntry: false });
   assert.equal(unprepared.direct_entry.available, false);

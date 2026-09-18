@@ -1,5 +1,9 @@
 # Quickstart: IGZ v5 Level Object Model
 
+> Scope reviewed 2026-09-17: this feature records its original design and evidence. Later extensions and
+> remaining work are mapped in the [specification status](../README.md); historical limits below are not the
+> current editor limits.
+
 Prerequisites: feature 001 complete (M0, M1, M2 PASS), `.local/workspaces/tutorial-bld` extracted and decoded (`node cli.mjs extract ... --decode`), Sonic Boom figure, interactive desktop. Commands from `tools/ssa-archive`.
 
 ## Scenario 1: object graph accounting (SC-001)
